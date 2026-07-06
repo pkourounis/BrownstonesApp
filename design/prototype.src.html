@@ -1,0 +1,577 @@
+<title>Brownstones Coffee — App Prototype</title>
+<style>
+  @font-face {
+    font-family: 'Playfair Display';
+    font-style: normal; font-weight: 400; font-display: swap;
+    src: url(data:font/woff2;base64,@@FONT400@@) format('woff2');
+  }
+  @font-face {
+    font-family: 'Playfair Display';
+    font-style: normal; font-weight: 700; font-display: swap;
+    src: url(data:font/woff2;base64,@@FONT700@@) format('woff2');
+  }
+
+  :root {
+    --cream:#f7f1e2; --paper:#fffdf7; --paper-2:#fbf5e9;
+    --ink:#2c2114; --muted:#8c7a5d; --faint:#b6a686;
+    --line:#e9dec5; --line-2:#f0e7d3;
+    --bronze:#6c5124; --bronze-600:#7c5c28; --bronze-700:#5a431e;
+    --gold:#c69b4a; --gold-soft:#e7cf9b; --gold-tint:#f4e8ca;
+    --brick:#9c3f2c; --green:#4f7a3d; --amber:#b7791f; --blue:#3f6a8c;
+    --stage:#e7ddc8; --stage-ink:#6c5124; --bezel:#241a0d;
+    --serif:'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --stage:#1c1913; --stage-ink:#d8b878; --bezel:#000; }
+  }
+  :root[data-theme="light"] { --stage:#e7ddc8; --stage-ink:#6c5124; --bezel:#241a0d; }
+  :root[data-theme="dark"]  { --stage:#1c1913; --stage-ink:#d8b878; --bezel:#000; }
+
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--sans); background:var(--stage); color:var(--ink);
+    -webkit-font-smoothing:antialiased; }
+  .stage { min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    gap:18px; padding:22px 14px 40px; }
+
+  .pitch { width:min(420px,94vw); text-align:center; color:var(--stage-ink); }
+  .pitch h1 { font-family:var(--serif); font-weight:700; letter-spacing:.02em;
+    font-size:clamp(20px,5vw,26px); margin:0 0 2px; }
+  .pitch p { margin:0; font-size:12.5px; opacity:.8; }
+  .seg { margin:14px auto 0; display:inline-flex; background:rgba(0,0,0,.06);
+    border:1px solid rgba(0,0,0,.08); border-radius:999px; padding:4px; gap:2px; }
+  .seg button { font:inherit; font-size:12.5px; font-weight:600; border:0; cursor:pointer;
+    padding:7px 14px; border-radius:999px; color:var(--stage-ink); background:transparent;
+    white-space:nowrap; transition:.18s; }
+  .seg button[aria-pressed="true"] { background:var(--bronze); color:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.2); }
+
+  .phone { width:min(390px,94vw); height:min(812px,84vh); background:var(--bezel);
+    border-radius:44px; padding:11px; box-shadow:0 26px 60px -20px rgba(0,0,0,.55),
+    0 0 0 2px rgba(255,255,255,.04) inset; flex:0 0 auto; }
+  .app { position:relative; height:100%; background:var(--cream); border-radius:34px;
+    overflow:hidden; display:flex; flex-direction:column; }
+
+  .statusbar { height:34px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:12px; font-weight:600; color:var(--ink); flex:0 0 auto; }
+  .statusbar .dots { display:flex; gap:5px; align-items:center; opacity:.75; }
+  .statusbar .dots span { font-size:11px; }
+
+  .appbar { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px 12px; }
+  .app[data-screen="login"] .appbar,
+  .app[data-screen="login"] .tabbar { display:none; }
+  .wm { display:inline-flex; flex-direction:column; align-items:center; line-height:1;
+    color:var(--bronze); }
+  .wm b { font-family:var(--serif); font-weight:700; font-size:19px; letter-spacing:.01em;
+    text-transform:uppercase; }
+  .wm .sub { display:flex; align-items:center; gap:5px; width:100%; margin-top:3px;
+    font-size:7px; font-weight:700; letter-spacing:.34em; text-transform:uppercase; color:var(--bronze-600); }
+  .wm .sub::before, .wm .sub::after { content:""; height:1px; flex:1; background:var(--gold); opacity:.8; }
+  .avatar { width:34px; height:34px; border-radius:50%; background:var(--bronze);
+    color:var(--gold-tint); display:grid; place-items:center; font-weight:700; font-size:13px;
+    border:1.5px solid var(--gold-soft); cursor:pointer; flex:0 0 auto; }
+
+  .screens { flex:1 1 auto; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+  .screen { display:none; flex-direction:column; gap:16px; padding:4px 18px 26px; }
+  .app[data-screen="login"]   .screen[data-s="login"],
+  .app[data-screen="home"]     .screen[data-s="home"],
+  .app[data-screen="schedule"] .screen[data-s="schedule"],
+  .app[data-screen="build"]    .screen[data-s="build"],
+  .app[data-screen="team"]     .screen[data-s="team"],
+  .app[data-screen="feed"]     .screen[data-s="feed"],
+  .app[data-screen="chat"]     .screen[data-s="chat"],
+  .app[data-screen="resources"] .screen[data-s="resources"],
+  .app[data-screen="profile"]  .screen[data-s="profile"],
+  .app[data-screen="admin"]    .screen[data-s="admin"] { display:flex; }
+
+  .h1 { font-family:var(--serif); font-weight:700; font-size:25px; margin:0; color:var(--ink);
+    letter-spacing:.01em; }
+  .sub { color:var(--muted); font-size:12.5px; margin:2px 0 0; }
+  .eyebrow { font-size:10.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--faint); margin:0 0 8px; }
+  .screen-head { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:18px;
+    padding:15px; box-shadow:0 1px 0 rgba(0,0,0,.02); }
+  .card.tight { padding:13px; }
+
+  .btn { font:inherit; font-weight:600; font-size:13.5px; border-radius:12px; border:1px solid transparent;
+    padding:11px 15px; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    cursor:pointer; width:100%; transition:.16s; }
+  .btn-primary { background:var(--bronze); color:#fff; }
+  .btn-primary:hover { background:var(--bronze-700); }
+  .btn-ghost { background:var(--paper); color:var(--bronze); border-color:var(--line); }
+  .btn-gold { background:var(--gold); color:#3a2c10; }
+  .btn-gold:hover { filter:brightness(1.04); }
+  .btn.sm { width:auto; padding:8px 13px; font-size:12.5px; border-radius:10px; }
+
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:12px; font-weight:600; color:var(--ink); }
+  .field input { font:inherit; font-size:14px; padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); }
+  .field input:focus { outline:2px solid var(--gold-soft); border-color:var(--gold); }
+
+  .pill { font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px;
+    letter-spacing:.02em; display:inline-flex; align-items:center; gap:4px; }
+  .pill.draft { background:#fbefd2; color:#9a6b13; }
+  .pill.live  { background:#f6e0da; color:var(--brick); }
+  .pill.ok    { background:#e4efdd; color:var(--green); }
+  .pill.info  { background:#e2ecf3; color:var(--blue); }
+  .pill.gold  { background:var(--gold-tint); color:#7a5a12; }
+
+  .row { display:flex; align-items:center; gap:12px; }
+  .between { justify-content:space-between; }
+  .stack { display:flex; flex-direction:column; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .muted { color:var(--muted); }
+  .tnum { font-variant-numeric:tabular-nums; }
+  .divider { height:1px; background:var(--line-2); margin:4px 0; }
+
+  .stat { display:flex; flex-direction:column; gap:3px; }
+  .stat .big { font-size:26px; font-weight:800; font-family:var(--serif); color:var(--bronze);
+    line-height:1; }
+  .stat .lbl { font-size:11px; color:var(--muted); font-weight:600; }
+
+  .ic { width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
+    background:var(--gold-tint); color:var(--bronze); flex:0 0 auto; }
+
+  .shift { display:flex; gap:12px; align-items:stretch; }
+  .shift .bar { width:4px; border-radius:4px; flex:0 0 auto; }
+  .shift .time { font-weight:700; font-size:14px; }
+
+  .dayhead { font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--faint); margin:6px 2px 0; }
+
+  .ava { width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+    font-weight:700; font-size:14px; color:#fff; flex:0 0 auto; }
+
+  .tabbar { flex:0 0 auto; display:flex; background:rgba(255,255,255,.86);
+    backdrop-filter:blur(8px); border-top:1px solid var(--line);
+    padding:7px 6px calc(7px + env(safe-area-inset-bottom)); }
+  .tab { flex:1; background:none; border:0; cursor:pointer; display:none; flex-direction:column;
+    align-items:center; gap:3px; padding:5px 2px; color:var(--faint); font:inherit; font-size:10px;
+    font-weight:600; }
+  .tab svg { width:22px; height:22px; }
+  .tab[aria-current="true"] { color:var(--bronze); }
+  .tab.on { display:flex; }
+
+  .post .head { display:flex; gap:10px; align-items:center; }
+  .post .body { font-size:13.5px; line-height:1.5; margin:10px 0 0; color:#3b2e1c; }
+  .post .acts { display:flex; gap:18px; margin-top:11px; color:var(--muted); font-size:12px; font-weight:600; }
+  .post .acts b { color:var(--brick); }
+  .photo { margin-top:10px; height:150px; border-radius:13px;
+    background:linear-gradient(135deg,#c9a15a,#8a5a2b 70%); position:relative; overflow:hidden; }
+  .photo::after { content:"🥞"; position:absolute; inset:0; display:grid; place-items:center; font-size:52px; opacity:.9; }
+
+  .chan { display:flex; gap:12px; align-items:center; padding:11px 0; border-bottom:1px solid var(--line-2); }
+  .chan:last-child { border-bottom:0; }
+  .badge { margin-left:auto; background:var(--brick); color:#fff; font-size:10.5px; font-weight:700;
+    min-width:19px; height:19px; padding:0 5px; border-radius:999px; display:grid; place-items:center; }
+  .bubble { max-width:78%; padding:9px 12px; border-radius:14px; font-size:13px; line-height:1.4; }
+  .bubble.them { background:#fff; border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .bubble.me { background:var(--bronze); color:#fff; border-bottom-right-radius:4px; margin-left:auto; }
+  .bubble .who { font-size:10.5px; font-weight:700; color:var(--gold); margin-bottom:2px; }
+
+  .track { height:8px; background:var(--line); border-radius:99px; overflow:hidden; }
+  .track > i { display:block; height:100%; background:linear-gradient(90deg,var(--gold),var(--bronze)); }
+
+  .opt-note { display:flex; gap:9px; align-items:flex-start; font-size:12.5px; padding:9px 0;
+    border-bottom:1px dashed var(--line); }
+  .opt-note:last-child { border-bottom:0; }
+  .opt-note .tick { color:var(--green); flex:0 0 auto; margin-top:1px; }
+  .spin { width:17px; height:17px; border:2.5px solid rgba(255,255,255,.4); border-top-color:#fff;
+    border-radius:50%; animation:sp .7s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  [hidden] { display:none !important; }
+
+  .toast { position:absolute; left:50%; bottom:78px; transform:translateX(-50%) translateY(10px);
+    background:var(--ink); color:#fff; font-size:12.5px; font-weight:600; padding:10px 16px;
+    border-radius:12px; opacity:0; transition:.25s; pointer-events:none; z-index:5;
+    display:flex; gap:8px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .footer-note { width:min(420px,94vw); text-align:center; color:var(--stage-ink); opacity:.7;
+    font-size:11.5px; line-height:1.6; }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration:.001s !important; transition:none !important; } }
+</style>
+
+<div class="stage">
+  <div class="pitch">
+    <h1>Brownstones Coffee — Team App</h1>
+    <p>Interactive design preview. Switch roles to see how access changes.</p>
+    <div class="seg" role="group" aria-label="Preview role">
+      <button data-role="employee" aria-pressed="true">Employee</button>
+      <button data-role="manager" aria-pressed="false">Manager</button>
+      <button data-role="super_admin" aria-pressed="false">Super Admin</button>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="app" data-role="employee" data-screen="login">
+      <div class="statusbar">
+        <span class="tnum">7:32</span>
+        <span class="dots"><span>●●●</span><span>❤</span><span class="tnum">82%</span></span>
+      </div>
+
+      <div class="appbar">
+        <span class="wm"><b>Brownstones</b><span class="sub">Coffee</span></span>
+        <button class="avatar" data-goto="profile" aria-label="Your profile">MR</button>
+      </div>
+
+      <div class="screens">
+
+        <section class="screen" data-s="login" style="justify-content:center; min-height:100%; gap:22px;">
+          <div style="text-align:center; margin-top:20px;">
+            <span class="wm" style="align-items:center;">
+              <b style="font-size:34px;">Brownstones</b>
+              <span class="sub" style="font-size:9px; letter-spacing:.4em;">Coffee</span>
+            </span>
+            <p class="sub" style="margin-top:14px; letter-spacing:.22em; text-transform:uppercase; font-size:10.5px;">Team Portal</p>
+          </div>
+          <div class="card" style="display:flex; flex-direction:column; gap:14px;">
+            <div class="field"><label>Email</label><input value="maya.rivera@brownstones.com" readonly></div>
+            <div class="field"><label>Password</label><input type="password" value="123456789" readonly></div>
+            <button class="btn btn-primary" data-goto="home">Sign in</button>
+            <button class="btn btn-ghost" data-goto="home">Email me a sign-in link</button>
+          </div>
+          <p class="muted" style="text-align:center; font-size:11.5px;">Trouble signing in? Contact your manager.</p>
+        </section>
+
+        <section class="screen" data-s="home">
+          <div class="screen-head">
+            <div>
+              <p class="h1" data-roles="employee" style="margin:0;">Hi, Maya 👋</p>
+              <p class="h1" data-roles="manager" style="margin:0;" hidden>Hi, Danny 👋</p>
+              <p class="h1" data-roles="super_admin" style="margin:0;" hidden>Hi, Chris 👋</p>
+              <p class="sub" data-roles="employee">West Islip · Barista</p>
+              <p class="sub" data-roles="manager" hidden>Manager · West Islip</p>
+              <p class="sub" data-roles="super_admin" hidden>Owner · All 7 locations</p>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:16px;" data-roles="employee">
+            <div class="card tight">
+              <p class="eyebrow">Your next shift</p>
+              <div class="shift">
+                <span class="bar" style="background:var(--gold)"></span>
+                <div class="stack" style="gap:2px; flex:1;">
+                  <span class="time tnum">Sat, Jul 11 · 6:30 AM – 2:30 PM</span>
+                  <span class="muted" style="font-size:12.5px;">Barista · West Islip · with Danny, Priya, Luis</span>
+                </div>
+              </div>
+            </div>
+            <div class="grid2">
+              <div class="card tight stat"><span class="big tnum">4</span><span class="lbl">Shifts this week</span></div>
+              <div class="card tight stat"><span class="big tnum">32<span style="font-size:14px;">h</span></span><span class="lbl">Scheduled hours</span></div>
+            </div>
+            <div class="card tight">
+              <div class="row between"><p class="eyebrow" style="margin:0;">Needs your sign-off</p><span class="pill gold">1 new</span></div>
+              <div class="row" style="margin-top:11px;">
+                <span class="ic">📋</span>
+                <div class="stack" style="flex:1;"><b style="font-size:13.5px;">Updated Food Handling Policy</b><span class="muted" style="font-size:12px;">Please review &amp; acknowledge</span></div>
+                <button class="btn btn-gold sm">Review</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:16px;" data-roles="manager" hidden>
+            <div class="grid2">
+              <div class="card tight stat"><span class="big tnum">3</span><span class="lbl">Time-off requests</span></div>
+              <div class="card tight stat"><span class="big tnum">18</span><span class="lbl">Staff · West Islip</span></div>
+            </div>
+            <div class="card tight">
+              <div class="row between"><p class="eyebrow" style="margin:0;">This week's schedule</p><span class="pill draft">Draft</span></div>
+              <div class="row" style="margin-top:10px; gap:10px;">
+                <div class="track" style="flex:1;"><i style="width:82%"></i></div>
+                <span class="muted tnum" style="font-size:12px;">82% covered</span>
+              </div>
+              <p class="muted" style="font-size:12px; margin:9px 0 0;">2 open shifts on Sat AM rush still to fill.</p>
+              <button class="btn btn-primary sm" style="width:100%; margin-top:11px;" data-goto="build">Build with AI</button>
+            </div>
+            <div class="card tight">
+              <p class="eyebrow">Pending approvals</p>
+              <div class="row between" style="margin-top:8px;"><span style="font-size:13px;">Luis — Fri Jul 10 off</span><span class="row" style="gap:6px;"><button class="btn btn-gold sm">✓</button><button class="btn btn-ghost sm">✕</button></span></div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:16px;" data-roles="super_admin" hidden>
+            <div class="grid2">
+              <div class="card tight stat"><span class="big tnum">7</span><span class="lbl">Locations</span></div>
+              <div class="card tight stat"><span class="big tnum">126</span><span class="lbl">Team members</span></div>
+            </div>
+            <div class="card tight">
+              <p class="eyebrow">Labor % by location · this week</p>
+              <div class="stack" style="gap:10px; margin-top:6px;">
+                <div class="row" style="gap:9px;"><span style="width:78px; font-size:12px;">Amityville</span><div class="track" style="flex:1;"><i style="width:24%; background:var(--green)"></i></div><span class="tnum muted" style="font-size:11.5px;">24%</span></div>
+                <div class="row" style="gap:9px;"><span style="width:78px; font-size:12px;">West Islip</span><div class="track" style="flex:1;"><i style="width:27%; background:var(--green)"></i></div><span class="tnum muted" style="font-size:11.5px;">27%</span></div>
+                <div class="row" style="gap:9px;"><span style="width:78px; font-size:12px;">Sayville</span><div class="track" style="flex:1;"><i style="width:33%; background:var(--amber)"></i></div><span class="tnum muted" style="font-size:11.5px;">33%</span></div>
+                <div class="row" style="gap:9px;"><span style="width:78px; font-size:12px;">Centereach</span><div class="track" style="flex:1;"><i style="width:22%; background:var(--green)"></i></div><span class="tnum muted" style="font-size:11.5px;">22%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p class="eyebrow">Explore</p>
+            <div class="grid2">
+              <button class="card tight row" data-goto="feed" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">📣</span><span class="stack"><b style="font-size:13px;">Team Feed</b><span class="muted" style="font-size:11.5px;">3 new posts</span></span></button>
+              <button class="card tight row" data-goto="chat" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">💬</span><span class="stack"><b style="font-size:13px;">Chat</b><span class="muted" style="font-size:11.5px;">2 unread</span></span></button>
+              <button class="card tight row" data-goto="resources" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">🎓</span><span class="stack"><b style="font-size:13px;">Training</b><span class="muted" style="font-size:11.5px;">1 quiz due</span></span></button>
+              <button class="card tight row" data-goto="schedule" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">🗓️</span><span class="stack"><b style="font-size:13px;">Schedule</b><span class="muted" style="font-size:11.5px;">View all</span></span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-s="schedule">
+          <div class="screen-head">
+            <div>
+              <p class="h1">Schedule</p>
+              <p class="sub" data-roles="employee">Your shifts · West Islip</p>
+              <p class="sub" data-roles="manager" hidden>West Islip · week of Jul 6</p>
+              <p class="sub" data-roles="super_admin" hidden>All locations · week of Jul 6</p>
+            </div>
+            <button class="btn btn-primary sm" data-roles="manager super_admin" data-goto="build" hidden>✨ Build</button>
+          </div>
+
+          <p class="dayhead">Saturday, Jul 11 · busiest day</p>
+          <div class="card tight stack" style="gap:12px;">
+            <div class="shift"><span class="bar" style="background:var(--gold)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">6:30 AM – 2:30 PM</span><span class="muted" style="font-size:12px;">Maya R. · Barista</span></div><span class="pill live" data-roles="manager super_admin" hidden>Rush</span></div>
+            <div class="divider"></div>
+            <div class="shift"><span class="bar" style="background:var(--bronze)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">6:00 AM – 2:00 PM</span><span class="muted" style="font-size:12px;">Priya S. · Server</span></div></div>
+            <div class="divider"></div>
+            <div class="shift"><span class="bar" style="background:var(--brick)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">5:30 AM – 1:30 PM</span><span class="muted" style="font-size:12px;">Luis M. · Line Cook</span></div></div>
+            <div class="divider" data-roles="manager super_admin" hidden></div>
+            <div class="shift" data-roles="manager super_admin" hidden><span class="bar" style="background:var(--line);"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">7:00 AM – 12:00 PM</span><span class="muted" style="font-size:12px;">Open · Host</span></div><span class="pill draft">Unfilled</span></div>
+          </div>
+
+          <p class="dayhead">Sunday, Jul 12</p>
+          <div class="card tight stack" style="gap:12px;">
+            <div class="shift"><span class="bar" style="background:var(--gold)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">7:00 AM – 3:00 PM</span><span class="muted" style="font-size:12px;">Maya R. · Barista</span></div></div>
+            <div class="divider"></div>
+            <div class="shift"><span class="bar" style="background:var(--bronze-600)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">7:00 AM – 3:00 PM</span><span class="muted" style="font-size:12px;">Danny K. · Shift Lead</span></div></div>
+          </div>
+
+          <button class="btn btn-ghost" data-roles="employee">Request a shift change</button>
+        </section>
+
+        <section class="screen" data-s="build">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="schedule">‹ Schedule</div>
+          <div>
+            <p class="h1">Build schedule</p>
+            <p class="sub">West Islip · week of Jul 6 – 12</p>
+          </div>
+
+          <div class="card tight">
+            <p class="eyebrow">Coverage targets</p>
+            <div class="stack" style="gap:9px; margin-top:4px;">
+              <div class="row between"><span style="font-size:13px;">Sat &amp; Sun — AM rush</span><span class="pill gold">Heavy</span></div>
+              <div class="row between"><span style="font-size:13px;">Weekday mornings</span><span class="pill info">Standard</span></div>
+              <div class="row between"><span style="font-size:13px;">Weekday afternoons</span><span class="pill ok">Light</span></div>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <p class="eyebrow">The optimizer will honor</p>
+            <div class="stack" style="gap:7px; margin-top:4px; font-size:12.5px;">
+              <span class="row" style="gap:8px;">✅ 18 staff availability windows</span>
+              <span class="row" style="gap:8px;">✅ 3 approved time-off requests</span>
+              <span class="row" style="gap:8px;">✅ Pairing strong closers on rush shifts</span>
+              <span class="row" style="gap:8px;">✅ Labor budget target of 25%</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="optimize"><span id="opt-label">✨ Optimize schedule</span></button>
+
+          <div id="opt-result" hidden>
+            <div class="card tight" style="border-color:var(--gold-soft); background:var(--gold-tint);">
+              <div class="row between"><p class="eyebrow" style="margin:0;">Draft ready</p><span class="pill ok">96% covered</span></div>
+              <div class="stack" style="margin-top:8px;">
+                <div class="opt-note"><span class="tick">✔</span><span>Put <b>Danny + Priya</b> on Sat AM — your two fastest closers on the busiest rush.</span></div>
+                <div class="opt-note"><span class="tick">✔</span><span>Filled <b>34 of 36</b> shifts. 2 open host slots flagged for your review.</span></div>
+                <div class="opt-note"><span class="tick">✔</span><span>Respected <b>Luis's</b> Friday off and <b>Maya's</b> class on Tuesday.</span></div>
+                <div class="opt-note"><span class="tick">✔</span><span>Projected labor cost <b>24.3%</b> — under your 25% target.</span></div>
+              </div>
+              <button class="btn btn-primary" style="margin-top:12px;" id="publish">Publish &amp; notify team</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-s="team">
+          <div class="screen-head">
+            <div>
+              <p class="h1">Team</p>
+              <p class="sub" data-roles="manager">18 people · West Islip</p>
+              <p class="sub" data-roles="super_admin" hidden>126 people · all locations</p>
+            </div>
+          </div>
+          <div class="card stack" style="gap:0; padding:4px 14px;">
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:#8a5a2b">DK</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Danny Kessler</b><span class="muted" style="font-size:12px;">Manager</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--gold)">PS</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Priya Shah</b><span class="muted" style="font-size:12px;">Shift Lead · Server</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--bronze)">MR</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Maya Rivera</b><span class="muted" style="font-size:12px;">Barista</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--brick)">LM</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Luis Marino</b><span class="muted" style="font-size:12px;">Line Cook</span></div></div>
+            <div class="row" style="padding:12px 0;"><span class="ava" style="background:#6b7a3f">TA</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Tomas Alvarez</b><span class="muted" style="font-size:12px;">Host</span></div><span class="pill info">Onboarding</span></div>
+          </div>
+          <button class="btn btn-primary" data-roles="manager super_admin">+ Invite team member</button>
+        </section>
+
+        <section class="screen" data-s="feed">
+          <div class="screen-head"><div><p class="h1">Team Feed</p><p class="sub">Brownstones family · all locations</p></div></div>
+          <div class="card post">
+            <div class="head"><span class="ava" style="background:#8a5a2b; width:38px; height:38px;">DK</span><div class="stack"><b style="font-size:13.5px;">Danny Kessler</b><span class="muted" style="font-size:11.5px;">West Islip · 2h ago</span></div></div>
+            <p class="body">Huge Saturday, team 🙌 We hit a record on the brunch rush and not a single ticket over 12 min. Proud of this crew.</p>
+            <div class="photo"></div>
+            <div class="acts"><span><b>❤ 24</b></span><span>💬 6 comments</span></div>
+          </div>
+          <div class="card post">
+            <div class="head"><span class="ava" style="background:var(--gold)">PS</span><div class="stack"><b style="font-size:13.5px;">Priya Shah</b><span class="muted" style="font-size:11.5px;">3h ago</span></div></div>
+            <p class="body">Welcome Tomas to the West Islip fam! Say hi when you see him on host stand this week 👋</p>
+            <div class="acts"><span>❤ 18</span><span>💬 3 comments</span></div>
+          </div>
+        </section>
+
+        <section class="screen" data-s="chat">
+          <div class="screen-head"><div><p class="h1">Chat</p><p class="sub">Your groups</p></div></div>
+          <div class="card" style="padding:4px 15px;">
+            <div class="chan"><span class="ic">🧑‍🍳</span><div class="stack"><b style="font-size:13.5px;">Kitchen — West Islip</b><span class="muted" style="font-size:12px;">Luis: prep list for Sat is up</span></div><span class="badge">2</span></div>
+            <div class="chan"><span class="ic">☕</span><div class="stack"><b style="font-size:13.5px;">Front of House</b><span class="muted" style="font-size:12px;">Maya: who's grabbing oat milk?</span></div></div>
+            <div class="chan" data-roles="manager super_admin" hidden><span class="ic">📊</span><div class="stack"><b style="font-size:13.5px;">Managers — All Locations</b><span class="muted" style="font-size:12px;">Chris: numbers looked great this week</span></div></div>
+          </div>
+          <p class="eyebrow" style="margin-top:6px;">Kitchen — West Islip</p>
+          <div class="stack" style="gap:9px;">
+            <div class="bubble them"><span class="who">Luis M.</span>Prep list for Saturday is posted in Resources 👍</div>
+            <div class="bubble them"><span class="who">Danny K.</span>Legend. Can we get extra home fries par-cooked?</div>
+            <div class="bubble me">On it — coming in at 5:30 to get ahead of the rush</div>
+          </div>
+          <div class="row" style="gap:8px;"><input style="flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:11px; font:inherit;" placeholder="Message Kitchen…"><button class="btn btn-primary sm">Send</button></div>
+        </section>
+
+        <section class="screen" data-s="resources">
+          <div class="screen-head"><div><p class="h1">Training</p><p class="sub">Onboarding, handbooks &amp; quizzes</p></div></div>
+          <div class="card tight">
+            <div class="row between"><p class="eyebrow" style="margin:0;">Your onboarding</p><span class="pill gold">60%</span></div>
+            <div class="track" style="margin-top:9px;"><i style="width:60%"></i></div>
+            <p class="muted" style="font-size:12px; margin:9px 0 0;">3 of 5 modules complete</p>
+          </div>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">✅</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Welcome to Brownstones</b><span class="muted" style="font-size:11.5px;">Completed</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">✅</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Espresso &amp; Café Standards</b><span class="muted" style="font-size:11.5px;">Completed</span></div></div>
+            <div class="row" style="padding:12px 0;"><span class="ic" style="background:var(--gold-tint);">📝</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Food Safety Quiz</b><span class="muted" style="font-size:11.5px;">Pass to work the floor · due Fri</span></div><button class="btn btn-gold sm">Start</button></div>
+          </div>
+          <div class="card tight row"><span class="ic">📕</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Employee Handbook 2026</b><span class="muted" style="font-size:11.5px;">PDF · signed Jun 3</span></div><span class="pill ok">Signed</span></div>
+        </section>
+
+        <section class="screen" data-s="profile">
+          <div class="stack" style="align-items:center; gap:10px; padding-top:8px;">
+            <span class="ava" style="width:76px; height:76px; font-size:26px; background:var(--bronze);">MR</span>
+            <div style="text-align:center;">
+              <p class="h1" style="font-size:22px;" data-roles="employee">Maya Rivera</p>
+              <p class="h1" style="font-size:22px;" data-roles="manager" hidden>Danny Kessler</p>
+              <p class="h1" style="font-size:22px;" data-roles="super_admin" hidden>Chris Kourounis</p>
+              <p class="sub" data-roles="employee">Barista · West Islip</p>
+              <p class="sub" data-roles="manager" hidden>Manager · West Islip</p>
+              <p class="sub" data-roles="super_admin" hidden>Owner · All locations</p>
+            </div>
+          </div>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row between" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Role</span><b style="font-size:13px;" data-roles="employee">Employee</b><b style="font-size:13px;" data-roles="manager" hidden>Manager</b><b style="font-size:13px;" data-roles="super_admin" hidden>Super Admin</b></div>
+            <div class="row between" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Location</span><b style="font-size:13px;">West Islip</b></div>
+            <div class="row between" style="padding:12px 0;"><span class="muted" style="font-size:12.5px;">Since</span><b style="font-size:13px;">Mar 2025</b></div>
+          </div>
+          <button class="btn btn-ghost">Edit profile</button>
+          <button class="btn btn-ghost" data-goto="login" style="color:var(--brick);">Sign out</button>
+        </section>
+
+        <section class="screen" data-s="admin">
+          <div class="screen-head"><div><p class="h1">Admin</p><p class="sub">Locations &amp; organization</p></div></div>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Amityville</b><span class="muted" style="font-size:11.5px;">55 Merrick Rd · 22 staff</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">West Islip</b><span class="muted" style="font-size:11.5px;">18 staff</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">East Northport</b><span class="muted" style="font-size:11.5px;">16 staff</span></div></div>
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Centereach</b><span class="muted" style="font-size:11.5px;">19 staff</span></div></div>
+            <div class="row" style="padding:12px 0;"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Sayville</b><span class="muted" style="font-size:11.5px;">17 staff</span></div></div>
+          </div>
+          <div class="grid2">
+            <button class="btn btn-primary">+ Add location</button>
+            <button class="btn btn-ghost">Manage roles</button>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="toast" id="toast">🔔 <span>Schedule published — team notified</span></div>
+
+      <nav class="tabbar">
+        <button class="tab" data-tab="home" data-roles="employee manager super_admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Home</button>
+        <button class="tab" data-tab="schedule" data-roles="employee manager super_admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>Schedule</button>
+        <button class="tab" data-tab="team" data-roles="manager super_admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 6a3 3 0 0 1 0 6M22 20a5 5 0 0 0-4-4.9"/></svg>Team</button>
+        <button class="tab" data-tab="feed" data-roles="employee">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>Feed</button>
+        <button class="tab" data-tab="admin" data-roles="super_admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/></svg>Admin</button>
+        <button class="tab" data-tab="chat" data-roles="employee manager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.8A8 8 0 1 1 21 12z"/></svg>Chat</button>
+        <button class="tab" data-tab="profile" data-roles="super_admin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>Profile</button>
+      </nav>
+
+    </div>
+  </div>
+
+  <p class="footer-note">Design prototype · not yet wired to data. Every screen is real UI — the schedule optimizer button works. Swap roles above to preview access levels.</p>
+</div>
+
+<script>
+  const app = document.querySelector('.app');
+  const INITIALS = { employee: 'MR', manager: 'DK', super_admin: 'CK' };
+
+  function applyRole(role) {
+    app.dataset.role = role;
+    document.querySelector('.avatar').textContent = INITIALS[role];
+    document.querySelectorAll('.seg button').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.role === role)));
+    document.querySelectorAll('[data-roles]').forEach(el => {
+      el.hidden = !el.dataset.roles.split(' ').includes(role);
+    });
+    const tabs = [...document.querySelectorAll('.tab')].filter(t =>
+      t.dataset.roles.split(' ').includes(role));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+    tabs.slice(0, 5).forEach(t => t.classList.add('on'));
+    goto('home', true);
+  }
+  document.querySelectorAll('.seg button').forEach(b =>
+    b.addEventListener('click', () => applyRole(b.dataset.role)));
+
+  function goto(screen) {
+    app.dataset.screen = screen;
+    document.querySelectorAll('.tab').forEach(t =>
+      t.setAttribute('aria-current', String(t.dataset.tab === screen)));
+    app.querySelector('.screens').scrollTop = 0;
+  }
+  document.querySelectorAll('[data-goto]').forEach(el =>
+    el.addEventListener('click', () => goto(el.dataset.goto)));
+  document.querySelectorAll('.tab').forEach(t =>
+    t.addEventListener('click', () => goto(t.dataset.tab)));
+
+  const optBtn = document.getElementById('optimize');
+  optBtn.addEventListener('click', () => {
+    document.getElementById('opt-label').innerHTML = '<span class="spin"></span> Optimizing…';
+    optBtn.disabled = true;
+    setTimeout(() => {
+      document.getElementById('opt-result').hidden = false;
+      optBtn.hidden = true;
+      document.getElementById('opt-result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 1300);
+  });
+  document.getElementById('publish').addEventListener('click', () => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2600);
+    setTimeout(() => goto('schedule'), 700);
+  });
+
+  applyRole('employee');
+  goto('login');
+</script>
