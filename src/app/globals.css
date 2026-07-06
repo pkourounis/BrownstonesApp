@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-cream text-brand-950 antialiased;
+}
+
+/* Classic serif wordmark / display headings for the turn-of-the-century feel. */
+.font-display {
+  @apply font-serif tracking-tight;
+}
+
+/* Reusable pieces */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+           text-sm font-semibold transition focus:outline-none
+           focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-700 text-white hover:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply btn border border-brand-200 bg-white text-brand-800 hover:bg-brand-100;
+  }
+  .card {
+    @apply rounded-2xl border border-brand-100 bg-white p-5 shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-lg border border-brand-200 bg-white px-3 py-2.5 text-sm
+           outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-brand-800;
+  }
+}

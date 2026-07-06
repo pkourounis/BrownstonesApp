@@ -1,0 +1,12 @@
+# Minimal Supabase CLI config. Set project_id after linking:
+#   supabase link --project-ref <your-project-ref>
+project_id = "brownstones-app"
+
+[db]
+major_version = 15
+
+[auth]
+# The site URL and redirect allow-list for auth (magic links, etc.).
+# Update these to your deployed Netlify domain.
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
