@@ -8,36 +8,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Brownstones brand palette — warm brownstone / turn-of-the-century tones,
-        // inspired by Brooklyn rowhouse facades: sienna brick, cream, espresso.
+        // Brownstones brand palette — sampled from the logo wordmark: a warm
+        // bronze-brown. Primary buttons/wordmark sit around 600–700.
         brand: {
-          50: '#faf5ee',
-          100: '#f3e8d9',
-          200: '#e6cfb2',
-          300: '#d5ad83',
-          400: '#c48a5c',
-          500: '#b06f42',
-          600: '#9a5836',
-          700: '#7e442c', // brownstone brick
-          800: '#663829',
-          900: '#553025',
-          950: '#301811',
+          50: '#f8f4ea',
+          100: '#efe6cf',
+          200: '#ddc99b',
+          300: '#c9a866',
+          400: '#b48c3f',
+          500: '#977030',
+          600: '#7c5c28', // wordmark bronze
+          700: '#664c24',
+          800: '#523d20',
+          900: '#43331d',
+          950: '#241a0d',
         },
-        // Vintage signage gold — used sparingly for accents.
+        // Tan / gold from the emblem windows — accents and highlights.
         gold: {
-          100: '#f7ecd0',
-          200: '#ecd39a',
-          300: '#dcb45f',
-          400: '#c8992f',
-          500: '#a97e26',
-          600: '#87631f',
+          100: '#f4e8ca',
+          200: '#e8d19b',
+          300: '#d8b878', // window tan
+          400: '#c69b4a',
+          500: '#a87f30',
+          600: '#856325',
         },
-        cream: '#f7f1e6',
+        // Brick red from the brownstone facade — sparing accent.
+        brick: {
+          400: '#b4503b',
+          500: '#9c3f2c',
+          600: '#823324',
+        },
+        cream: '#f7f1e2',
       },
       fontFamily: {
-        // Classic serif for the wordmark / display headings (system stack — no
-        // network fonts, keeps the PWA fully offline-capable).
-        serif: ['Georgia', '"Times New Roman"', 'ui-serif', 'serif'],
+        // High-contrast serif matching the Brownstones wordmark. Self-hosted
+        // via @fontsource so the PWA stays fully offline-capable.
+        serif: ['"Playfair Display"', 'Georgia', 'ui-serif', 'serif'],
         sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
       },
     },

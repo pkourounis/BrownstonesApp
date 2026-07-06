@@ -3,7 +3,8 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Coffee, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { Wordmark } from '@/components/wordmark';
 
 export default function LoginPage() {
   return (
@@ -62,12 +63,9 @@ function LoginForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-700 text-cream ring-1 ring-gold-300">
-            <Coffee size={32} />
-          </div>
-          <h1 className="font-display text-3xl font-bold text-brand-900">Brownstones</h1>
-          <p className="text-xs uppercase tracking-[0.2em] text-gold-500">Coffee · Team Portal</p>
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <Wordmark size="lg" />
+          <p className="text-xs uppercase tracking-[0.25em] text-brand-400">Team Portal</p>
         </div>
 
         <div className="card">

@@ -1,4 +1,8 @@
 import type { Metadata, Viewport } from 'next';
+// Self-hosted Playfair Display (matches the Brownstones wordmark; works offline).
+import '@fontsource/playfair-display/400.css';
+import '@fontsource/playfair-display/700.css';
+import '@fontsource/playfair-display/800.css';
 import './globals.css';
 import { PwaRegister } from '@/components/pwa-register';
 
@@ -14,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#744736',
+  themeColor: '#664c24',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
