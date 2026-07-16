@@ -55,6 +55,34 @@ The optimizer builds the schedule from:
 Rules are flexible: `rule_type` + a JSON `config`, with `is_hard` marking a
 must-satisfy constraint vs. a preference the optimizer tries to honor.
 
+## Per-location staffing requirements
+
+Each location defines **how many of each role are needed on each day of the
+week** (`staffing_requirements`). This is the target the scheduler fills. Every
+row is scoped to a **season** (`standard` by default) so coverage can throttle
+up or down as a location gets busier at different times of year — add a `summer`
+or `holiday` set of rows to override the baseline.
+
+- The **opener** ("1 Server opens at 7am every day") is captured by
+  `must_cover_open = true` on Server rows plus `locations.opens_at`.
+- Requirements vary weekday vs. weekend and by location (e.g. West Islip needs
+  3 Hosts on weekends; East Northport runs no Prep Cook and no Drink Runner).
+
+### Management staffing (per location)
+
+Stored as `scheduling_rules` scoped to the `management` department:
+
+| Location | Manager schedule | Floor lead |
+|---|---|---|
+| Amityville | Off **Tuesdays** (works 6 days) | Highest-ranked Server leads when manager is off |
+| West Islip | Off **Tue & Wed** (works 5 days) | ″ |
+| Centereach | Off **Tue & Wed** | ″ |
+| Sayville | Off **Tue & Wed** | ″ |
+| East Northport | **No manager** — highest-ranked Server floor-manages Monday and works Tue/Fri/Sat/Sun as lead | ″ |
+
+Rule: **the highest-ranked Server (by skill) must be scheduled whenever the
+manager is off** — enforced everywhere via the `lead_when_manager_off` rule.
+
 ## Data model summary
 
 | Table | Purpose |
@@ -62,6 +90,7 @@ must-satisfy constraint vs. a preference the optimizer tries to honor.
 | `positions` | Job roles, each with a `department` |
 | `staff_positions` | Which roles an employee works + `skill_level` (1–5) |
 | `availability` | Weekly windows + approval `status` |
+| `staffing_requirements` | Required headcount per location/role/day/season |
 | `location_peak_hours` | Busy windows per location + `intensity` |
 | `scheduling_rules` | Hard/soft constraints (org-wide or scoped) |
 | `shifts` | Scheduled/assigned shifts (a shift is for one position) |

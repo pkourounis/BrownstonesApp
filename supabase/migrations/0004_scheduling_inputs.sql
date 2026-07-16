@@ -44,8 +44,12 @@ create type public.scheduling_rule_type as enum (
   'min_rest_hours_between_shifts', -- config: { "hours": 10 }  (no clopen)
   'min_staff_on_peak',             -- config: { "count": 4 }   (per department)
   'max_labor_pct',                 -- config: { "pct": 25 }
-  'require_role_on_shift',         -- config: { "position": "Shift Lead" }
+  'require_role_on_shift',         -- config: { "position": "Expo" }
   'minor_curfew',                  -- config: { "under": 18, "no_later_than": "22:00" }
+  'open_coverage',                 -- config: { "position": "Server", "count": 1, "at": "open" }
+  'manager_days_off',              -- config: { "days": [2] }  (0=Sun..6=Sat)
+  'lead_when_manager_off',         -- config: { "position": "Server", "basis": "highest_skill" }
+  'floor_manager_no_manager',      -- config: { "position": "Server", "floor_days": [1], "work_days": [2,5,6,0] }
   'custom'                         -- config: { "text": "..." }
 );
 

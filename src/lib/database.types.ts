@@ -9,6 +9,7 @@ export type EmploymentStatus = 'onboarding' | 'active' | 'inactive';
 export type Department = 'boh' | 'foh' | 'management';
 export type ShiftStatus = 'draft' | 'published';
 export type RequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
+export type Season = 'standard' | 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
 export type SchedulingRuleType =
   | 'max_hours_per_week'
   | 'max_consecutive_days'
@@ -17,6 +18,10 @@ export type SchedulingRuleType =
   | 'max_labor_pct'
   | 'require_role_on_shift'
   | 'minor_curfew'
+  | 'open_coverage'
+  | 'manager_days_off'
+  | 'lead_when_manager_off'
+  | 'floor_manager_no_manager'
   | 'custom';
 
 export const DEPARTMENT_LABELS: Record<Department, string> = {
@@ -42,6 +47,7 @@ export type Location = {
   postal_code: string | null;
   phone: string | null;
   timezone: string;
+  opens_at: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -137,6 +143,20 @@ export type LocationPeakHours = {
   updated_at: string;
 }
 
+/** Required headcount for a role at a location on a given day (scheduler input). */
+export type StaffingRequirement = {
+  id: string;
+  location_id: string;
+  position_id: string;
+  day_of_week: number;
+  season: Season;
+  required_count: number;
+  must_cover_open: boolean;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** A hard constraint or soft preference for the scheduler (input #4). */
 export type SchedulingRule = {
   id: string;
@@ -194,6 +214,7 @@ export type Database = {
       shifts: Table<Shift>;
       availability: Table<Availability>;
       time_off_requests: Table<TimeOffRequest>;
+      staffing_requirements: Table<StaffingRequirement>;
       location_peak_hours: Table<LocationPeakHours>;
       scheduling_rules: Table<SchedulingRule>;
       notifications: Table<Notification>;
@@ -204,6 +225,7 @@ export type Database = {
       app_role: AppRole;
       employment_status: EmploymentStatus;
       department: Department;
+      season: Season;
       shift_status: ShiftStatus;
       request_status: RequestStatus;
       scheduling_rule_type: SchedulingRuleType;
