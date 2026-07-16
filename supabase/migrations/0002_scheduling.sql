@@ -18,6 +18,9 @@ create type public.request_status as enum ('pending', 'approved', 'denied', 'can
 -- A row means "available during this window"; absence of a row for a day
 -- means not generally available.
 -- ---------------------------------------------------------------------------
+-- Availability must be MANAGER-APPROVED before the AI scheduler will use it
+-- (scheduling parameter #1). An employee submits windows (status 'pending');
+-- a manager approves or denies. Only 'approved' windows count as bookable.
 create table public.availability (
   id           uuid primary key default gen_random_uuid(),
   profile_id   uuid not null references public.profiles(id) on delete cascade,
@@ -25,6 +28,9 @@ create table public.availability (
   start_time   time not null,
   end_time     time not null,
   is_available boolean not null default true,
+  status       public.request_status not null default 'pending',
+  reviewed_by  uuid references public.profiles(id) on delete set null,
+  reviewed_at  timestamptz,
   note         text,
   created_at   timestamptz not null default now(),
   check (end_time > start_time)
@@ -122,8 +128,13 @@ create policy "availability: owner + managers read" on public.availability
   );
 create policy "availability: owner writes" on public.availability
   for insert with check (profile_id = auth.uid());
-create policy "availability: owner updates" on public.availability
-  for update using (profile_id = auth.uid());
+-- Owner edits their own windows; managers/admins approve or deny (set status).
+create policy "availability: owner or manager updates" on public.availability
+  for update using (
+    profile_id = auth.uid()
+    or public.is_super_admin()
+    or (public.is_manager_or_admin() and public.shares_location(profile_id))
+  );
 create policy "availability: owner deletes" on public.availability
   for delete using (profile_id = auth.uid() or public.is_super_admin());
 

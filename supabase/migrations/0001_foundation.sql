@@ -19,6 +19,14 @@
 create type public.app_role as enum ('super_admin', 'manager', 'employee');
 create type public.employment_status as enum ('onboarding', 'active', 'inactive');
 
+-- Operating departments. A job role (position) belongs to exactly one; an
+-- employee can hold roles across departments (e.g. Server + Prep Cook).
+--   boh        — Back of House  (Cook, Prep Cook, Dishwasher)
+--   foh        — Front of House (Server, Barista, Host, Busser, Drink Runner,
+--                                Food Runner, Expo)
+--   management — Manager
+create type public.department as enum ('boh', 'foh', 'management');
+
 -- ---------------------------------------------------------------------------
 -- Locations (the 7 Brownstones restaurants, and more to come)
 -- ---------------------------------------------------------------------------
@@ -70,15 +78,32 @@ create table public.staff_locations (
 );
 create index staff_locations_location_idx on public.staff_locations(location_id);
 
--- Positions / job roles used for scheduling (Server, Barista, Cook, Host...).
+-- Positions / job roles used for scheduling. Each belongs to one department.
 create table public.positions (
   id          uuid primary key default gen_random_uuid(),
   name        text not null unique,
+  department  public.department not null,
   color       text not null default '#a86f4e',   -- for schedule color-coding
   sort_order  integer not null default 0,
   is_active    boolean not null default true,
   created_at  timestamptz not null default now()
 );
+
+-- Which job roles an employee can work, and how skilled they are at each.
+-- skill_level 1–5 (5 = most experienced) is set by a manager/super admin when
+-- the employee is added or updated. The AI scheduler weights this so strong
+-- staff land on the busiest shifts. Employees can hold roles across departments.
+-- NOTE: skill ratings are intentionally NOT readable by the employee (see RLS).
+create table public.staff_positions (
+  profile_id  uuid not null references public.profiles(id) on delete cascade,
+  position_id uuid not null references public.positions(id) on delete cascade,
+  skill_level smallint not null check (skill_level between 1 and 5),
+  is_primary  boolean not null default false,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  primary key (profile_id, position_id)
+);
+create index staff_positions_position_idx on public.staff_positions(position_id);
 
 -- ---------------------------------------------------------------------------
 -- SECURITY DEFINER helper functions.
@@ -217,6 +242,7 @@ alter table public.locations       enable row level security;
 alter table public.profiles        enable row level security;
 alter table public.staff_locations enable row level security;
 alter table public.positions       enable row level security;
+alter table public.staff_positions enable row level security;
 
 -- --- locations ---
 create policy "locations: admin full read" on public.locations
@@ -277,3 +303,30 @@ create policy "positions: manager update" on public.positions
   for update using (public.is_manager_or_admin());
 create policy "positions: admin delete" on public.positions
   for delete using (public.is_super_admin());
+
+-- --- staff_positions --- (role assignments + skill ratings)
+-- Managers/super admins only. Employees do NOT read their own skill ratings;
+-- they see their roles indirectly via their scheduled shifts.
+create policy "staff_positions: manager read in scope" on public.staff_positions
+  for select using (
+    public.is_super_admin()
+    or (public.is_manager_or_admin() and public.shares_location(profile_id))
+  );
+create policy "staff_positions: manager insert" on public.staff_positions
+  for insert with check (
+    public.is_super_admin()
+    or (public.is_manager_or_admin() and public.shares_location(profile_id))
+  );
+create policy "staff_positions: manager update" on public.staff_positions
+  for update using (
+    public.is_super_admin()
+    or (public.is_manager_or_admin() and public.shares_location(profile_id))
+  );
+create policy "staff_positions: manager delete" on public.staff_positions
+  for delete using (
+    public.is_super_admin()
+    or (public.is_manager_or_admin() and public.shares_location(profile_id))
+  );
+
+create trigger touch_staff_positions before update on public.staff_positions
+  for each row execute function public.touch_updated_at();
