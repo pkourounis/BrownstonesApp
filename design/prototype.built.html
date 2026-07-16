@@ -220,6 +220,14 @@
     font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; color:var(--bronze-600); cursor:pointer; }
   .months button[aria-pressed="true"] { background:var(--bronze); color:#fff; border-color:var(--bronze); }
   .sgrid.editing td.n { box-shadow:inset 0 0 0 1px var(--gold); border-radius:6px; }
+  .barchart { display:flex; align-items:flex-end; gap:5px; height:104px; position:relative; }
+  .barchart .bar { flex:1; background:var(--gold); border-radius:4px 4px 0 0; }
+  .barchart .bar.low { background:var(--brick); }
+  .barchart .thresh { position:absolute; left:0; right:0; border-top:2px dashed var(--bronze-600); }
+  .barchart .thresh::after { content:"$250/hr"; position:absolute; right:0; top:-14px; font-size:9px;
+    font-weight:700; color:var(--bronze-600); }
+  .barlabels { display:flex; gap:5px; margin-top:4px; }
+  .barlabels span { flex:1; text-align:center; font-size:9px; color:var(--faint); font-variant-numeric:tabular-nums; }
 
   /* skill selector (add employee) */
   .skillrow { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line-2); }
@@ -227,6 +235,7 @@
   .depttag { font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 6px; border-radius:5px; }
   .depttag.foh { background:var(--gold-tint); color:#7a5a12; }
   .depttag.boh { background:#f6e0da; color:var(--brick); }
+  .depttag.mgmt { background:#e6ddc7; color:#5a431e; }
   .skill { display:inline-flex; gap:4px; margin-left:auto; }
   .skill button { width:24px; height:24px; border-radius:7px; border:1px solid var(--line);
     background:#fff; font:inherit; font-size:12px; font-weight:700; color:var(--faint); cursor:pointer; }
@@ -440,39 +449,84 @@
             <p class="sub">West Islip · week of Jul 6 – 12</p>
           </div>
 
-          <div class="card tight">
-            <p class="eyebrow">Coverage targets</p>
-            <div class="stack" style="gap:9px; margin-top:4px;">
-              <div class="row between"><span style="font-size:13px;">Sat &amp; Sun — AM rush</span><span class="pill gold">Heavy</span></div>
-              <div class="row between"><span style="font-size:13px;">Weekday mornings</span><span class="pill info">Standard</span></div>
-              <div class="row between"><span style="font-size:13px;">Weekday afternoons</span><span class="pill ok">Light</span></div>
+          <div>
+            <span class="eyebrow">Day</span>
+            <div class="months" id="build-days">
+              <button data-day="Mon">Mon</button>
+              <button data-day="Tue">Tue</button>
+              <button data-day="Wed">Wed</button>
+              <button data-day="Thu">Thu</button>
+              <button data-day="Fri">Fri</button>
+              <button data-day="Sat" aria-pressed="true">Sat</button>
+              <button data-day="Sun">Sun</button>
             </div>
-            <button class="btn btn-ghost sm" style="width:100%; margin-top:11px;" data-goto="staffing">View staffing requirements ›</button>
           </div>
 
           <div class="card tight">
-            <p class="eyebrow">The optimizer will honor</p>
+            <p class="eyebrow">Optimizing from</p>
             <div class="stack" style="gap:7px; margin-top:4px; font-size:12.5px;">
-              <span class="row" style="gap:8px;">✅ 18 staff availability windows</span>
-              <span class="row" style="gap:8px;">✅ 3 approved time-off requests</span>
-              <span class="row" style="gap:8px;">✅ Pairing strong closers on rush shifts</span>
-              <span class="row" style="gap:8px;">✅ Labor budget target of 25%</span>
+              <span class="row" style="gap:8px;">✅ 18 manager-approved availabilities</span>
+              <span class="row" style="gap:8px;">✅ Employee skill ranking (1–5)</span>
+              <span class="row" style="gap:8px;">✅ West Islip peak hours</span>
+              <span class="row" style="gap:8px;">✅ 8 scheduling rules (40h, rest, curfew…)</span>
             </div>
+            <button class="btn btn-ghost sm" style="width:100%; margin-top:11px;" data-goto="staffing">Staffing targets ›</button>
           </div>
 
           <button class="btn btn-primary" id="optimize"><span id="opt-label">✨ Optimize schedule</span></button>
 
           <div id="opt-result" hidden>
-            <div class="card tight" style="border-color:var(--gold-soft); background:var(--gold-tint);">
-              <div class="row between"><p class="eyebrow" style="margin:0;">Draft ready</p><span class="pill ok">96% covered</span></div>
-              <div class="stack" style="margin-top:8px;">
-                <div class="opt-note"><span class="tick">✔</span><span>Put <b>Danny + Priya</b> on Sat AM — your two fastest closers on the busiest rush.</span></div>
-                <div class="opt-note"><span class="tick">✔</span><span>Filled <b>34 of 36</b> shifts. 2 open host slots flagged for your review.</span></div>
-                <div class="opt-note"><span class="tick">✔</span><span>Respected <b>Luis's</b> Friday off and <b>Maya's</b> class on Tuesday.</span></div>
-                <div class="opt-note"><span class="tick">✔</span><span>Projected labor cost <b>24.3%</b> — under your 25% target.</span></div>
-              </div>
-              <button class="btn btn-primary" style="margin-top:12px;" id="publish">Publish &amp; notify team</button>
+            <div class="grid2">
+              <div class="card tight stat"><span class="big tnum" id="cov-pct">96%</span><span class="lbl">Covered · Sat</span></div>
+              <div class="card tight stat"><span class="big tnum">24.3%</span><span class="lbl">Projected labor</span></div>
             </div>
+
+            <div class="card tight" style="margin-top:12px;">
+              <div class="row between"><p class="eyebrow" style="margin:0;">Revenue / hour · Sat</p><span class="pill ok">⚡ Toast</span></div>
+              <div class="barchart" style="margin-top:14px;">
+                <div class="thresh" style="bottom:36%;"></div>
+                <div class="bar low" style="height:26%;"></div>
+                <div class="bar" style="height:60%;"></div>
+                <div class="bar" style="height:87%;"></div>
+                <div class="bar" style="height:100%;"></div>
+                <div class="bar" style="height:77%;"></div>
+                <div class="bar" style="height:66%;"></div>
+                <div class="bar" style="height:43%;"></div>
+                <div class="bar low" style="height:30%;"></div>
+              </div>
+              <div class="barlabels"><span>7a</span><span>8a</span><span>9a</span><span>10a</span><span>11a</span><span>12p</span><span>1p</span><span>2p</span></div>
+              <p class="muted" style="font-size:11.5px; margin:10px 0 0;">
+                <span style="color:var(--brick); font-weight:700;">7a</span> &amp; <span style="color:var(--brick); font-weight:700;">2p</span> fall under the $250/hr target — the optimizer trims to 1 opener and drops a Server after 2pm to protect labor %.
+              </p>
+            </div>
+
+            <p class="eyebrow" style="margin-top:14px;">Saturday coverage</p>
+            <div class="card tight stack" style="gap:9px;">
+              <div class="row between"><span style="font-size:13px;">Server</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">6 / 6</span><span class="pill ok">✓</span></span></div>
+              <div class="row between"><span style="font-size:13px;">Barista</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">2 / 2</span><span class="pill ok">✓</span></span></div>
+              <div class="row between" id="host-row"><span style="font-size:13px;">Host</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;" id="host-count">2 / 3</span><button class="btn btn-gold sm" id="fill-host">Fill 1</button></span></div>
+              <div class="row between"><span style="font-size:13px;">Food Runner</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">2 / 2</span><span class="pill ok">✓</span></span></div>
+              <div class="row between"><span style="font-size:13px;">Expo</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">1 / 1</span><span class="pill ok">✓</span></span></div>
+              <div class="row between"><span style="font-size:13px;">Cook</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">5 / 5</span><span class="pill ok">✓</span></span></div>
+              <div class="row between"><span style="font-size:13px;">Dishwasher</span><span class="row" style="gap:8px;"><span class="tnum muted" style="font-size:12px;">2 / 2</span><span class="pill ok">✓</span></span></div>
+            </div>
+
+            <div id="suggest" hidden class="card tight" style="border-color:var(--gold-soft); background:var(--gold-tint); margin-top:10px;">
+              <p class="eyebrow" style="margin:0 0 8px;">Suggested — Host · Sat 7a–12p</p>
+              <div class="row between" style="padding:6px 0;"><div class="stack" style="gap:0;"><b style="font-size:13px;">Sofia Reyes</b><span class="muted" style="font-size:11.5px;">Host ⭐⭐⭐⭐ · available · 0h this wk</span></div><button class="btn btn-primary sm assign-host">Assign</button></div>
+              <div class="divider"></div>
+              <div class="row between" style="padding:6px 0;"><div class="stack" style="gap:0;"><b style="font-size:13px;">Tomas Alvarez</b><span class="muted" style="font-size:11.5px;">Host ⭐⭐⭐ · available · 12h this wk</span></div><button class="btn btn-primary sm assign-host">Assign</button></div>
+            </div>
+
+            <p class="eyebrow" style="margin-top:14px;">Checks &amp; flags</p>
+            <div class="card tight stack" style="gap:9px;">
+              <div class="row" style="gap:8px;"><span class="pill ok">✓</span><span style="font-size:12.5px;">Hard rules OK — 40h cap, 10h rest, under-18 curfew</span></div>
+              <div class="row" style="gap:8px;" id="flag-host"><span class="pill live">⚑</span><span style="font-size:12.5px;">1 open <b>Host</b> on the Sat AM rush</span></div>
+              <div class="row" style="gap:8px;"><span class="pill draft">!</span><span style="font-size:12.5px;"><b>Maya</b> at 38h — 1 shift from the 40h cap</span></div>
+              <div class="row" style="gap:8px;"><span class="pill ok">✓</span><span style="font-size:12.5px;">Highest-skill Server (<b>Priya</b>) scheduled while manager is off</span></div>
+            </div>
+
+            <button class="btn btn-primary" style="margin-top:14px;" id="publish">Publish &amp; notify team</button>
           </div>
         </section>
 
@@ -798,8 +852,14 @@
               <div class="skillrow"><b style="font-size:13px;">Server</b><span class="depttag foh">FOH</span><div class="skill" data-role="Server"></div></div>
               <div class="skillrow"><b style="font-size:13px;">Barista</b><span class="depttag foh">FOH</span><div class="skill" data-role="Barista"></div></div>
               <div class="skillrow"><b style="font-size:13px;">Host</b><span class="depttag foh">FOH</span><div class="skill" data-role="Host"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Busser</b><span class="depttag foh">FOH</span><div class="skill" data-role="Busser"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Drink Runner</b><span class="depttag foh">FOH</span><div class="skill" data-role="Drink Runner"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Food Runner</b><span class="depttag foh">FOH</span><div class="skill" data-role="Food Runner"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Expo</b><span class="depttag foh">FOH</span><div class="skill" data-role="Expo"></div></div>
               <div class="skillrow"><b style="font-size:13px;">Cook</b><span class="depttag boh">BOH</span><div class="skill" data-role="Cook"></div></div>
               <div class="skillrow"><b style="font-size:13px;">Prep Cook</b><span class="depttag boh">BOH</span><div class="skill" data-role="Prep Cook"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Dishwasher</b><span class="depttag boh">BOH</span><div class="skill" data-role="Dishwasher"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Manager</b><span class="depttag mgmt">MGMT</span><div class="skill" data-role="Manager"></div></div>
             </div>
             <p class="muted" style="font-size:11.5px; margin:10px 0 0;">Leave a role blank if they don&apos;t work it. Skills stay private to managers.</p>
           </div>
@@ -971,6 +1031,26 @@
   if (schedLocs) schedLocs.querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () =>
       schedLocs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))));
+
+  // ---- schedule builder: day chips + fill an open shift ----
+  const buildDays = document.getElementById('build-days');
+  if (buildDays) buildDays.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () =>
+      buildDays.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))));
+  const fillHost = document.getElementById('fill-host');
+  if (fillHost) fillHost.addEventListener('click', () => {
+    const s = document.getElementById('suggest');
+    s.hidden = false;
+    s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  document.querySelectorAll('.assign-host').forEach(btn => btn.addEventListener('click', () => {
+    document.getElementById('host-count').textContent = '3 / 3';
+    if (fillHost) fillHost.outerHTML = '<span class="pill ok">✓</span>';
+    document.getElementById('suggest').hidden = true;
+    document.getElementById('cov-pct').textContent = '100%';
+    document.getElementById('flag-host').hidden = true;
+    toastThen('Host filled · Sat 7a–12p', null);
+  }));
 
   // ---- skill selectors (add employee) ----
   document.querySelectorAll('.skill').forEach(group => {

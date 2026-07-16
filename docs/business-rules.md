@@ -85,6 +85,18 @@ Server opener** every day, and management rules:
 - **Compliance sign-off** (`resource_signoffs`) records **who acknowledged and
   when** — managers/admins can see who still hasn't signed.
 
+## 14. Toast POS integration — sales & revenue/hour 📝 (foundational)
+- Pull **sales data from Toast** per location: **revenue per hour**, transaction
+  counts, and (where available) sales by daypart. (They use Sling today, which
+  integrates with Toast; this replicates that.)
+- **Revenue/hour vs. labor**: when an hour's revenue falls **below a threshold**,
+  surface it so a manager can **cut/adjust** staff — and feed it to the AI
+  optimizer as a **demand signal** (alongside peak hours) so it trims low-earning
+  hours and protects labor %.
+- Planned model: a `pos_sales` table (location_id, business_date, hour, revenue,
+  transactions, source='toast') + a nightly/live sync from the Toast API; a
+  per-location `revenue_per_hour_target`. This is a **foundational** integration.
+
 ---
 
 ### Decisions (confirmed)
