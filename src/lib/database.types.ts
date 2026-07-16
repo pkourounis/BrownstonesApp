@@ -12,6 +12,7 @@ export type RequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 export type Season = 'standard' | 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
 export type ReviewStatus = 'scheduled' | 'completed' | 'skipped';
 export type SwapKind = 'swap' | 'pickup';
+export type ResourceType = 'product' | 'training' | 'compliance' | 'link' | 'document';
 export type SchedulingRuleType =
   | 'max_hours_per_week'
   | 'max_consecutive_days'
@@ -53,9 +54,48 @@ export type Location = {
   phone: string | null;
   timezone: string;
   opens_at: string;
+  location_number: string | null;
+  seats: number | null;
+  tables: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export type LocationHours = {
+  id: string;
+  location_id: string;
+  day_of_week: number;
+  open_time: string | null;
+  close_time: string | null;
+  is_closed: boolean;
+}
+
+export type Resource = {
+  id: string;
+  type: ResourceType;
+  title: string;
+  description: string | null;
+  url: string | null;
+  requires_signoff: boolean;
+  is_active: boolean;
+  published_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ResourceAssignment = {
+  id: string;
+  resource_id: string;
+  location_id: string | null; // null = all locations
+  profile_id: string | null;  // null = all employees
+  created_at: string;
+}
+
+export type ResourceSignoff = {
+  resource_id: string;
+  profile_id: string;
+  signed_at: string;
 }
 
 export type Profile = {
@@ -274,7 +314,11 @@ export type Database = {
       staffing_requirements: Table<StaffingRequirement>;
       season_calendar: Table<SeasonCalendar>;
       location_peak_hours: Table<LocationPeakHours>;
+      location_hours: Table<LocationHours>;
       scheduling_rules: Table<SchedulingRule>;
+      resources: Table<Resource>;
+      resource_assignments: Table<ResourceAssignment>;
+      resource_signoffs: Table<ResourceSignoff>;
       notifications: Table<Notification>;
     };
     Views: Record<string, never>;
@@ -288,6 +332,7 @@ export type Database = {
       request_status: RequestStatus;
       review_status: ReviewStatus;
       swap_kind: SwapKind;
+      resource_type: ResourceType;
       scheduling_rule_type: SchedulingRuleType;
       notification_type: NotificationType;
     };

@@ -73,9 +73,24 @@ Server opener** every day, and management rules:
 - Open/dropped shifts (`kind = 'pickup'`) are a **global** pool — **any employee at
   any location** can **claim** (`claimed_by`); the **manager approves**.
 
+## 13. Super Admin — locations & publishing ✅ (model) / 📝 (UI)
+- **Add a location** with full setup: address, phone, **location #**, **seats**,
+  **tables**, **per-day business hours** (`location_hours`), **peak hours**,
+  **assign a manager**, and **add staff**.
+- **Only super admins publish** `resources`:
+  - **product** — announcement of a new menu item (title, description, image)
+  - **training**, **compliance** (sign-off), **link** (payroll, uniforms), **document**
+- **Targeting** (`resource_assignments`): any/all **locations** and/or specific
+  **employees**.
+- **Compliance sign-off** (`resource_signoffs`) records **who acknowledged and
+  when** — managers/admins can see who still hasn't signed.
+
 ---
 
 ### Decisions (confirmed)
+- **Product offering**: an **announcement** (title + description/image), not a full menu item.
+- **Business hours**: **open/close per day of week**.
+- **Compliance sign-off**: **full audit trail** of who signed and when.
 - **Reviews**: from **hire date**; re-rate skills **and** notes.
 - **Time-off cap**: **per location** (2/day).
 - **Swap conflicts**: **flag, manager can override**.

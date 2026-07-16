@@ -381,3 +381,32 @@ select * from (values
      '{"months": 6, "from": "hire_date"}'::jsonb, false, 'Managers review each employee every 6 months from hire date')
 ) as r(location_id, department, rule_type, config, is_hard, description)
 where not exists (select 1 from public.scheduling_rules where rule_type = 'time_off_advance_days');
+
+-- ---------------------------------------------------------------------------
+-- Per-day business hours: weekdays 7a-3p, weekends 7a-4p (all locations).
+-- ---------------------------------------------------------------------------
+insert into public.location_hours (location_id, day_of_week, open_time, close_time)
+select l.id, d.dow, d.o::time, d.c::time
+from public.locations l
+cross join (values
+  (1,'07:00','15:00'),(2,'07:00','15:00'),(3,'07:00','15:00'),(4,'07:00','15:00'),(5,'07:00','15:00'),
+  (6,'07:00','16:00'),(0,'07:00','16:00')
+) as d(dow, o, c)
+where not exists (select 1 from public.location_hours);
+
+-- ---------------------------------------------------------------------------
+-- A few starter resources published to everyone.
+-- ---------------------------------------------------------------------------
+with new_resources as (
+  insert into public.resources (type, title, description, requires_signoff)
+  select v.type::public.resource_type, v.title, v.descr, v.signoff
+  from (values
+    ('compliance', 'Employee Handbook 2026', 'Company policies & code of conduct', true),
+    ('link',       'Payroll portal (ADP)',   'View pay stubs and tax documents',  false),
+    ('link',       'Order uniforms',         'Reorder shirts, aprons, and hats',  false)
+  ) as v(type, title, descr, signoff)
+  where not exists (select 1 from public.resources)
+  returning id
+)
+insert into public.resource_assignments (resource_id, location_id, profile_id)
+select id, null, null from new_resources;
