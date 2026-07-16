@@ -95,6 +95,7 @@
   .app[data-screen="add-employee"] .screen[data-s="add-employee"],
   .app[data-screen="add-location"] .screen[data-s="add-location"],
   .app[data-screen="publish"]  .screen[data-s="publish"],
+  .app[data-screen="view-profile"] .screen[data-s="view-profile"],
   .app[data-screen="admin"]    .screen[data-s="admin"] { display:flex; }
 
   .h1 { font-family:var(--serif); font-weight:700; font-size:25px; margin:0; color:var(--ink);
@@ -222,6 +223,11 @@
   .seasontabs button { border:0; background:transparent; font:inherit; font-size:11.5px; font-weight:600;
     padding:5px 11px; border-radius:999px; cursor:pointer; color:var(--bronze-600); }
   .seasontabs button[aria-pressed="true"] { background:var(--bronze); color:#fff; }
+  .months { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin-top:6px; }
+  .months button { flex:0 0 auto; border:1px solid var(--line); background:#fff; font:inherit;
+    font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; color:var(--bronze-600); cursor:pointer; }
+  .months button[aria-pressed="true"] { background:var(--bronze); color:#fff; border-color:var(--bronze); }
+  .sgrid.editing td.n { box-shadow:inset 0 0 0 1px var(--gold); border-radius:6px; }
 
   /* skill selector (add employee) */
   .skillrow { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line-2); }
@@ -391,6 +397,21 @@
             <button class="btn btn-primary sm" data-roles="manager super_admin" data-goto="build" hidden>✨ Build</button>
           </div>
 
+          <div data-roles="super_admin" hidden>
+            <div class="months" id="sched-locs">
+              <button data-loc="all" aria-pressed="true">All locations</button>
+              <button data-loc="amityville">Amityville</button>
+              <button data-loc="west-islip">West Islip</button>
+              <button data-loc="east-northport">E. Northport</button>
+              <button data-loc="centereach">Centereach</button>
+              <button data-loc="sayville">Sayville</button>
+            </div>
+            <div class="card tight row" style="margin-top:8px; background:var(--gold-tint); border-color:var(--gold-soft);">
+              <span class="ic">✎</span>
+              <div class="stack" style="flex:1;"><b style="font-size:12.5px;">You can edit any location&apos;s schedule</b><span class="muted" style="font-size:11px;">Saving publishes the change and notifies the manager + affected staff</span></div>
+            </div>
+          </div>
+
           <div class="card tight" style="border-color:var(--gold-soft); background:var(--gold-tint);">
             <div class="row between"><p class="eyebrow" style="margin:0;">🙌 Up for grabs</p><span class="pill gold">Global</span></div>
             <div class="row between" style="margin-top:9px;">
@@ -468,15 +489,27 @@
             <div>
               <p class="h1">Team</p>
               <p class="sub" data-roles="manager">18 people · West Islip</p>
-              <p class="sub" data-roles="super_admin" hidden>126 people · all locations</p>
+              <p class="sub" data-roles="super_admin" hidden>92 people · all locations</p>
             </div>
           </div>
-          <div class="card stack" style="gap:0; padding:4px 14px;">
-            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:#8a5a2b">DK</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Danny Kessler</b><span class="muted" style="font-size:12px;">Manager</span></div></div>
-            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--gold)">PS</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Priya Shah</b><span class="muted" style="font-size:12px;">Shift Lead · Server</span></div></div>
-            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--bronze)">MR</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Maya Rivera</b><span class="muted" style="font-size:12px;">Barista</span></div></div>
-            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--brick)">LM</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Luis Marino</b><span class="muted" style="font-size:12px;">Line Cook</span></div></div>
-            <div class="row" style="padding:12px 0;"><span class="ava" style="background:#6b7a3f">TA</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Tomas Alvarez</b><span class="muted" style="font-size:12px;">Host</span></div><span class="pill info">Onboarding</span></div>
+
+          <input id="team-search" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:11px; font:inherit; font-size:13px;" placeholder="Search by name…">
+          <div class="months" id="team-locs" data-roles="super_admin" hidden>
+            <button data-loc="all" aria-pressed="true">All</button>
+            <button data-loc="amityville" aria-pressed="false">Amityville</button>
+            <button data-loc="west-islip" aria-pressed="false">West Islip</button>
+            <button data-loc="east-northport" aria-pressed="false">E. Northport</button>
+            <button data-loc="centereach" aria-pressed="false">Centereach</button>
+            <button data-loc="sayville" aria-pressed="false">Sayville</button>
+          </div>
+
+          <div class="card stack" id="team-list" style="gap:0; padding:4px 14px;">
+            <button class="row person" data-goto="view-profile" data-name="Danny Kessler" data-loc="west-islip" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:12px 0;"><span class="ava" style="background:#8a5a2b">DK</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Danny Kessler</b><span class="muted" style="font-size:12px;">Manager · West Islip</span></div></button>
+            <button class="row person" data-goto="view-profile" data-name="Priya Shah" data-loc="west-islip" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:12px 0;"><span class="ava" style="background:var(--gold)">PS</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Priya Shah</b><span class="muted" style="font-size:12px;">Lead Server · West Islip</span></div></button>
+            <button class="row person" data-goto="view-profile" data-name="Maya Rivera" data-loc="west-islip" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:12px 0;"><span class="ava" style="background:var(--bronze)">MR</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Maya Rivera</b><span class="muted" style="font-size:12px;">Barista · West Islip</span></div></button>
+            <button class="row person" data-goto="view-profile" data-name="Luis Marino" data-loc="west-islip" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:12px 0;"><span class="ava" style="background:var(--brick)">LM</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Luis Marino</b><span class="muted" style="font-size:12px;">Cook · West Islip</span></div></button>
+            <button class="row person" data-goto="view-profile" data-name="Gina Russo" data-loc="amityville" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:12px 0;"><span class="ava" style="background:#7a5c2d">GR</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Gina Russo</b><span class="muted" style="font-size:12px;">Manager · Amityville</span></div></button>
+            <button class="row person" data-goto="view-profile" data-name="Tomas Alvarez" data-loc="sayville" style="width:100%; text-align:left; background:none; border:0; cursor:pointer; padding:12px 0;"><span class="ava" style="background:#6b7a3f">TA</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Tomas Alvarez</b><span class="muted" style="font-size:12px;">Host · Sayville</span></div><span class="pill info">Onboarding</span></button>
           </div>
           <button class="btn btn-primary" data-roles="manager super_admin" data-goto="add-employee">+ Add employee</button>
         </section>
@@ -503,15 +536,31 @@
 
         <section class="screen" data-s="chat">
           <div class="screen-head">
-            <div><p class="h1">Chat</p><p class="sub">West Islip · your location</p></div>
-            <span class="pill gold" data-roles="super_admin" hidden>Switch location ▾</span>
+            <div>
+              <p class="h1">Chat</p>
+              <p class="sub" data-roles="employee manager">West Islip · your location</p>
+              <p class="sub" data-roles="super_admin" hidden>All locations · every chat</p>
+            </div>
           </div>
-          <div class="card" style="padding:4px 15px;">
+
+          <!-- Employee / Manager: their location's channels -->
+          <div class="card" style="padding:4px 15px;" data-roles="employee manager">
             <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">West Islip — Team</b><span class="muted" style="font-size:12px;">Everyone at this location</span></div><span class="badge">2</span></div>
             <div class="chan"><span class="ic">🧑‍🍳</span><div class="stack"><b style="font-size:13.5px;">Kitchen (BOH)</b><span class="muted" style="font-size:12px;">Luis: prep list for Sat is up</span></div></div>
             <div class="chan"><span class="ic">☕</span><div class="stack"><b style="font-size:13.5px;">Front of House (FOH)</b><span class="muted" style="font-size:12px;">Maya: who's grabbing oat milk?</span></div></div>
           </div>
-          <p class="muted" style="font-size:11px; margin:0;">Chat stays within your location. Super admins can open any location&apos;s chat.</p>
+
+          <!-- Super Admin: all locations at once, no switching -->
+          <div class="card" style="padding:4px 15px;" data-roles="super_admin" hidden>
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">Amityville — Team</b><span class="muted" style="font-size:12px;">Danny: record Saturday 🙌</span></div><span class="badge">4</span></div>
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">West Islip — Team</b><span class="muted" style="font-size:12px;">Maya: who's grabbing oat milk?</span></div><span class="badge">2</span></div>
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">East Northport — Team</b><span class="muted" style="font-size:12px;">Priya: covered Tomas's Sun shift</span></div></div>
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">Centereach — Team</b><span class="muted" style="font-size:12px;">Prep is ahead for the week</span></div><span class="badge">1</span></div>
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">Sayville — Team</b><span class="muted" style="font-size:12px;">New hire starts Monday</span></div></div>
+            <div class="chan"><span class="ic">📊</span><div class="stack"><b style="font-size:13.5px;">Managers — all locations</b><span class="muted" style="font-size:12px;">Chris: numbers looked great</span></div></div>
+          </div>
+          <p class="muted" style="font-size:11px; margin:0;" data-roles="employee manager">Chat stays within your location.</p>
+          <p class="muted" style="font-size:11px; margin:0;" data-roles="super_admin" hidden>You see every location&apos;s chat from one login — no switching.</p>
           <p class="eyebrow" style="margin-top:2px;">West Islip — Team</p>
           <div class="stack" style="gap:9px;">
             <div class="bubble them"><span class="who">Luis M.</span>Prep list for Saturday is posted in Resources 👍</div>
@@ -548,13 +597,53 @@
               <p class="sub" data-roles="super_admin" hidden>Owner · All locations</p>
             </div>
           </div>
+          <button class="btn btn-gold sm" style="width:auto; margin:-4px auto 0;">📷 Change photo</button>
+
           <div class="card stack" style="gap:0; padding:4px 15px;">
             <div class="row between" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Role</span><b style="font-size:13px;" data-roles="employee">Employee</b><b style="font-size:13px;" data-roles="manager" hidden>Manager</b><b style="font-size:13px;" data-roles="super_admin" hidden>Super Admin</b></div>
-            <div class="row between" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Location</span><b style="font-size:13px;">West Islip</b></div>
+            <div class="row between" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Location</span><b style="font-size:13px;" data-roles="employee manager">West Islip</b><b style="font-size:13px;" data-roles="super_admin" hidden>All locations</b></div>
             <div class="row between" style="padding:12px 0;"><span class="muted" style="font-size:12.5px;">Since</span><b style="font-size:13px;">Mar 2025</b></div>
           </div>
-          <button class="btn btn-ghost">Edit profile</button>
+
+          <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+            <p class="eyebrow" style="margin:0;">About you</p>
+            <textarea class="input" style="min-height:64px; width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:11px; font:inherit; font-size:13px;" placeholder="A few words about you…">Long Island native, latte art enthusiast, weekend hiker ☕🥾</textarea>
+          </div>
+
+          <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+            <p class="eyebrow" style="margin:0;">Socials</p>
+            <div class="row" style="gap:8px;"><span style="width:22px; text-align:center;">📸</span><input style="flex:1; padding:8px 11px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:13px;" placeholder="Instagram" value="@maya.brews"></div>
+            <div class="row" style="gap:8px;"><span style="width:22px; text-align:center;">🎵</span><input style="flex:1; padding:8px 11px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:13px;" placeholder="TikTok"></div>
+            <div class="row" style="gap:8px;"><span style="width:22px; text-align:center;">🔗</span><input style="flex:1; padding:8px 11px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:13px;" placeholder="Website / LinkedIn"></div>
+          </div>
+          <p class="muted" style="font-size:11px; text-align:center;">Your profile is visible to teammates.</p>
+
+          <button class="btn btn-primary">Save profile</button>
           <button class="btn btn-ghost" data-goto="login" style="color:var(--brick);">Sign out</button>
+        </section>
+
+        <!-- ================= VIEW TEAMMATE PROFILE ================= -->
+        <section class="screen" data-s="view-profile">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="team">‹ Team</div>
+          <div class="stack" style="align-items:center; gap:10px; padding-top:4px;">
+            <span class="ava" style="width:76px; height:76px; font-size:26px; background:var(--gold);">PS</span>
+            <div style="text-align:center;">
+              <p class="h1" style="font-size:22px;">Priya Shah</p>
+              <p class="sub">Lead Server · West Islip · since Jan 2024</p>
+            </div>
+            <div class="row" style="gap:8px;">
+              <span class="pill gold">📸 @priya.eats</span>
+              <button class="btn btn-primary sm">Message</button>
+            </div>
+          </div>
+          <div class="card">
+            <p class="eyebrow">About</p>
+            <p style="font-size:13.5px; line-height:1.5; color:#3b2e1c; margin:6px 0 0;">Been with Brownstones since we opened West Islip. Coffee obsessive, dog mom to two beagles, always down to close on a Friday. 🐾</p>
+          </div>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row between" style="padding:11px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Department</span><b style="font-size:13px;">Front of House</b></div>
+            <div class="row between" style="padding:11px 0;"><span class="muted" style="font-size:12.5px;">Birthday</span><b style="font-size:13px;">March 14</b></div>
+          </div>
         </section>
 
         <section class="screen" data-s="admin">
@@ -609,10 +698,15 @@
             </div>
           </div>
 
-          <div class="card" style="display:flex; flex-direction:column; gap:12px;">
-            <p class="eyebrow" style="margin:0;">Business hours</p>
-            <div class="row between"><span style="font-size:13px;">Mon – Fri</span><span class="row" style="gap:6px;"><input style="width:74px;" class="hr" value="7:00 AM" readonly><span class="muted">–</span><input style="width:74px;" class="hr" value="3:00 PM" readonly></span></div>
-            <div class="row between"><span style="font-size:13px;">Sat – Sun</span><span class="row" style="gap:6px;"><input style="width:74px;" class="hr" value="7:00 AM" readonly><span class="muted">–</span><input style="width:74px;" class="hr" value="4:00 PM" readonly></span></div>
+          <div class="card" style="display:flex; flex-direction:column; gap:9px;">
+            <p class="eyebrow" style="margin:0;">Business hours — per day</p>
+            <div class="row between"><span style="font-size:13px; width:40px;">Mon</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="3:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Tue</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="3:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Wed</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="3:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Thu</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="3:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Fri</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="3:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Sat</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="4:00 PM"></span></div>
+            <div class="row between"><span style="font-size:13px; width:40px;">Sun</span><span class="row" style="gap:5px;"><input style="width:72px;" class="hr" value="7:00 AM"><span class="muted">–</span><input style="width:72px;" class="hr" value="4:00 PM"></span></div>
           </div>
 
           <div class="card" style="display:flex; flex-direction:column; gap:10px;">
@@ -670,17 +764,14 @@
         <!-- ================= STAFFING GRID ================= -->
         <section class="screen" data-s="staffing">
           <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="schedule">‹ Schedule</div>
-          <div>
-            <p class="h1">Staffing</p>
-            <p class="sub">West Islip · required coverage per day</p>
+          <div class="row between">
+            <div><p class="h1">Staffing</p><p class="sub">West Islip · coverage per day</p></div>
+            <button class="btn btn-ghost sm" id="edit-staff">✎ Edit</button>
           </div>
 
-          <div class="row between">
-            <span class="eyebrow" style="margin:0;">Season</span>
-            <div class="seastabs seasontabs" role="group" aria-label="Season">
-              <button data-season="standard" aria-pressed="true">Standard</button>
-              <button data-season="summer" aria-pressed="false">Summer</button>
-            </div>
+          <div>
+            <span class="eyebrow">Adjust by month</span>
+            <div class="months" id="months"><!-- chips by JS --></div>
           </div>
 
           <div class="card tight" style="overflow-x:auto;">
@@ -692,7 +783,7 @@
             </table>
           </div>
           <p class="muted" style="font-size:11.5px;">
-            <span style="color:var(--brick); font-weight:700;">■</span> Summer changes only Server counts and whether a Drink/Food Runner is needed. Weekends shaded. 1 Server opens at 7am daily.
+            <span style="color:var(--brick); font-weight:700;">■</span> Jun–Aug raise Server counts and add a Drink/Food Runner. Red = changed from baseline. Tap <b>Edit</b> to adjust any number. Weekends shaded; 1 Server opens at 7am daily.
           </p>
         </section>
 
@@ -840,13 +931,54 @@
     }
     body.innerHTML = html;
   }
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const SUMMER = new Set([5, 6, 7]); // Jun, Jul, Aug carry higher coverage
+  const monthsEl = document.getElementById('months');
+  if (monthsEl) {
+    MONTHS.forEach((m, i) => {
+      const b = document.createElement('button');
+      b.textContent = m;
+      b.setAttribute('aria-pressed', String(i === 0));
+      b.addEventListener('click', () => {
+        [...monthsEl.children].forEach(c => c.setAttribute('aria-pressed', String(c === b)));
+        renderStaff(SUMMER.has(i) ? 'summer' : 'standard');
+      });
+      monthsEl.appendChild(b);
+    });
+  }
   renderStaff('standard');
-  document.querySelectorAll('.seasontabs button').forEach(b =>
+  const editStaff = document.getElementById('edit-staff');
+  if (editStaff) editStaff.addEventListener('click', () => {
+    const g = document.querySelector('.sgrid');
+    g.classList.toggle('editing');
+    editStaff.textContent = g.classList.contains('editing') ? '✓ Done' : '✎ Edit';
+  });
+
+  // ---- team search + location filter ----
+  const teamSearch = document.getElementById('team-search');
+  const teamLocs = document.getElementById('team-locs');
+  function filterTeam() {
+    const q = (teamSearch ? teamSearch.value : '').toLowerCase();
+    const active = teamLocs ? teamLocs.querySelector('[aria-pressed="true"]') : null;
+    const loc = active ? active.dataset.loc : 'all';
+    document.querySelectorAll('#team-list .person').forEach(row => {
+      const okName = row.dataset.name.toLowerCase().includes(q);
+      const okLoc = loc === 'all' || row.dataset.loc === loc;
+      row.hidden = !(okName && okLoc);
+    });
+  }
+  if (teamSearch) teamSearch.addEventListener('input', filterTeam);
+  if (teamLocs) teamLocs.querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => {
-      document.querySelectorAll('.seasontabs button').forEach(x =>
-        x.setAttribute('aria-pressed', String(x === b)));
-      renderStaff(b.dataset.season);
+      teamLocs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      filterTeam();
     }));
+
+  // ---- schedule location filter (visual) ----
+  const schedLocs = document.getElementById('sched-locs');
+  if (schedLocs) schedLocs.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () =>
+      schedLocs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))));
 
   // ---- skill selectors (add employee) ----
   document.querySelectorAll('.skill').forEach(group => {
