@@ -82,6 +82,10 @@
   .app[data-screen="feed"]     .screen[data-s="feed"],
   .app[data-screen="chat"]     .screen[data-s="chat"],
   .app[data-screen="resources"] .screen[data-s="resources"],
+  .app[data-screen="quiz"]     .screen[data-s="quiz"],
+  .app[data-screen="availability"] .screen[data-s="availability"],
+  .app[data-screen="time-off"] .screen[data-s="time-off"],
+  .app[data-screen="swap"]     .screen[data-s="swap"],
   .app[data-screen="profile"]  .screen[data-s="profile"],
   .app[data-screen="staffing"] .screen[data-s="staffing"],
   .app[data-screen="add-employee"] .screen[data-s="add-employee"],
@@ -253,6 +257,19 @@
     padding:5px 10px; border-radius:999px; cursor:pointer; color:var(--bronze-600); white-space:nowrap; }
   .view-seg button[aria-pressed="true"] { background:var(--bronze); color:#fff; }
   .swatch { width:26px; height:26px; border-radius:7px; border:1px solid rgba(0,0,0,.1); flex:0 0 auto; }
+  .qopt { display:block; width:100%; text-align:left; font:inherit; font-size:13px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:11px; background:#fff; color:var(--ink); cursor:pointer; }
+  .qopt.sel { border-color:var(--gold); background:var(--gold-tint); font-weight:600; }
+  .qopt.correct { border-color:var(--green); background:#e4efdd; }
+  .qopt.wrong { border-color:var(--brick); background:#f6e0da; }
+  .avail-day { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line-2); }
+  .avail-day:last-child { border-bottom:0; }
+  .toggle { width:42px; height:24px; border-radius:999px; background:var(--line); position:relative;
+    cursor:pointer; flex:0 0 auto; transition:.15s; border:0; }
+  .toggle::after { content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:#fff; transition:.15s; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+  .toggle.on { background:var(--green); }
+  .toggle.on::after { left:20px; }
 
   .footer-note { width:min(420px,94vw); text-align:center; color:var(--stage-ink); opacity:.7;
     font-size:11.5px; line-height:1.6; }
@@ -335,6 +352,10 @@
                 <div class="stack" style="flex:1;"><b style="font-size:13.5px;">Updated Food Handling Policy</b><span class="muted" style="font-size:12px;">Please review &amp; acknowledge</span></div>
                 <button class="btn btn-gold sm">Review</button>
               </div>
+            </div>
+            <div class="grid2">
+              <button class="card tight row" data-goto="availability" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">🗓️</span><span class="stack"><b style="font-size:13px;">Availability</b><span class="muted" style="font-size:11.5px;">Pending approval</span></span></button>
+              <button class="card tight row" data-goto="time-off" style="text-align:left; cursor:pointer; border:1px solid var(--line);"><span class="ic">🌴</span><span class="stack"><b style="font-size:13px;">Time off</b><span class="muted" style="font-size:11.5px;">Request</span></span></button>
             </div>
           </div>
 
@@ -467,7 +488,8 @@
             <div class="shift"><span class="bar" style="background:var(--bronze-600)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">7:00 AM – 3:00 PM</span><span class="muted" style="font-size:12px;">Danny K. · Shift Lead</span></div></div>
           </div>
 
-          <button class="btn btn-ghost" data-roles="employee">Request a shift change</button>
+          <button class="btn btn-ghost" data-roles="employee" data-goto="swap">Swap or drop a shift</button>
+          <button class="btn btn-ghost" data-roles="employee" data-goto="time-off">Request time off</button>
         </section>
 
         <section class="screen" data-s="build">
@@ -646,17 +668,121 @@
 
         <section class="screen" data-s="resources">
           <div class="screen-head"><div><p class="h1">Training</p><p class="sub">Onboarding, handbooks &amp; quizzes</p></div></div>
+
+          <div class="card tight" id="floor-status" style="border-color:#eccf8f; background:#fbefd2;">
+            <div class="row" style="gap:10px;">
+              <span style="font-size:22px;">⛔</span>
+              <div class="stack" style="flex:1;"><b style="font-size:13.5px; color:#9a6b13;">Not cleared for the floor</b><span class="muted" style="font-size:11.5px;">Pass the Food Safety quiz to be scheduled on the floor.</span></div>
+            </div>
+          </div>
+
           <div class="card tight">
-            <div class="row between"><p class="eyebrow" style="margin:0;">Your onboarding</p><span class="pill gold">60%</span></div>
-            <div class="track" style="margin-top:9px;"><i style="width:60%"></i></div>
-            <p class="muted" style="font-size:12px; margin:9px 0 0;">3 of 5 modules complete</p>
+            <div class="row between"><p class="eyebrow" style="margin:0;">Your onboarding</p><span class="pill gold" id="onb-pct">60%</span></div>
+            <div class="track" style="margin-top:9px;"><i id="onb-bar" style="width:60%"></i></div>
+            <p class="muted" style="font-size:12px; margin:9px 0 0;" id="onb-note">3 of 5 modules complete</p>
           </div>
           <div class="card stack" style="gap:0; padding:4px 15px;">
             <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">✅</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Welcome to Brownstones</b><span class="muted" style="font-size:11.5px;">Completed</span></div></div>
             <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">✅</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Espresso &amp; Café Standards</b><span class="muted" style="font-size:11.5px;">Completed</span></div></div>
-            <div class="row" style="padding:12px 0;"><span class="ic" style="background:var(--gold-tint);">📝</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Food Safety Quiz</b><span class="muted" style="font-size:11.5px;">Pass to work the floor · due Fri</span></div><button class="btn btn-gold sm">Start</button></div>
+            <div class="row" style="padding:12px 0;" id="quiz-row"><span class="ic" style="background:var(--gold-tint);">📝</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Food Safety Quiz</b><span class="muted" style="font-size:11.5px;" id="quiz-sub">Pass to work the floor · due Fri</span></div><button class="btn btn-gold sm" data-goto="quiz">Start</button></div>
           </div>
-          <div class="card tight row"><span class="ic">📕</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Employee Handbook 2026</b><span class="muted" style="font-size:11.5px;">PDF · signed Jun 3</span></div><span class="pill ok">Signed</span></div>
+          <div class="card tight row"><span class="ic">📕</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Employee Handbook 2026</b><span class="muted" style="font-size:11.5px;">Requires sign-off</span></div><button class="btn btn-gold sm">Sign</button></div>
+        </section>
+
+        <!-- ================= QUIZ (floor gate) ================= -->
+        <section class="screen" data-s="quiz">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="resources">‹ Training</div>
+          <div><p class="h1">Food Safety Quiz</p><p class="sub">Score 2 of 3+ to be cleared for the floor</p></div>
+
+          <div id="quiz-questions" class="stack" style="gap:14px;">
+            <div class="card quiz-q" data-answer="b">
+              <p style="font-size:13.5px; font-weight:600; margin:0 0 10px;">1. Safe fridge temperature for raw eggs?</p>
+              <div class="stack" style="gap:7px;">
+                <button class="qopt" data-opt="a">Below 50°F</button>
+                <button class="qopt" data-opt="b">At or below 40°F</button>
+                <button class="qopt" data-opt="c">Room temperature is fine</button>
+              </div>
+            </div>
+            <div class="card quiz-q" data-answer="a">
+              <p style="font-size:13.5px; font-weight:600; margin:0 0 10px;">2. When must you wash your hands?</p>
+              <div class="stack" style="gap:7px;">
+                <button class="qopt" data-opt="a">After handling raw food, before serving</button>
+                <button class="qopt" data-opt="b">Only at the start of your shift</button>
+                <button class="qopt" data-opt="c">Only after a break</button>
+              </div>
+            </div>
+            <div class="card quiz-q" data-answer="c">
+              <p style="font-size:13.5px; font-weight:600; margin:0 0 10px;">3. A guest reports a nut allergy. You:</p>
+              <div class="stack" style="gap:7px;">
+                <button class="qopt" data-opt="a">Guess which items are safe</button>
+                <button class="qopt" data-opt="b">Tell them everything is fine</button>
+                <button class="qopt" data-opt="c">Flag the ticket &amp; confirm with the kitchen</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="quiz-submit">Submit quiz</button>
+          <div id="quiz-result" hidden></div>
+        </section>
+
+        <!-- ================= AVAILABILITY ================= -->
+        <section class="screen" data-s="availability">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="home">‹ Home</div>
+          <div class="screen-head">
+            <div><p class="h1">Availability</p><p class="sub">When you can work each week</p></div>
+            <span class="pill draft">Pending approval</span>
+          </div>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="avail-day"><button class="toggle on" aria-label="Mon"></button><b style="width:42px; font-size:13px;">Mon</b><span class="row" style="gap:5px; margin-left:auto;"><input class="hr" style="width:70px;" value="7:00 AM"><span class="muted">–</span><input class="hr" style="width:70px;" value="4:00 PM"></span></div>
+            <div class="avail-day"><button class="toggle on" aria-label="Tue"></button><b style="width:42px; font-size:13px;">Tue</b><span class="row" style="gap:5px; margin-left:auto;"><input class="hr" style="width:70px;" value="7:00 AM"><span class="muted">–</span><input class="hr" style="width:70px;" value="4:00 PM"></span></div>
+            <div class="avail-day"><button class="toggle" aria-label="Wed"></button><b style="width:42px; font-size:13px; color:var(--faint);">Wed</b><span class="muted" style="margin-left:auto; font-size:12px;">Unavailable</span></div>
+            <div class="avail-day"><button class="toggle on" aria-label="Thu"></button><b style="width:42px; font-size:13px;">Thu</b><span class="row" style="gap:5px; margin-left:auto;"><input class="hr" style="width:70px;" value="7:00 AM"><span class="muted">–</span><input class="hr" style="width:70px;" value="4:00 PM"></span></div>
+            <div class="avail-day"><button class="toggle on" aria-label="Fri"></button><b style="width:42px; font-size:13px;">Fri</b><span class="row" style="gap:5px; margin-left:auto;"><input class="hr" style="width:70px;" value="7:00 AM"><span class="muted">–</span><input class="hr" style="width:70px;" value="4:00 PM"></span></div>
+            <div class="avail-day"><button class="toggle on" aria-label="Sat"></button><b style="width:42px; font-size:13px;">Sat</b><span class="row" style="gap:5px; margin-left:auto;"><input class="hr" style="width:70px;" value="6:00 AM"><span class="muted">–</span><input class="hr" style="width:70px;" value="4:00 PM"></span></div>
+            <div class="avail-day"><button class="toggle" aria-label="Sun"></button><b style="width:42px; font-size:13px; color:var(--faint);">Sun</b><span class="muted" style="margin-left:auto; font-size:12px;">Unavailable</span></div>
+          </div>
+          <p class="muted" style="font-size:11.5px;">Changes are submitted to your manager for approval before the AI uses them.</p>
+          <button class="btn btn-primary" id="save-avail">Submit for approval</button>
+        </section>
+
+        <!-- ================= TIME OFF ================= -->
+        <section class="screen" data-s="time-off">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="home">‹ Home</div>
+          <div><p class="h1">Request time off</p><p class="sub">Manager approves · give 2 weeks notice</p></div>
+
+          <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="grid2">
+              <div class="field"><label>From</label><input class="hr" style="text-align:left; padding:11px;" value="Aug 2" id="off-from"></div>
+              <div class="field"><label>To</label><input class="hr" style="text-align:left; padding:11px;" value="Aug 3" id="off-to"></div>
+            </div>
+            <div class="field"><label>Reason</label><textarea style="min-height:60px; width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:11px; font:inherit; font-size:13px;" placeholder="Add a short description…">Family wedding</textarea></div>
+          </div>
+
+          <div class="card tight row" id="off-notice" style="background:#e4efdd; border-color:#bcd8ac;">
+            <span style="font-size:20px;">✓</span>
+            <span style="font-size:12.5px; color:#3a5a2c;">Aug 2 is <b>27 days</b> out — meets the 2-week rule. Goes straight to your manager.</span>
+          </div>
+
+          <button class="btn btn-primary" id="save-off">Submit request</button>
+          <p class="muted" style="font-size:11px; text-align:center;">Under 2 weeks? Your shift goes “up for grabs” for anyone to cover, then the manager approves.</p>
+        </section>
+
+        <!-- ================= SWAP / DROP ================= -->
+        <section class="screen" data-s="swap">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="schedule">‹ Schedule</div>
+          <div><p class="h1">Swap or drop</p><p class="sub">Sat Jul 11 · 6:30 AM – 2:30 PM · Barista</p></div>
+
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <button class="row" style="width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line-2); cursor:pointer; padding:13px 0;"><span class="ic">🔁</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Swap with a teammate</b><span class="muted" style="font-size:11.5px;">Pick who to trade shifts with</span></div><span class="muted">›</span></button>
+            <button class="row" style="width:100%; text-align:left; background:none; border:0; cursor:pointer; padding:13px 0;" id="drop-shift"><span class="ic">🙌</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Put up for grabs</b><span class="muted" style="font-size:11.5px;">Anyone can claim · manager approves</span></div><span class="muted">›</span></button>
+          </div>
+
+          <p class="eyebrow">Suggested swaps</p>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--gold); width:34px; height:34px; font-size:12px;">PS</span><div class="stack" style="flex:1;"><b style="font-size:13px;">Priya Shah</b><span class="muted" style="font-size:11.5px;">Off Sat · works Barista</span></div><button class="btn btn-primary sm" id="req-swap">Ask</button></div>
+            <div class="row" style="padding:12px 0;"><span class="ava" style="background:var(--bronze); width:34px; height:34px; font-size:12px;">JL</span><div class="stack" style="flex:1;"><b style="font-size:13px;">Jordan Lee</b><span class="muted" style="font-size:11.5px;">Off Sat · works Barista</span></div><button class="btn btn-primary sm req-swap">Ask</button></div>
+          </div>
+          <p class="muted" style="font-size:11px; text-align:center;">A swap that breaks a rule is flagged for your manager before approval.</p>
         </section>
 
         <section class="screen" data-s="profile">
@@ -1170,6 +1296,60 @@
     document.getElementById('flag-host').hidden = true;
     toastThen('Host filled · Sat 7a–12p', null);
   }));
+
+  // ---- quiz: pick answers, submit, score, clear the floor gate ----
+  document.querySelectorAll('.quiz-q').forEach(q => {
+    q.querySelectorAll('.qopt').forEach(opt => opt.addEventListener('click', () => {
+      q.querySelectorAll('.qopt').forEach(o => o.classList.remove('sel'));
+      opt.classList.add('sel');
+      q.dataset.picked = opt.dataset.opt;
+    }));
+  });
+  const quizSubmit = document.getElementById('quiz-submit');
+  if (quizSubmit) quizSubmit.addEventListener('click', () => {
+    const qs = [...document.querySelectorAll('.quiz-q')];
+    let correct = 0;
+    qs.forEach(q => {
+      const picked = q.dataset.picked;
+      q.querySelectorAll('.qopt').forEach(o => {
+        o.classList.remove('correct', 'wrong');
+        if (o.dataset.opt === q.dataset.answer) o.classList.add('correct');
+        else if (o.dataset.opt === picked) o.classList.add('wrong');
+      });
+      if (picked === q.dataset.answer) correct++;
+    });
+    const passed = correct >= 2;
+    const res = document.getElementById('quiz-result');
+    res.hidden = false;
+    res.innerHTML = passed
+      ? '<div class="card tight" style="border-color:#bcd8ac; background:#e4efdd;"><b style="color:#3a5a2c;">🎉 Passed ' + correct + '/3 — you are cleared for the floor!</b></div>'
+      : '<div class="card tight" style="border-color:var(--brick); background:#f6e0da;"><b style="color:var(--brick);">' + correct + '/3 — not quite. Review and retake.</b></div>';
+    quizSubmit.hidden = true;
+    if (passed) {
+      const fs = document.getElementById('floor-status');
+      if (fs) {
+        fs.style.background = '#e4efdd'; fs.style.borderColor = '#bcd8ac';
+        fs.innerHTML = '<div class="row" style="gap:10px;"><span style="font-size:22px;">✅</span><div class="stack" style="flex:1;"><b style="font-size:13.5px; color:#3a5a2c;">Cleared for the floor</b><span class="muted" style="font-size:11.5px;">Food Safety quiz passed — you can be scheduled.</span></div></div>';
+      }
+      const p = document.getElementById('onb-pct'); if (p) p.textContent = '80%';
+      const bar = document.getElementById('onb-bar'); if (bar) bar.style.width = '80%';
+      const note = document.getElementById('onb-note'); if (note) note.textContent = '4 of 5 modules complete';
+      const qsub = document.getElementById('quiz-sub'); if (qsub) qsub.textContent = 'Passed ✓';
+    }
+    res.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // ---- availability toggles + self-service submits ----
+  document.querySelectorAll('.avail-day .toggle').forEach(t =>
+    t.addEventListener('click', () => t.classList.toggle('on')));
+  const saveAvail = document.getElementById('save-avail');
+  if (saveAvail) saveAvail.addEventListener('click', () => toastThen('Availability submitted for approval', 'home'));
+  const saveOff = document.getElementById('save-off');
+  if (saveOff) saveOff.addEventListener('click', () => toastThen('Time-off request sent to manager', 'home'));
+  document.querySelectorAll('.req-swap, #req-swap').forEach(b =>
+    b.addEventListener('click', () => toastThen('Swap requested · pending approval', 'schedule')));
+  const dropShift = document.getElementById('drop-shift');
+  if (dropShift) dropShift.addEventListener('click', () => toastThen('Posted to Up for Grabs', 'schedule'));
 
   // ---- skill selectors (add employee) ----
   document.querySelectorAll('.skill').forEach(group => {
