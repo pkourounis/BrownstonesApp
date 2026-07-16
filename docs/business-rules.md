@@ -36,11 +36,13 @@ Server opener** every day, and management rules:
   works Tue/Fri/Sat/Sun as lead.
 - **Highest-ranked Server must be scheduled whenever the manager is off** (all).
 
-## 6. Seasonality ✅ (calendar) / 📝 (numbers pending)
-- Coverage throttles by **specific months** → each month maps to a season.
-- Seasonal changes affect **only**: number of **Servers**, and whether a
-  **Drink Runner** / **Food Runner** is needed.
-- *Pending from you:* which months = which season, and the seasonal numbers.
+## 6. Seasonality — by month ✅ (model) / 📝 (numbers pending)
+- Coverage is adjusted **directly by month** (not seasons):
+  `staffing_requirements.month` — `null` is the baseline, `1–12` is that month's
+  override.
+- Overrides affect **only**: number of **Servers**, and whether a **Drink
+  Runner** / **Food Runner** is needed.
+- *Pending from you:* the specific months and their numbers.
 
 ## 7. Team Feed 📝
 - **Global across all locations.** Anyone can **post, like, and comment.**
@@ -85,7 +87,7 @@ Server opener** every day, and management rules:
 - **Compliance sign-off** (`resource_signoffs`) records **who acknowledged and
   when** — managers/admins can see who still hasn't signed.
 
-## 14. Toast POS integration — sales & revenue/hour 📝 (foundational)
+## 14. Toast POS integration — sales & revenue/hour ✅ (model) / 📝 (live sync)
 - Pull **sales data from Toast** per location: **revenue per hour**, transaction
   counts, and (where available) sales by daypart. (They use Sling today, which
   integrates with Toast; this replicates that.)
@@ -93,9 +95,9 @@ Server opener** every day, and management rules:
   surface it so a manager can **cut/adjust** staff — and feed it to the AI
   optimizer as a **demand signal** (alongside peak hours) so it trims low-earning
   hours and protects labor %.
-- Planned model: a `pos_sales` table (location_id, business_date, hour, revenue,
-  transactions, source='toast') + a nightly/live sync from the Toast API; a
-  per-location `revenue_per_hour_target`. This is a **foundational** integration.
+- **Model in place**: `pos_sales` (location_id, business_date, hour, revenue,
+  transactions, source='toast') + per-location `locations.revenue_per_hour_target`
+  (default $250). **Pending**: the live server-side Toast API sync.
 
 ## 15. Access, invites & UI rules 📝
 - **Add employee**: home location is a **dropdown** (not free text); requires
@@ -114,6 +116,23 @@ Server opener** every day, and management rules:
   Employee type colors; stored on `positions.color`).
 - **Staffing requirements** are viewable/editable **per location** by the super
   admin (location selector).
+
+## 16. Data model sync (0009–0013) ✅
+The schema now matches the design:
+- **Staffing by month** (`staffing_requirements.month`); the season model removed.
+- **Global directory**: profiles are readable by any authenticated user; **pay
+  moved out** to `profile_compensation` (self + managers only); **skill stays
+  private** in `staff_positions`; a `staff_public_roles` view exposes roles
+  (no skill). Profiles gain `instagram / tiktok / website`, `is_floor_cleared`,
+  `must_change_password`, `invited_at`.
+- **Toast**: `pos_sales` + `revenue_per_hour_target`.
+- **Training/quizzes**: `quizzes`, `quiz_questions` (+ a `quiz_questions_public`
+  view that hides answers), `quiz_attempts`, `training_completions`; passing a
+  `blocks_floor` quiz clears `profiles.is_floor_cleared`.
+- **Posts**: `resource_attachments` (photos/documents) alongside the resource
+  body/link.
+
+Verified: all 13 migrations + seed apply cleanly on Postgres 16; typecheck green.
 
 ---
 

@@ -9,7 +9,6 @@ export type EmploymentStatus = 'onboarding' | 'active' | 'inactive';
 export type Department = 'boh' | 'foh' | 'management';
 export type ShiftStatus = 'draft' | 'published';
 export type RequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
-export type Season = 'standard' | 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
 export type ReviewStatus = 'scheduled' | 'completed' | 'skipped';
 export type SwapKind = 'swap' | 'pickup';
 export type ResourceType = 'product' | 'training' | 'compliance' | 'link' | 'document';
@@ -57,6 +56,7 @@ export type Location = {
   location_number: string | null;
   seats: number | null;
   tables: number | null;
+  revenue_per_hour_target: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -109,11 +109,23 @@ export type Profile = {
   employment_status: EmploymentStatus;
   primary_location_id: string | null;
   title: string | null;
-  hourly_rate: number | null;
   hired_at: string | null;
   birthday: string | null;
   bio: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  website: string | null;
+  is_floor_cleared: boolean;
+  must_change_password: boolean;
+  invited_at: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+/** Pay, kept out of profiles so the directory can be world-readable. */
+export type ProfileCompensation = {
+  profile_id: string;
+  hourly_rate: number | null;
   updated_at: string;
 }
 
@@ -188,26 +200,19 @@ export type LocationPeakHours = {
   updated_at: string;
 }
 
-/** Required headcount for a role at a location on a given day (scheduler input). */
+/**
+ * Required headcount for a role at a location on a given day.
+ * month = null is the baseline; month = 1–12 is that month's override.
+ */
 export type StaffingRequirement = {
   id: string;
   location_id: string;
   position_id: string;
   day_of_week: number;
-  season: Season;
+  month: number | null;
   required_count: number;
   must_cover_open: boolean;
   note: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/** Maps a month (1–12) to a season, org-wide or per location. */
-export type SeasonCalendar = {
-  id: string;
-  location_id: string | null;
-  month: number;
-  season: Season;
   created_at: string;
   updated_at: string;
 }
@@ -290,6 +295,61 @@ export type Notification = {
   created_at: string;
 }
 
+/** Hourly sales from Toast (per location per hour). */
+export type PosSales = {
+  id: string;
+  location_id: string;
+  business_date: string;
+  hour: number;
+  revenue: number;
+  transactions: number;
+  source: string;
+  synced_at: string;
+}
+
+export type Quiz = {
+  id: string;
+  title: string;
+  description: string | null;
+  pass_threshold: number;
+  blocks_floor: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type QuizQuestion = {
+  id: string;
+  quiz_id: string;
+  prompt: string;
+  options: string[];
+  correct_index: number;
+  sort_order: number;
+}
+
+export type QuizAttempt = {
+  id: string;
+  quiz_id: string;
+  profile_id: string;
+  score: number;
+  passed: boolean;
+  taken_at: string;
+}
+
+export type TrainingCompletion = {
+  profile_id: string;
+  resource_id: string;
+  completed_at: string;
+}
+
+export type ResourceAttachment = {
+  id: string;
+  resource_id: string;
+  url: string;
+  kind: string; // 'photo' | 'document' | 'other'
+  name: string | null;
+  created_at: string;
+}
+
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row;
   Insert: Insert;
@@ -302,6 +362,7 @@ export type Database = {
     Tables: {
       locations: Table<Location>;
       profiles: Table<Profile>;
+      profile_compensation: Table<ProfileCompensation>;
       positions: Table<Position>;
       staff_locations: Table<StaffLocation>;
       staff_positions: Table<StaffPosition>;
@@ -312,13 +373,18 @@ export type Database = {
       time_off_blackouts: Table<TimeOffBlackout>;
       employee_reviews: Table<EmployeeReview>;
       staffing_requirements: Table<StaffingRequirement>;
-      season_calendar: Table<SeasonCalendar>;
       location_peak_hours: Table<LocationPeakHours>;
       location_hours: Table<LocationHours>;
       scheduling_rules: Table<SchedulingRule>;
+      pos_sales: Table<PosSales>;
+      quizzes: Table<Quiz>;
+      quiz_questions: Table<QuizQuestion>;
+      quiz_attempts: Table<QuizAttempt>;
+      training_completions: Table<TrainingCompletion>;
       resources: Table<Resource>;
       resource_assignments: Table<ResourceAssignment>;
       resource_signoffs: Table<ResourceSignoff>;
+      resource_attachments: Table<ResourceAttachment>;
       notifications: Table<Notification>;
     };
     Views: Record<string, never>;
@@ -327,7 +393,6 @@ export type Database = {
       app_role: AppRole;
       employment_status: EmploymentStatus;
       department: Department;
-      season: Season;
       shift_status: ShiftStatus;
       request_status: RequestStatus;
       review_status: ReviewStatus;

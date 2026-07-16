@@ -72,8 +72,8 @@ cross join (values
 where not exists (select 1 from public.location_peak_hours);
 
 -- =============================================================================
--- Per-location staffing requirements (season = 'standard'). Generated from the
--- coverage rules for each restaurant. must_cover_open flags the 7am opener.
+-- Per-location staffing requirements (baseline · month = NULL). Generated from
+-- the coverage rules for each restaurant. must_cover_open flags the 7am opener.
 -- =============================================================================
 insert into public.staffing_requirements (location_id, position_id, day_of_week, required_count, must_cover_open)
 select l.id, p.id, v.dow, v.cnt, v.must_open
@@ -359,16 +359,6 @@ join public.locations l on l.slug = v.slug
 where not exists (select 1 from public.scheduling_rules where location_id is not null);
 
 -- ---------------------------------------------------------------------------
--- Default season calendar: every month = 'standard' (org-wide). Override
--- specific months (and add seasonal staffing_requirements rows) once the
--- season month-ranges are defined.
--- ---------------------------------------------------------------------------
-insert into public.season_calendar (location_id, month, season)
-select null, m, 'standard'
-from generate_series(1, 12) as m
-where not exists (select 1 from public.season_calendar where location_id is null);
-
--- ---------------------------------------------------------------------------
 -- Workflow rules (org-wide): time-off advance notice, per-day cap, review cadence.
 -- ---------------------------------------------------------------------------
 insert into public.scheduling_rules (location_id, department, rule_type, config, is_hard, description)
@@ -410,3 +400,35 @@ with new_resources as (
 )
 insert into public.resource_assignments (resource_id, location_id, profile_id)
 select id, null, null from new_resources;
+
+-- ---------------------------------------------------------------------------
+-- Food Safety Quiz (blocks the floor until passed) + questions.
+-- ---------------------------------------------------------------------------
+with q as (
+  insert into public.quizzes (title, description, pass_threshold, blocks_floor)
+  select 'Food Safety Quiz', 'Pass before working the floor', 67, true
+  where not exists (select 1 from public.quizzes where title = 'Food Safety Quiz')
+  returning id
+)
+insert into public.quiz_questions (quiz_id, prompt, options, correct_index, sort_order)
+select q.id, x.prompt, x.options::jsonb, x.ci, x.so
+from q cross join (values
+  ('Safe fridge temperature for raw eggs?',
+     '["Below 50°F","At or below 40°F","Room temperature is fine"]', 1, 1),
+  ('When must you wash your hands?',
+     '["After handling raw food, before serving","Only at the start of your shift","Only after a break"]', 0, 2),
+  ('A guest reports a nut allergy. You:',
+     '["Guess which items are safe","Tell them everything is fine","Flag the ticket & confirm with the kitchen"]', 2, 3)
+) as x(prompt, options, ci, so);
+
+-- ---------------------------------------------------------------------------
+-- Sample Toast sales — Amityville, one Saturday, hourly revenue.
+-- ---------------------------------------------------------------------------
+insert into public.pos_sales (location_id, business_date, hour, revenue, transactions)
+select l.id, date '2026-07-11', v.hr, v.rev, v.tx
+from public.locations l
+cross join (values
+  (7,180,22),(8,420,54),(9,610,80),(10,700,92),(11,540,70),(12,460,60),(13,300,38),(14,210,26)
+) as v(hr, rev, tx)
+where l.slug = 'amityville'
+  and not exists (select 1 from public.pos_sales);
