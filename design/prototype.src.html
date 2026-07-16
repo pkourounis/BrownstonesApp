@@ -83,6 +83,8 @@
   .app[data-screen="chat"]     .screen[data-s="chat"],
   .app[data-screen="resources"] .screen[data-s="resources"],
   .app[data-screen="profile"]  .screen[data-s="profile"],
+  .app[data-screen="staffing"] .screen[data-s="staffing"],
+  .app[data-screen="add-employee"] .screen[data-s="add-employee"],
   .app[data-screen="admin"]    .screen[data-s="admin"] { display:flex; }
 
   .h1 { font-family:var(--serif); font-weight:700; font-size:25px; margin:0; color:var(--ink);
@@ -191,6 +193,34 @@
     display:flex; gap:8px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.3); }
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+  /* staffing grid */
+  .sgrid { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .sgrid th, .sgrid td { text-align:center; padding:6px 0; font-size:12px; }
+  .sgrid thead th { color:var(--faint); font-size:10px; font-weight:700; text-transform:uppercase; }
+  .sgrid td.role { text-align:left; font-weight:600; color:var(--ink); font-size:12px; white-space:nowrap; }
+  .sgrid td.n { color:var(--ink); font-weight:600; border-radius:6px; }
+  .sgrid td.zero { color:var(--faint); font-weight:400; }
+  .sgrid td.we { background:var(--gold-tint); }
+  .sgrid .seasoned { color:var(--brick); }
+  .sgrid tr.deptrow td { padding-top:10px; }
+  .deptlabel { font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--bronze-600); text-align:left; }
+  .seasontabs { display:inline-flex; background:#efe6cf; border-radius:999px; padding:3px; gap:2px; }
+  .seasontabs button { border:0; background:transparent; font:inherit; font-size:11.5px; font-weight:600;
+    padding:5px 11px; border-radius:999px; cursor:pointer; color:var(--bronze-600); }
+  .seasontabs button[aria-pressed="true"] { background:var(--bronze); color:#fff; }
+
+  /* skill selector (add employee) */
+  .skillrow { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line-2); }
+  .skillrow:last-child { border-bottom:0; }
+  .depttag { font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 6px; border-radius:5px; }
+  .depttag.foh { background:var(--gold-tint); color:#7a5a12; }
+  .depttag.boh { background:#f6e0da; color:var(--brick); }
+  .skill { display:inline-flex; gap:4px; margin-left:auto; }
+  .skill button { width:24px; height:24px; border-radius:7px; border:1px solid var(--line);
+    background:#fff; font:inherit; font-size:12px; font-weight:700; color:var(--faint); cursor:pointer; }
+  .skill button.on { background:var(--gold); border-color:var(--gold); color:#3a2c10; }
+
   .footer-note { width:min(420px,94vw); text-align:center; color:var(--stage-ink); opacity:.7;
     font-size:11.5px; line-height:1.6; }
   @media (prefers-reduced-motion: reduce) { * { animation-duration:.001s !important; transition:none !important; } }
@@ -291,7 +321,20 @@
             </div>
             <div class="card tight">
               <p class="eyebrow">Pending approvals</p>
-              <div class="row between" style="margin-top:8px;"><span style="font-size:13px;">Luis — Fri Jul 10 off</span><span class="row" style="gap:6px;"><button class="btn btn-gold sm">✓</button><button class="btn btn-ghost sm">✕</button></span></div>
+              <div class="row between" style="margin-top:8px; align-items:flex-start;">
+                <div class="stack" style="flex:1; gap:1px;"><span style="font-size:13px; font-weight:600;">Luis — Jul 25 off</span><span class="muted" style="font-size:11.5px;">“Family wedding” · 2+ wks notice ✓</span></div>
+                <span class="row" style="gap:6px;"><button class="btn btn-gold sm">✓</button><button class="btn btn-ghost sm">✕</button></span>
+              </div>
+              <div class="divider"></div>
+              <div class="row between" style="align-items:flex-start;">
+                <div class="stack" style="flex:1; gap:1px;"><span style="font-size:13px; font-weight:600;">Swap: Priya → Maya · Sat</span><span class="pill live" style="margin-top:2px;">⚑ Deviates: FOH skill on rush</span></div>
+                <span class="row" style="gap:6px;"><button class="btn btn-gold sm">✓</button><button class="btn btn-ghost sm">✕</button></span>
+              </div>
+            </div>
+            <div class="card tight row">
+              <span class="ic">📅</span>
+              <div class="stack" style="flex:1;"><b style="font-size:13px;">2 reviews due</b><span class="muted" style="font-size:11.5px;">6-month check-ins: Tomas, Luis</span></div>
+              <button class="btn btn-gold sm">Start</button>
             </div>
           </div>
 
@@ -333,6 +376,14 @@
             <button class="btn btn-primary sm" data-roles="manager super_admin" data-goto="build" hidden>✨ Build</button>
           </div>
 
+          <div class="card tight" style="border-color:var(--gold-soft); background:var(--gold-tint);">
+            <div class="row between"><p class="eyebrow" style="margin:0;">🙌 Up for grabs</p><span class="pill gold">Global</span></div>
+            <div class="row between" style="margin-top:9px;">
+              <div class="stack" style="gap:1px;"><span style="font-size:13px; font-weight:600;">Sun Jul 12 · 7a–12p · Host</span><span class="muted" style="font-size:11.5px;">Dropped at Amityville · manager approves the claim</span></div>
+              <button class="btn btn-primary sm">Claim</button>
+            </div>
+          </div>
+
           <p class="dayhead">Saturday, Jul 11 · busiest day</p>
           <div class="card tight stack" style="gap:12px;">
             <div class="shift"><span class="bar" style="background:var(--gold)"></span><div class="stack" style="flex:1; gap:1px;"><span class="time tnum">6:30 AM – 2:30 PM</span><span class="muted" style="font-size:12px;">Maya R. · Barista</span></div><span class="pill live" data-roles="manager super_admin" hidden>Rush</span></div>
@@ -368,6 +419,7 @@
               <div class="row between"><span style="font-size:13px;">Weekday mornings</span><span class="pill info">Standard</span></div>
               <div class="row between"><span style="font-size:13px;">Weekday afternoons</span><span class="pill ok">Light</span></div>
             </div>
+            <button class="btn btn-ghost sm" style="width:100%; margin-top:11px;" data-goto="staffing">View staffing requirements ›</button>
           </div>
 
           <div class="card tight">
@@ -411,11 +463,16 @@
             <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ava" style="background:var(--brick)">LM</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Luis Marino</b><span class="muted" style="font-size:12px;">Line Cook</span></div></div>
             <div class="row" style="padding:12px 0;"><span class="ava" style="background:#6b7a3f">TA</span><div class="stack" style="flex:1;"><b style="font-size:14px;">Tomas Alvarez</b><span class="muted" style="font-size:12px;">Host</span></div><span class="pill info">Onboarding</span></div>
           </div>
-          <button class="btn btn-primary" data-roles="manager super_admin">+ Invite team member</button>
+          <button class="btn btn-primary" data-roles="manager super_admin" data-goto="add-employee">+ Add employee</button>
         </section>
 
         <section class="screen" data-s="feed">
-          <div class="screen-head"><div><p class="h1">Team Feed</p><p class="sub">Brownstones family · all locations</p></div></div>
+          <div class="screen-head"><div><p class="h1">Team Feed</p><p class="sub">Everyone · all locations</p></div></div>
+          <div class="card tight row" style="gap:10px;">
+            <span class="ava" style="width:34px; height:34px; font-size:12px; background:var(--bronze);" id="feed-ava">MR</span>
+            <input style="flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:11px; font:inherit; font-size:13px;" placeholder="Share something with the whole team…">
+            <button class="btn btn-primary sm">Post</button>
+          </div>
           <div class="card post">
             <div class="head"><span class="ava" style="background:#8a5a2b; width:38px; height:38px;">DK</span><div class="stack"><b style="font-size:13.5px;">Danny Kessler</b><span class="muted" style="font-size:11.5px;">West Islip · 2h ago</span></div></div>
             <p class="body">Huge Saturday, team 🙌 We hit a record on the brunch rush and not a single ticket over 12 min. Proud of this crew.</p>
@@ -430,13 +487,17 @@
         </section>
 
         <section class="screen" data-s="chat">
-          <div class="screen-head"><div><p class="h1">Chat</p><p class="sub">Your groups</p></div></div>
-          <div class="card" style="padding:4px 15px;">
-            <div class="chan"><span class="ic">🧑‍🍳</span><div class="stack"><b style="font-size:13.5px;">Kitchen — West Islip</b><span class="muted" style="font-size:12px;">Luis: prep list for Sat is up</span></div><span class="badge">2</span></div>
-            <div class="chan"><span class="ic">☕</span><div class="stack"><b style="font-size:13.5px;">Front of House</b><span class="muted" style="font-size:12px;">Maya: who's grabbing oat milk?</span></div></div>
-            <div class="chan" data-roles="manager super_admin" hidden><span class="ic">📊</span><div class="stack"><b style="font-size:13.5px;">Managers — All Locations</b><span class="muted" style="font-size:12px;">Chris: numbers looked great this week</span></div></div>
+          <div class="screen-head">
+            <div><p class="h1">Chat</p><p class="sub">West Islip · your location</p></div>
+            <span class="pill gold" data-roles="super_admin" hidden>Switch location ▾</span>
           </div>
-          <p class="eyebrow" style="margin-top:6px;">Kitchen — West Islip</p>
+          <div class="card" style="padding:4px 15px;">
+            <div class="chan"><span class="ic">🏠</span><div class="stack"><b style="font-size:13.5px;">West Islip — Team</b><span class="muted" style="font-size:12px;">Everyone at this location</span></div><span class="badge">2</span></div>
+            <div class="chan"><span class="ic">🧑‍🍳</span><div class="stack"><b style="font-size:13.5px;">Kitchen (BOH)</b><span class="muted" style="font-size:12px;">Luis: prep list for Sat is up</span></div></div>
+            <div class="chan"><span class="ic">☕</span><div class="stack"><b style="font-size:13.5px;">Front of House (FOH)</b><span class="muted" style="font-size:12px;">Maya: who's grabbing oat milk?</span></div></div>
+          </div>
+          <p class="muted" style="font-size:11px; margin:0;">Chat stays within your location. Super admins can open any location&apos;s chat.</p>
+          <p class="eyebrow" style="margin-top:2px;">West Islip — Team</p>
           <div class="stack" style="gap:9px;">
             <div class="bubble them"><span class="who">Luis M.</span>Prep list for Saturday is posted in Resources 👍</div>
             <div class="bubble them"><span class="who">Danny K.</span>Legend. Can we get extra home fries par-cooked?</div>
@@ -490,10 +551,72 @@
             <div class="row" style="padding:12px 0; border-bottom:1px solid var(--line-2);"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Centereach</b><span class="muted" style="font-size:11.5px;">19 staff</span></div></div>
             <div class="row" style="padding:12px 0;"><span class="ic">🏠</span><div class="stack" style="flex:1;"><b style="font-size:13.5px;">Sayville</b><span class="muted" style="font-size:11.5px;">17 staff</span></div></div>
           </div>
+          <button class="card tight row" data-goto="staffing" style="width:100%; text-align:left; cursor:pointer; border:1px solid var(--line); margin-top:2px;">
+            <span class="ic">🧮</span>
+            <div class="stack" style="flex:1;"><b style="font-size:13.5px;">Staffing requirements</b><span class="muted" style="font-size:11.5px;">Coverage by role, day &amp; season</span></div>
+            <span class="muted">›</span>
+          </button>
           <div class="grid2">
             <button class="btn btn-primary">+ Add location</button>
             <button class="btn btn-ghost">Manage roles</button>
           </div>
+        </section>
+
+        <!-- ================= STAFFING GRID ================= -->
+        <section class="screen" data-s="staffing">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="schedule">‹ Schedule</div>
+          <div>
+            <p class="h1">Staffing</p>
+            <p class="sub">West Islip · required coverage per day</p>
+          </div>
+
+          <div class="row between">
+            <span class="eyebrow" style="margin:0;">Season</span>
+            <div class="seastabs seasontabs" role="group" aria-label="Season">
+              <button data-season="standard" aria-pressed="true">Standard</button>
+              <button data-season="summer" aria-pressed="false">Summer</button>
+            </div>
+          </div>
+
+          <div class="card tight" style="overflow-x:auto;">
+            <table class="sgrid">
+              <thead>
+                <tr><th style="text-align:left;">Role</th><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th class="we">S</th><th class="we">S</th></tr>
+              </thead>
+              <tbody id="sgrid-body"><!-- filled by JS --></tbody>
+            </table>
+          </div>
+          <p class="muted" style="font-size:11.5px;">
+            <span style="color:var(--brick); font-weight:700;">■</span> Summer changes only Server counts and whether a Drink/Food Runner is needed. Weekends shaded. 1 Server opens at 7am daily.
+          </p>
+        </section>
+
+        <!-- ================= ADD EMPLOYEE ================= -->
+        <section class="screen" data-s="add-employee">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="team">‹ Team</div>
+          <div>
+            <p class="h1">Add employee</p>
+            <p class="sub">Set a 1–5 skill for each role they can work</p>
+          </div>
+
+          <div class="card" style="display:flex; flex-direction:column; gap:13px;">
+            <div class="field"><label>Full name</label><input placeholder="e.g. Jordan Lee"></div>
+            <div class="field"><label>Home location</label><input value="West Islip" readonly></div>
+          </div>
+
+          <div class="card">
+            <p class="eyebrow">Roles &amp; skill <span class="muted" style="text-transform:none; letter-spacing:0; font-weight:400;">— 5 = most experienced</span></p>
+            <div id="skill-list">
+              <div class="skillrow"><b style="font-size:13px;">Server</b><span class="depttag foh">FOH</span><div class="skill" data-role="Server"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Barista</b><span class="depttag foh">FOH</span><div class="skill" data-role="Barista"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Host</b><span class="depttag foh">FOH</span><div class="skill" data-role="Host"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Cook</b><span class="depttag boh">BOH</span><div class="skill" data-role="Cook"></div></div>
+              <div class="skillrow"><b style="font-size:13px;">Prep Cook</b><span class="depttag boh">BOH</span><div class="skill" data-role="Prep Cook"></div></div>
+            </div>
+            <p class="muted" style="font-size:11.5px; margin:10px 0 0;">Leave a role blank if they don&apos;t work it. Skills stay private to managers.</p>
+          </div>
+
+          <button class="btn btn-primary" id="save-employee">Add employee</button>
         </section>
 
       </div>
@@ -530,6 +653,7 @@
   function applyRole(role) {
     app.dataset.role = role;
     document.querySelector('.avatar').textContent = INITIALS[role];
+    const fa = document.getElementById('feed-ava'); if (fa) fa.textContent = INITIALS[role];
     document.querySelectorAll('.seg button').forEach(b =>
       b.setAttribute('aria-pressed', String(b.dataset.role === role)));
     document.querySelectorAll('[data-roles]').forEach(el => {
@@ -570,6 +694,72 @@
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2600);
     setTimeout(() => goto('schedule'), 700);
+  });
+
+  // ---- staffing grid (West Islip) ----
+  const STAFF = {
+    order: [
+      ['FOH', ['Server','Barista','Host','Busser','Drink Runner','Food Runner','Expo']],
+      ['BOH', ['Cook','Prep Cook','Dishwasher']],
+    ],
+    // Mon,Tue,Wed,Thu,Fri,Sat,Sun
+    standard: {
+      Server:[5,5,5,5,5,6,6], Barista:[1,1,1,1,2,2,2], Host:[1,1,1,1,1,3,3],
+      Busser:[0,0,0,0,0,2,2], 'Drink Runner':[0,0,0,0,0,1,1], 'Food Runner':[1,1,1,1,1,2,2],
+      Expo:[0,0,0,0,1,1,1], Cook:[4,4,4,4,4,5,5], 'Prep Cook':[1,1,1,1,1,1,1], Dishwasher:[2,2,2,2,2,2,2],
+    },
+    // Summer changes ONLY Server counts + Drink/Food Runner presence (example).
+    summer: {
+      Server:[6,6,6,6,6,7,7], Barista:[1,1,1,1,2,2,2], Host:[1,1,1,1,1,3,3],
+      Busser:[0,0,0,0,0,2,2], 'Drink Runner':[0,0,0,0,1,2,2], 'Food Runner':[1,1,1,1,2,3,3],
+      Expo:[0,0,0,0,1,1,1], Cook:[4,4,4,4,4,5,5], 'Prep Cook':[1,1,1,1,1,1,1], Dishwasher:[2,2,2,2,2,2,2],
+    },
+  };
+  function renderStaff(season) {
+    const body = document.getElementById('sgrid-body');
+    if (!body) return;
+    const data = STAFF[season], base = STAFF.standard;
+    let html = '';
+    for (const [dept, roles] of STAFF.order) {
+      html += `<tr class="deptrow"><td class="deptlabel" colspan="8">${dept}</td></tr>`;
+      for (const role of roles) {
+        html += `<tr><td class="role">${role}</td>`;
+        data[role].forEach((n, i) => {
+          const we = i >= 5 ? ' we' : '';
+          const changed = n !== base[role][i] ? ' seasoned' : '';
+          const zero = n === 0 ? ' zero' : '';
+          html += `<td class="n${we}${zero}${changed}">${n === 0 ? '–' : n}</td>`;
+        });
+        html += '</tr>';
+      }
+    }
+    body.innerHTML = html;
+  }
+  renderStaff('standard');
+  document.querySelectorAll('.seasontabs button').forEach(b =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.seasontabs button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x === b)));
+      renderStaff(b.dataset.season);
+    }));
+
+  // ---- skill selectors (add employee) ----
+  document.querySelectorAll('.skill').forEach(group => {
+    for (let i = 1; i <= 5; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      btn.addEventListener('click', () => {
+        [...group.children].forEach(c => c.classList.toggle('on', c === btn));
+      });
+      group.appendChild(btn);
+    }
+  });
+  document.getElementById('save-employee').addEventListener('click', () => {
+    const t = document.getElementById('toast');
+    t.querySelector('span').textContent = 'Employee added';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+    setTimeout(() => goto('team'), 650);
   });
 
   applyRole('employee');
