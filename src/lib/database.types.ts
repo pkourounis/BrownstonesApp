@@ -307,6 +307,19 @@ export type PosSales = {
   synced_at: string;
 }
 
+/** View: avg hourly revenue by (location, day-of-week, hour), trailing 8 weeks. */
+export type LocationHourDemand = {
+  location_id: string;
+  day_of_week: number;
+  hour: number;
+  avg_revenue: number;
+  avg_transactions: number;
+  sample_days: number;
+}
+
+/** View: derived peak-hour intensity (1 light / 2 standard / 3 peak). */
+export type DerivedPeakHour = LocationHourDemand & { intensity: number };
+
 export type Quiz = {
   id: string;
   title: string;
@@ -387,7 +400,10 @@ export type Database = {
       resource_attachments: Table<ResourceAttachment>;
       notifications: Table<Notification>;
     };
-    Views: Record<string, never>;
+    Views: {
+      location_hour_demand: { Row: LocationHourDemand; Relationships: [] };
+      location_peak_hours_derived: { Row: DerivedPeakHour; Relationships: [] };
+    };
     Functions: Record<string, never>;
     Enums: {
       app_role: AppRole;
