@@ -10,6 +10,8 @@ export type Department = 'boh' | 'foh' | 'management';
 export type ShiftStatus = 'draft' | 'published';
 export type RequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 export type Season = 'standard' | 'spring' | 'summer' | 'fall' | 'winter' | 'holiday';
+export type ReviewStatus = 'scheduled' | 'completed' | 'skipped';
+export type SwapKind = 'swap' | 'pickup';
 export type SchedulingRuleType =
   | 'max_hours_per_week'
   | 'max_consecutive_days'
@@ -22,6 +24,9 @@ export type SchedulingRuleType =
   | 'manager_days_off'
   | 'lead_when_manager_off'
   | 'floor_manager_no_manager'
+  | 'time_off_advance_days'
+  | 'max_time_off_per_day'
+  | 'review_cadence_months'
   | 'custom';
 
 export const DEPARTMENT_LABELS: Record<Department, string> = {
@@ -195,6 +200,45 @@ export type TimeOffRequest = {
   created_at: string;
 }
 
+export type ShiftSwapRequest = {
+  id: string;
+  shift_id: string;
+  requested_by: string;
+  requested_to: string | null;
+  kind: SwapKind;               // 'swap' or 'pickup' (up-for-grabs)
+  claimed_by: string | null;    // who claimed an open pickup
+  status: RequestStatus;
+  deviates_rules: boolean;      // flagged when the swap breaks a rule
+  deviation_note: string | null;
+  note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export type TimeOffBlackout = {
+  id: string;
+  location_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type EmployeeReview = {
+  id: string;
+  profile_id: string;
+  reviewer_id: string | null;
+  due_date: string;
+  status: ReviewStatus;
+  completed_at: string | null;
+  notes: string | null;
+  skills_snapshot: Record<string, number> | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Notification = {
   id: string;
   profile_id: string;
@@ -224,6 +268,9 @@ export type Database = {
       shifts: Table<Shift>;
       availability: Table<Availability>;
       time_off_requests: Table<TimeOffRequest>;
+      shift_swap_requests: Table<ShiftSwapRequest>;
+      time_off_blackouts: Table<TimeOffBlackout>;
+      employee_reviews: Table<EmployeeReview>;
       staffing_requirements: Table<StaffingRequirement>;
       season_calendar: Table<SeasonCalendar>;
       location_peak_hours: Table<LocationPeakHours>;
@@ -239,6 +286,8 @@ export type Database = {
       season: Season;
       shift_status: ShiftStatus;
       request_status: RequestStatus;
+      review_status: ReviewStatus;
+      swap_kind: SwapKind;
       scheduling_rule_type: SchedulingRuleType;
       notification_type: NotificationType;
     };

@@ -50,6 +50,9 @@ create type public.scheduling_rule_type as enum (
   'manager_days_off',              -- config: { "days": [2] }  (0=Sun..6=Sat)
   'lead_when_manager_off',         -- config: { "position": "Server", "basis": "highest_skill" }
   'floor_manager_no_manager',      -- config: { "position": "Server", "floor_days": [1], "work_days": [2,5,6,0] }
+  'time_off_advance_days',         -- config: { "days": 14 }  request off >= 2 weeks ahead
+  'max_time_off_per_day',          -- config: { "count": 2, "scope": "location" }
+  'review_cadence_months',         -- config: { "months": 6, "from": "hire_date" }
   'custom'                         -- config: { "text": "..." }
 );
 

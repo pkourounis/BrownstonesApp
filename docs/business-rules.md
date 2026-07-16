@@ -50,31 +50,33 @@ Server opener** every day, and management rules:
   **including super admins** (who can open any location's chat).
 - Department channels (Kitchen/BOH, FOH) live inside a location's chat.
 
-## 9. Employee reviews 📝
-- Managers **request a review every 6 months** per employee.
+## 9. Employee reviews ✅ (model) / 📝 (UI)
+- A review is **due every 6 months from the employee's hire date**.
+- The review **re-rates the 1–5 skills** and captures **notes** (`employee_reviews`
+  with a `skills_snapshot`). Manager/super-admin visibility only.
 
-## 10. Time off 📝
+## 10. Time off ✅ (model) / 📝 (enforcement UI)
 - A request includes a **description/reason** and needs **manager approval**.
-- Must be submitted **≥ 2 weeks in advance**.
-- If **< 2 weeks**: the employee's shift goes to the **“Up for grabs”** pool for
-  **anyone (globally) to accept**, then the **manager approves** the claim.
-- Managers can **block off days** (blackout) from being requested off.
-- **Cap: max 2 approved days-off requests per day.**
+- Must be submitted **≥ 2 weeks in advance** (`time_off_advance_days = 14`).
+- If **< 2 weeks**: the shift goes to the **“Up for grabs”** pool for **anyone,
+  any location** to accept, then the **manager approves** (see §12).
+- Managers can **block off days** — `time_off_blackouts` (per location).
+- **Cap: max 2 approved days off per day, per location**
+  (`max_time_off_per_day = { count: 2, scope: location }`).
 
-## 11. Shift swaps 📝
-- Employees can **swap shifts**; a **manager approves**.
-- A swap is **flagged when it deviates a rule** (e.g. skill/coverage), so the
-  manager sees the risk before approving.
+## 11. Shift swaps ✅ (model) / 📝 (UI)
+- Employees **swap shifts** (`shift_swap_requests.kind = 'swap'`); **manager approves**.
+- **Flagged when it deviates a rule** (`deviates_rules` + `deviation_note`) so the
+  manager sees the risk — **flag + override**, not a hard block.
 
-## 12. Up for grabs 📝
-- A global pool of open/dropped shifts anyone can **claim**; the **manager
-  approves** the claim before it's final.
+## 12. Up for grabs ✅ (model) / 📝 (UI)
+- Open/dropped shifts (`kind = 'pickup'`) are a **global** pool — **any employee at
+  any location** can **claim** (`claimed_by`); the **manager approves**.
 
 ---
 
-### Open questions (need your call to implement 7–12)
-- **Reviews**: counted from each employee's **hire date** or on a fixed calendar?
-  Does a review re-rate the 1–5 skills, add notes, or both?
-- **2-per-day time-off cap**: per **location** (assumed) or company-wide?
-- **Swap rule-deviation**: **flag + let the manager override** (assumed), or hard-block?
-- **Blackout days**: set per location by its manager, for any date range?
+### Decisions (confirmed)
+- **Reviews**: from **hire date**; re-rate skills **and** notes.
+- **Time-off cap**: **per location** (2/day).
+- **Swap conflicts**: **flag, manager can override**.
+- **Up for grabs**: **any location can claim** (truly global).

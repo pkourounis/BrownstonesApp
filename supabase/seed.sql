@@ -367,3 +367,17 @@ insert into public.season_calendar (location_id, month, season)
 select null, m, 'standard'
 from generate_series(1, 12) as m
 where not exists (select 1 from public.season_calendar where location_id is null);
+
+-- ---------------------------------------------------------------------------
+-- Workflow rules (org-wide): time-off advance notice, per-day cap, review cadence.
+-- ---------------------------------------------------------------------------
+insert into public.scheduling_rules (location_id, department, rule_type, config, is_hard, description)
+select * from (values
+  (null::uuid, null::public.department, 'time_off_advance_days'::public.scheduling_rule_type,
+     '{"days": 14}'::jsonb, true,  'Time-off must be requested at least 2 weeks in advance'),
+  (null, null, 'max_time_off_per_day',
+     '{"count": 2, "scope": "location"}'::jsonb, true, 'At most 2 approved days off per day, per location'),
+  (null, null, 'review_cadence_months',
+     '{"months": 6, "from": "hire_date"}'::jsonb, false, 'Managers review each employee every 6 months from hire date')
+) as r(location_id, department, rule_type, config, is_hard, description)
+where not exists (select 1 from public.scheduling_rules where rule_type = 'time_off_advance_days');
