@@ -157,6 +157,16 @@ export type StaffingRequirement = {
   updated_at: string;
 }
 
+/** Maps a month (1–12) to a season, org-wide or per location. */
+export type SeasonCalendar = {
+  id: string;
+  location_id: string | null;
+  month: number;
+  season: Season;
+  created_at: string;
+  updated_at: string;
+}
+
 /** A hard constraint or soft preference for the scheduler (input #4). */
 export type SchedulingRule = {
   id: string;
@@ -215,6 +225,7 @@ export type Database = {
       availability: Table<Availability>;
       time_off_requests: Table<TimeOffRequest>;
       staffing_requirements: Table<StaffingRequirement>;
+      season_calendar: Table<SeasonCalendar>;
       location_peak_hours: Table<LocationPeakHours>;
       scheduling_rules: Table<SchedulingRule>;
       notifications: Table<Notification>;

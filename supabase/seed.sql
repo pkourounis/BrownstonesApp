@@ -357,3 +357,13 @@ from (values
 ) as v(slug, rtype, cfg, descr)
 join public.locations l on l.slug = v.slug
 where not exists (select 1 from public.scheduling_rules where location_id is not null);
+
+-- ---------------------------------------------------------------------------
+-- Default season calendar: every month = 'standard' (org-wide). Override
+-- specific months (and add seasonal staffing_requirements rows) once the
+-- season month-ranges are defined.
+-- ---------------------------------------------------------------------------
+insert into public.season_calendar (location_id, month, season)
+select null, m, 'standard'
+from generate_series(1, 12) as m
+where not exists (select 1 from public.season_calendar where location_id is null);
