@@ -97,6 +97,24 @@ Server opener** every day, and management rules:
   transactions, source='toast') + a nightly/live sync from the Toast API; a
   per-location `revenue_per_hour_target`. This is a **foundational** integration.
 
+## 15. Access, invites & UI rules 📝
+- **Add employee**: home location is a **dropdown** (not free text); requires
+  **email + phone**; roles are **selected** (and show on the employee's profile);
+  a **temporary password** is generated and the person is **invited** to the app,
+  then changes it in Profile → Settings.
+- **Skill (1–5)**: super admin sets it, a **manager can change** it; it is
+  **NEVER shown to the employee** — anywhere.
+- **Access control**: managers/super admins can **reset** or **remove** an
+  employee's access (from the employee's profile).
+- **Publishing**: a post has **title, body, links, attachments** (photo/document)
+  and a **"share to" dropdown** (all locations, a location, managers, or specific
+  employees).
+- **Schedule views**: **2-day / 5-day / 7-day / weekend**, with shifts
+  **color-coded by role**. **Role colors are set by the super admin** (Admin →
+  Employee type colors; stored on `positions.color`).
+- **Staffing requirements** are viewable/editable **per location** by the super
+  admin (location selector).
+
 ---
 
 ### Decisions (confirmed)

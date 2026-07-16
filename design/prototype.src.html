@@ -88,6 +88,7 @@
   .app[data-screen="add-location"] .screen[data-s="add-location"],
   .app[data-screen="publish"]  .screen[data-s="publish"],
   .app[data-screen="view-profile"] .screen[data-s="view-profile"],
+  .app[data-screen="role-colors"] .screen[data-s="role-colors"],
   .app[data-screen="admin"]    .screen[data-s="admin"] { display:flex; }
 
   .h1 { font-family:var(--serif); font-weight:700; font-size:25px; margin:0; color:var(--ink);
@@ -242,6 +243,16 @@
   .skill button.on { background:var(--gold); border-color:var(--gold); color:#3a2c10; }
   .hr { font:inherit; font-size:12px; padding:7px 8px; border:1px solid var(--line); border-radius:8px;
     text-align:center; background:#fff; color:var(--ink); }
+  .field select, select.sel { font:inherit; font-size:14px; padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); width:100%; min-width:0; }
+  .legend { display:flex; gap:11px; flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .view-seg { display:inline-flex; background:#efe6cf; border-radius:999px; padding:3px; gap:2px; }
+  .view-seg button { border:0; background:transparent; font:inherit; font-size:11.5px; font-weight:600;
+    padding:5px 10px; border-radius:999px; cursor:pointer; color:var(--bronze-600); white-space:nowrap; }
+  .view-seg button[aria-pressed="true"] { background:var(--bronze); color:#fff; }
+  .swatch { width:26px; height:26px; border-radius:7px; border:1px solid rgba(0,0,0,.1); flex:0 0 auto; }
 
   .footer-note { width:min(420px,94vw); text-align:center; color:var(--stage-ink); opacity:.7;
     font-size:11.5px; line-height:1.6; }
@@ -396,6 +407,23 @@
               <p class="sub" data-roles="super_admin" hidden>All locations · week of Jul 6</p>
             </div>
             <button class="btn btn-primary sm" data-roles="manager super_admin" data-goto="build" hidden>✨ Build</button>
+          </div>
+
+          <div data-roles="manager super_admin" hidden>
+            <div class="view-seg" id="sched-view">
+              <button data-v="2">2-day</button>
+              <button data-v="5">5-day</button>
+              <button data-v="7" aria-pressed="true">7-day</button>
+              <button data-v="wknd">Weekend</button>
+            </div>
+            <div class="legend" style="margin-top:10px;">
+              <span><i style="background:#7c5c28"></i>Server</span>
+              <span><i style="background:#c69b4a"></i>Barista</span>
+              <span><i style="background:#b48c3f"></i>Host</span>
+              <span><i style="background:#9c3f2c"></i>Cook</span>
+              <span><i style="background:#856325"></i>Expo</span>
+              <span class="muted" style="opacity:.7;">· colors set by super admin</span>
+            </div>
           </div>
 
           <div data-roles="super_admin" hidden>
@@ -686,9 +714,21 @@
             <p class="eyebrow">About</p>
             <p style="font-size:13.5px; line-height:1.5; color:#3b2e1c; margin:6px 0 0;">Been with Brownstones since we opened West Islip. Coffee obsessive, dog mom to two beagles, always down to close on a Friday. 🐾</p>
           </div>
+          <div class="card">
+            <p class="eyebrow">Roles</p>
+            <div class="row" style="gap:7px; flex-wrap:wrap; margin-top:6px;">
+              <span class="pill gold">Server</span><span class="pill gold">Host</span><span class="pill gold">Expo</span>
+            </div>
+          </div>
           <div class="card stack" style="gap:0; padding:4px 15px;">
             <div class="row between" style="padding:11px 0; border-bottom:1px solid var(--line-2);"><span class="muted" style="font-size:12.5px;">Department</span><b style="font-size:13px;">Front of House</b></div>
             <div class="row between" style="padding:11px 0;"><span class="muted" style="font-size:12.5px;">Birthday</span><b style="font-size:13px;">March 14</b></div>
+          </div>
+
+          <!-- Manager / super admin access controls -->
+          <div class="grid2" data-roles="manager super_admin">
+            <button class="btn btn-ghost">Reset password</button>
+            <button class="btn btn-ghost" style="color:var(--brick);">Remove access</button>
           </div>
         </section>
 
@@ -711,7 +751,42 @@
             <div class="stack" style="flex:1;"><b style="font-size:13.5px;">Publish &amp; resources</b><span class="muted" style="font-size:11.5px;">Products, training, docs &amp; links</span></div>
             <span class="muted">›</span>
           </button>
+          <button class="card tight row" data-goto="role-colors" style="width:100%; text-align:left; cursor:pointer; border:1px solid var(--line);">
+            <span class="ic">🎨</span>
+            <div class="stack" style="flex:1;"><b style="font-size:13.5px;">Employee type colors</b><span class="muted" style="font-size:11.5px;">Set the schedule color per role</span></div>
+            <span class="muted">›</span>
+          </button>
           <button class="btn btn-primary" data-goto="add-location">+ Add location</button>
+        </section>
+
+        <!-- ================= ROLE COLORS (super admin) ================= -->
+        <section class="screen" data-s="role-colors">
+          <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="admin">‹ Admin</div>
+          <div><p class="h1">Employee type colors</p><p class="sub">These color-code every schedule</p></div>
+
+          <p class="eyebrow">Front of House</p>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#7c5c28"></span><b style="flex:1; font-size:13.5px;">Server</b><span class="muted" style="font-size:12px;">#7C5C28</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#c69b4a"></span><b style="flex:1; font-size:13.5px;">Barista</b><span class="muted" style="font-size:12px;">#C69B4A</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#b48c3f"></span><b style="flex:1; font-size:13.5px;">Host</b><span class="muted" style="font-size:12px;">#B48C3F</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#d8b878"></span><b style="flex:1; font-size:13.5px;">Busser</b><span class="muted" style="font-size:12px;">#D8B878</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#a87f30"></span><b style="flex:1; font-size:13.5px;">Drink Runner</b><span class="muted" style="font-size:12px;">#A87F30</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#977030"></span><b style="flex:1; font-size:13.5px;">Food Runner</b><span class="muted" style="font-size:12px;">#977030</span></div>
+            <div class="row" style="gap:12px; padding:10px 0;"><span class="swatch" style="background:#856325"></span><b style="flex:1; font-size:13.5px;">Expo</b><span class="muted" style="font-size:12px;">#856325</span></div>
+          </div>
+
+          <p class="eyebrow">Back of House</p>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#9c3f2c"></span><b style="flex:1; font-size:13.5px;">Cook</b><span class="muted" style="font-size:12px;">#9C3F2C</span></div>
+            <div class="row" style="gap:12px; padding:10px 0; border-bottom:1px solid var(--line-2);"><span class="swatch" style="background:#b4503b"></span><b style="flex:1; font-size:13.5px;">Prep Cook</b><span class="muted" style="font-size:12px;">#B4503B</span></div>
+            <div class="row" style="gap:12px; padding:10px 0;"><span class="swatch" style="background:#7e442c"></span><b style="flex:1; font-size:13.5px;">Dishwasher</b><span class="muted" style="font-size:12px;">#7E442C</span></div>
+          </div>
+
+          <p class="eyebrow">Management</p>
+          <div class="card stack" style="gap:0; padding:4px 15px;">
+            <div class="row" style="gap:12px; padding:10px 0;"><span class="swatch" style="background:#43331d"></span><b style="flex:1; font-size:13.5px;">Manager</b><span class="muted" style="font-size:12px;">#43331D</span></div>
+          </div>
+          <p class="muted" style="font-size:11px; text-align:center;">Tap a swatch to pick a new color. Applies to every location&apos;s schedule.</p>
         </section>
 
         <!-- ================= ADD LOCATION (super admin) ================= -->
@@ -787,12 +862,25 @@
           </div>
 
           <div class="card" style="display:flex; flex-direction:column; gap:12px;">
-            <p class="eyebrow" style="margin:0;">New — Link / document</p>
-            <div class="field"><label>Title</label><input placeholder="e.g. Order uniforms"></div>
-            <div class="field"><label>URL or file</label><input placeholder="https://…"></div>
-            <div class="field"><label>Send to</label><input value="All locations · all employees" readonly></div>
-            <div class="row" style="gap:6px; flex-wrap:wrap;">
-              <span class="pill gold">All locations</span><span class="pill info">Amityville</span><span class="pill info">West Islip</span><span class="pill info">+3</span>
+            <p class="eyebrow" style="margin:0;">New post</p>
+            <div class="field"><label>Title</label><input placeholder="e.g. Fall menu launch"></div>
+            <div class="field"><label>Body</label><textarea style="min-height:70px; width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:11px; font:inherit; font-size:13px;" placeholder="Write the announcement…"></textarea></div>
+            <div class="field"><label>Links</label><input placeholder="https://…"></div>
+            <div class="row" style="gap:8px;">
+              <button type="button" class="btn btn-ghost sm" style="flex:1;">📎 Attach file</button>
+              <button type="button" class="btn btn-ghost sm" style="flex:1;">📷 Photo</button>
+            </div>
+            <div class="field"><label>Share to</label>
+              <select>
+                <option>All locations · all employees</option>
+                <option>All locations · managers only</option>
+                <option>Amityville</option>
+                <option>West Islip</option>
+                <option>East Northport</option>
+                <option>Centereach</option>
+                <option>Sayville</option>
+                <option>Specific employees…</option>
+              </select>
             </div>
             <button class="btn btn-primary" id="publish-resource">Publish</button>
           </div>
@@ -811,8 +899,19 @@
         <section class="screen" data-s="staffing">
           <div class="row" style="gap:6px; cursor:pointer; color:var(--bronze); font-weight:600; font-size:13px;" data-goto="schedule">‹ Schedule</div>
           <div class="row between">
-            <div><p class="h1">Staffing</p><p class="sub">West Islip · coverage per day</p></div>
+            <div><p class="h1">Staffing</p><p class="sub">Coverage per day</p></div>
             <button class="btn btn-ghost sm" id="edit-staff">✎ Edit</button>
+          </div>
+
+          <div data-roles="super_admin" hidden>
+            <span class="eyebrow">Location</span>
+            <div class="months" id="staff-locs">
+              <button data-loc="amityville">Amityville</button>
+              <button data-loc="west-islip" aria-pressed="true">West Islip</button>
+              <button data-loc="east-northport">E. Northport</button>
+              <button data-loc="centereach">Centereach</button>
+              <button data-loc="sayville">Sayville</button>
+            </div>
           </div>
 
           <div>
@@ -843,7 +942,24 @@
 
           <div class="card" style="display:flex; flex-direction:column; gap:13px;">
             <div class="field"><label>Full name</label><input placeholder="e.g. Jordan Lee"></div>
-            <div class="field"><label>Home location</label><input value="West Islip" readonly></div>
+            <div class="field"><label>Home location</label>
+              <select>
+                <option>Amityville</option>
+                <option selected>West Islip</option>
+                <option>East Northport</option>
+                <option>Centereach</option>
+                <option>Sayville</option>
+              </select>
+            </div>
+            <div class="grid2">
+              <div class="field"><label>Email</label><input type="email" placeholder="jordan@email.com"></div>
+              <div class="field"><label>Phone</label><input type="tel" placeholder="(631) 555-0000"></div>
+            </div>
+            <div class="field">
+              <label>Temporary password</label>
+              <div class="row" style="gap:8px;"><input value="Brownstones-7F2K" readonly style="flex:1;"><button type="button" class="btn btn-ghost sm">Copy</button></div>
+              <span class="muted" style="font-size:11px;">They&apos;ll change it in Profile → Settings on first login.</span>
+            </div>
           </div>
 
           <div class="card">
@@ -861,10 +977,10 @@
               <div class="skillrow"><b style="font-size:13px;">Dishwasher</b><span class="depttag boh">BOH</span><div class="skill" data-role="Dishwasher"></div></div>
               <div class="skillrow"><b style="font-size:13px;">Manager</b><span class="depttag mgmt">MGMT</span><div class="skill" data-role="Manager"></div></div>
             </div>
-            <p class="muted" style="font-size:11.5px; margin:10px 0 0;">Leave a role blank if they don&apos;t work it. Skills stay private to managers.</p>
+            <p class="muted" style="font-size:11.5px; margin:10px 0 0;">Leave a role blank if they don&apos;t work it. <b>Skill ratings are never shown to the employee.</b></p>
           </div>
 
-          <button class="btn btn-primary" id="save-employee">Add employee</button>
+          <button class="btn btn-primary" id="save-employee">Add &amp; send invite</button>
         </section>
 
       </div>
@@ -1027,10 +1143,13 @@
     }));
 
   // ---- schedule location filter (visual) ----
-  const schedLocs = document.getElementById('sched-locs');
-  if (schedLocs) schedLocs.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () =>
-      schedLocs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))));
+  // simple visual segmented/chip toggles
+  ['sched-locs', 'sched-view', 'staff-locs'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.querySelectorAll('button').forEach(b =>
+      b.addEventListener('click', () =>
+        el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))));
+  });
 
   // ---- schedule builder: day chips + fill an open shift ----
   const buildDays = document.getElementById('build-days');
@@ -1065,7 +1184,7 @@
   });
   document.getElementById('save-employee').addEventListener('click', () => {
     const t = document.getElementById('toast');
-    t.querySelector('span').textContent = 'Employee added';
+    t.querySelector('span').textContent = 'Invite sent · temp password emailed';
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2200);
     setTimeout(() => goto('team'), 650);
