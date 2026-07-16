@@ -47,8 +47,26 @@ surface, no unmaintained dependency in the credential path. If running the MCP
 directly, start in **sandbox** with **least-privilege read-only** Toast
 credentials.
 
-## Prerequisite (from the business)
+## Credentials & restaurant mapping (received)
 
-Toast API access is via Toast's partner/integration program: a **client id +
-secret** and each restaurant's **GUID**. Chris/Brownstones obtains these from
-Toast; they go in server-side secrets (never client-side).
+Toast API access is via Toast's integration program: a **client id + secret**
+(user access type `TOAST_MACHINE_CLIENT`) plus each restaurant's **GUID**.
+
+- **API host:** `https://ws-api.toasttab.com`
+- **Client id / secret:** held in **server-side secrets only** — Supabase Edge
+  Function secrets (`TOAST_CLIENT_ID`, `TOAST_CLIENT_SECRET`) and/or Netlify
+  env. **Never** commit these or expose them to the browser. If a secret is ever
+  shared in plaintext (chat, email), rotate it in Toast after wiring up.
+- **Restaurant GUIDs:** stored per location on `locations.toast_guid`
+  (migration `0016`). Current mapping:
+
+  | Location       | Toast GUID                             |
+  |----------------|----------------------------------------|
+  | Amityville     | `20b1218a-f340-4eb9-b65a-2a207af45bee` |
+  | Centereach     | `f23fb26e-643b-42ca-9dd6-14cde27a35d6` |
+  | East Northport | `d77cae7c-7d01-43f5-bd05-398a7a4733f7` |
+  | Sayville       | `50b37972-718d-4977-9c62-3e0e90df57ed` |
+  | West Islip     | `e3ca5c7f-13ad-47f7-85b2-e51da4c8d73f` |
+
+The sync (Supabase edge function) authenticates with the client id/secret,
+pulls hourly sales per `toast_guid`, and upserts into `pos_sales`.

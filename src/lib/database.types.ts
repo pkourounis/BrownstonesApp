@@ -54,6 +54,7 @@ export type Location = {
   timezone: string;
   opens_at: string;
   location_number: string | null;
+  toast_guid: string | null; // Toast POS restaurant GUID (external id) for the sales sync
   seats: number | null;
   tables: number | null;
   revenue_per_hour_target: number;
