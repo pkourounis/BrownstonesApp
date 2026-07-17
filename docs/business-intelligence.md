@@ -45,7 +45,7 @@ Scoped to Today / WTD / MTD, each with a vs-last-period comp.
 | Server performance | Toast Orders (server on check) | ✅ available |
 | **Employee wages / jobs** | **Toast Labor API** (`/labor/v1/employees` — per-job `wageOverrides`; `/labor/v1/jobs`) | ✅ **verified accessible** |
 | Labor %, SPLH, staffing variance | Toast wages **+** app `shifts` (scheduled hours) | ⏳ wages importable; needs scheduled hours |
-| Trends / forecast / **year view** | historical `pos_sales` (12-mo backfill) | ⏳ backfilling now |
+| Trends / forecast / **year view** | historical `pos_sales` (12-mo backfilled) + `location_sales_forecast` | ✅ live (~$14M/yr; forecast view in migration 0020) |
 
 ### Wages — Toast has them
 The Labor API exposes each employee with a **per-job hourly wage** (`wageOverrides`)
