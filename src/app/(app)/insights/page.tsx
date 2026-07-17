@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
-import { money, money2, moneyShort, hourLabel, monthAbbr, shiftDay, DOW_ABBR } from '@/lib/format';
+import { money, money2, moneyShort, hourLabel, monthAbbr, shiftDay, DOW_ABBR, DAY_NAMES } from '@/lib/format';
 import type { Location } from '@/lib/database.types';
 import { InsightsFilter } from './insights-filter';
 import { SyncButton } from './sync-button';
+import { BarChart, Sparkline, type Bar } from './chart';
 
 export const dynamic = 'force-dynamic';
-
-type Bar = { label: string; value: number; peak: boolean };
 
 type InsightsData = {
   range: string;
@@ -22,52 +21,8 @@ type InsightsData = {
   monthly: { ym: string; net: number }[];
   daypart: { breakfast: number; lunch: number };
   leaderboard: { id: string; net: number }[];
-  forecast: { id: string; proj: number }[];
+  forecast: { id: string; proj: number; days: { dow: number; net: number }[] }[];
 };
-
-function BarChart({ bars, max, showEvery = 1 }: { bars: Bar[]; max: number; showEvery?: number }) {
-  const ticks = 4;
-  return (
-    <div className="flex gap-2">
-      <div className="relative h-40 w-10 shrink-0">
-        {Array.from({ length: ticks + 1 }).map((_, i) => (
-          <span
-            key={i}
-            className="absolute right-0 -translate-y-1/2 text-[9px] tabular-nums text-brand-400"
-            style={{ top: `${(i / ticks) * 100}%` }}
-          >
-            {moneyShort((max * (ticks - i)) / ticks)}
-          </span>
-        ))}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="relative h-40 border-b border-l border-brand-100">
-          {Array.from({ length: ticks }).map((_, i) => (
-            <div key={i} className="absolute inset-x-0 border-t border-dashed border-brand-100" style={{ top: `${(i / ticks) * 100}%` }} />
-          ))}
-          <div className="absolute inset-0 flex items-end gap-[3px] px-1">
-            {bars.map((b, i) => (
-              <div key={i} className="flex h-full min-w-0 flex-1 items-end justify-center">
-                <div
-                  className={`w-full max-w-[26px] rounded-t-sm ${b.peak ? 'bg-brick-500' : 'bg-gold-400'}`}
-                  style={{ height: `${Math.max(1, (b.value / max) * 100)}%` }}
-                  title={`${b.label}: ${money(b.value)}`}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="mt-1.5 flex gap-[3px] px-1">
-          {bars.map((b, i) => (
-            <div key={i} className="min-w-0 flex-1 text-center text-[9px] tabular-nums text-brand-400">
-              {i % showEvery === 0 ? b.label : ''}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Kpi({ label, value, sub, dim }: { label: string; value: string; sub?: string; dim?: boolean }) {
   return (
@@ -89,6 +44,16 @@ function Section({ title, meta, children }: { title: string; meta?: string; chil
       {children}
     </section>
   );
+}
+
+/** Normalize a forecast day list to 7 Sun–Sat bars. */
+function toDowBars(days: { dow: number; net: number }[]) {
+  const m = new Map(days.map((d) => [d.dow, Number(d.net)]));
+  const rows = Array.from({ length: 7 }, (_, i) => ({ dow: i, net: m.get(i) ?? 0 }));
+  const max = Math.max(1, ...rows.map((r) => r.net));
+  const peak = rows.reduce((a, r) => (r.net > a.net ? r : a), { dow: -1, net: 0 }).dow;
+  const bars: Bar[] = rows.map((r) => ({ label: DOW_ABBR[r.dow][0], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peak }));
+  return { bars, max, peak };
 }
 
 const RANGE_LABEL: Record<string, string> = {
@@ -123,7 +88,7 @@ export default async function InsightsPage({
   const avgCheck = checks > 0 ? net / checks : 0;
   const hasData = net > 0;
 
-  // Trend adapts to the range.
+  // Adaptive sales trend.
   let trendBars: Bar[] = [];
   let trendMax = 1;
   let trendEvery = 1;
@@ -139,47 +104,44 @@ export default async function InsightsPage({
       const rows = [...d.monthly].sort((a, b) => a.ym.localeCompare(b.ym)).slice(-12);
       trendMax = Math.max(1, ...rows.map((r) => r.net));
       const peak = rows.reduce((a, r) => (r.net > a.net ? r : a), { ym: '', net: 0 });
-      trendBars = rows.map((r) => ({ label: monthAbbr(r.ym), value: r.net, peak: r.ym === peak.ym }));
+      trendBars = rows.map((r) => ({ label: monthAbbr(r.ym), full: `${monthAbbr(r.ym)} ${r.ym.slice(0, 4)}`, value: r.net, peak: r.ym === peak.ym }));
       trendMeta = 'monthly';
     } else {
       const rows = [...d.daily].sort((a, b) => a.date.localeCompare(b.date));
       trendMax = Math.max(1, ...rows.map((r) => r.net));
       const last = rows[rows.length - 1]?.date;
-      trendBars = rows.map((r) => ({ label: `${Number(r.date.slice(8, 10))}`, value: r.net, peak: r.date === last }));
+      trendBars = rows.map((r) => ({ label: `${Number(r.date.slice(8, 10))}`, full: shiftDay(r.date + 'T12:00:00'), value: r.net, peak: r.date === last }));
       trendEvery = range === 'month' ? 5 : 1;
       trendMeta = 'daily';
     }
   }
 
-  // Day-of-week
+  // Day of week (range-independent, 8-week average from the RPC).
   const dowRows = Array.from({ length: 7 }, (_, i) => ({ dow: i, net: Number(d?.by_dow.find((x) => x.dow === i)?.net ?? 0) }));
   const dowMax = Math.max(1, ...dowRows.map((r) => r.net));
   const peakDow = dowRows.reduce((a, r) => (r.net > a.net ? r : a), { dow: -1, net: 0 });
-  const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow][0], value: r.net, peak: r.dow === peakDow.dow }));
+  const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow][0], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peakDow.dow }));
 
-  // Peak hour (for KPI + insight)
   const peakHour = (d?.by_hour ?? []).reduce((a, r) => (r.net > a.net ? r : a), { hour: -1, net: 0 });
 
-  // Daypart
   const breakfast = Number(d?.daypart.breakfast ?? 0);
   const lunch = Number(d?.daypart.lunch ?? 0);
   const dpTot = breakfast + lunch || 1;
   const bPct = Math.round((breakfast / dpTot) * 100);
 
-  // Leaderboard + forecast
   const board = (d?.leaderboard ?? []).map((r) => ({ name: nameById.get(r.id) ?? '—', net: Number(r.net) }));
   const boardMax = Math.max(1, ...board.map((b) => b.net));
-  const forecast = (d?.forecast ?? []).map((r) => ({ name: nameById.get(r.id) ?? '—', proj: Number(r.proj) }));
-  const projTotal = forecast.reduce((s, f) => s + f.proj, 0);
-  const projMax = Math.max(1, ...forecast.map((f) => f.proj));
-  const multi = board.length > 1;
+  const multi = board.length > 1 && !store;
 
-  // "What to act on" — generated from the real numbers.
+  const forecast = d?.forecast ?? [];
+  const projTotal = forecast.reduce((s, f) => s + Number(f.proj), 0);
+
+  // "What to act on"
   const actions: string[] = [];
-  if (peakDow.dow >= 0) actions.push(`${DOW_ABBR[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
+  if (peakDow.dow >= 0 && peakDow.net > 0) actions.push(`${DAY_NAMES[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
   if (peakHour.hour >= 0) actions.push(`Demand peaks at ${hourLabel(peakHour.hour)} — schedule your highest-rated team then.`);
-  if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales this ${range === 'today' ? 'day' : 'period'}.`);
-  if (forecast.length && !store) actions.push(`Next week, ${forecast[0].name} is projected highest (${money(forecast[0].proj)}).`);
+  if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
+  if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
 
   return (
     <div className="space-y-5">
@@ -200,14 +162,12 @@ export default async function InsightsPage({
         <div className="card text-center text-sm text-brand-500">No sales data for this selection.</div>
       ) : (
         <>
-          {/* Hero */}
           <div className="card bg-brand-700 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · {RANGE_LABEL[range]}</p>
             <p className="mt-1 text-3xl font-bold tabular-nums">{money(net)}</p>
             <p className="mt-1 text-xs text-gold-200">{checks.toLocaleString()} checks · live Toast data</p>
           </div>
 
-          {/* KPIs */}
           <div className="grid grid-cols-2 gap-3">
             <Kpi label="Avg check" value={money2(avgCheck)} sub={`${checks.toLocaleString()} checks`} />
             <Kpi label="Projected next week" value={money(projTotal)} sub="forecast" />
@@ -215,18 +175,20 @@ export default async function InsightsPage({
             <Kpi label="Sales / labor hr" value="—" sub="connect schedule" dim />
           </div>
 
-          {/* Sales trend */}
           {trendBars.length > 0 && (
             <Section title="Sales trend" meta={trendMeta}>
               <BarChart bars={trendBars} max={trendMax} showEvery={trendEvery} />
             </Section>
           )}
 
-          {/* Breakfast vs lunch */}
           <Section title="Breakfast vs lunch" meta={RANGE_LABEL[range]}>
-            <div className="flex h-8 overflow-hidden rounded-lg border border-brand-100">
-              <div className="flex items-center justify-center bg-gold-400 text-xs font-bold text-brand-900" style={{ width: `${bPct}%` }}>{bPct}%</div>
-              <div className="flex items-center justify-center bg-brick-500 text-xs font-bold text-white" style={{ width: `${100 - bPct}%` }}>{100 - bPct}%</div>
+            <div className="flex h-9 overflow-hidden rounded-lg border border-brand-100 shadow-sm">
+              <div className="flex items-center justify-center bg-gradient-to-b from-gold-300 to-gold-400 text-xs font-bold text-brand-900" style={{ width: `${bPct}%` }}>
+                {bPct}%
+              </div>
+              <div className="flex items-center justify-center bg-gradient-to-b from-brick-400 to-brick-500 text-xs font-bold text-white" style={{ width: `${100 - bPct}%` }}>
+                {100 - bPct}%
+              </div>
             </div>
             <div className="mt-2 flex justify-between text-xs text-brand-600">
               <span>Breakfast · {money(breakfast)}</span>
@@ -234,14 +196,12 @@ export default async function InsightsPage({
             </div>
           </Section>
 
-          {/* Busiest day */}
-          {peakDow.dow >= 0 && (
-            <Section title="By day of week" meta={`busiest ${DOW_ABBR[peakDow.dow]}`}>
+          {peakDow.dow >= 0 && peakDow.net > 0 && (
+            <Section title="By day of week" meta="avg/day, last 8 wks">
               <BarChart bars={dowBars} max={dowMax} />
             </Section>
           )}
 
-          {/* Store leaderboard */}
           {multi && (
             <Section title="Store leaderboard" meta={RANGE_LABEL[range]}>
               <ul className="space-y-3">
@@ -250,7 +210,7 @@ export default async function InsightsPage({
                     <span className="w-4 text-sm font-bold text-brand-400">{i + 1}</span>
                     <span className="w-24 shrink-0 text-sm font-medium text-brand-900">{b.name}</span>
                     <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-brand-100">
-                      <span className="block h-full rounded-full bg-gradient-to-r from-gold-400 to-brand-600" style={{ width: `${(b.net / boardMax) * 100}%` }} />
+                      <span className="block h-full rounded-full bg-gradient-to-r from-gold-300 to-brand-600" style={{ width: `${(b.net / boardMax) * 100}%` }} />
                     </span>
                     <span className="w-14 text-right text-sm font-bold tabular-nums text-brand-900">{moneyShort(b.net)}</span>
                   </li>
@@ -259,7 +219,6 @@ export default async function InsightsPage({
             </Section>
           )}
 
-          {/* Top sellers — needs the menu sync */}
           <Section title="Top sellers" meta="coming soon">
             <p className="text-sm text-brand-500">
               Item-level sales connect with the Toast <span className="font-medium">menu sync</span> — then this ranks your best
@@ -267,7 +226,6 @@ export default async function InsightsPage({
             </p>
           </Section>
 
-          {/* What to act on */}
           {actions.length > 0 && (
             <Section title="What to act on">
               <ul className="space-y-2.5">
@@ -281,20 +239,41 @@ export default async function InsightsPage({
             </Section>
           )}
 
-          {/* Forecast */}
+          {/* Forecast — per-location day-of-week breakdown */}
           {forecast.length > 0 && (
-            <Section title="Forecast · next week" meta={`${money(projTotal)} total`}>
-              <ul className="space-y-3">
-                {forecast.map((b) => (
-                  <li key={b.name} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-sm font-medium text-brand-900">{b.name}</span>
-                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-brand-100">
-                      <span className="block h-full rounded-full bg-brick-400" style={{ width: `${(b.proj / projMax) * 100}%` }} />
-                    </span>
-                    <span className="w-14 text-right text-sm font-bold tabular-nums text-brand-900">{moneyShort(b.proj)}</span>
-                  </li>
-                ))}
-              </ul>
+            <Section title="Forecast · next week" meta={`${money(projTotal)} projected`}>
+              {store ? (
+                (() => {
+                  const f = forecast[0];
+                  if (!f) return null;
+                  const { bars, max, peak } = toDowBars(f.days);
+                  return (
+                    <>
+                      <p className="mb-2 text-xs text-brand-500">
+                        Busiest day projected: <span className="font-semibold text-brand-800">{DAY_NAMES[peak]}</span>
+                      </p>
+                      <BarChart bars={bars} max={max} />
+                    </>
+                  );
+                })()
+              ) : (
+                <ul className="space-y-4">
+                  {forecast.map((f) => {
+                    const { bars, max, peak } = toDowBars(f.days);
+                    return (
+                      <li key={f.id}>
+                        <div className="mb-1.5 flex items-baseline justify-between">
+                          <span className="text-sm font-medium text-brand-900">{nameById.get(f.id) ?? '—'}</span>
+                          <span className="text-xs text-brand-500">
+                            {moneyShort(f.proj)}/wk · busiest <span className="font-semibold text-brand-700">{DOW_ABBR[peak]}</span>
+                          </span>
+                        </div>
+                        <Sparkline bars={bars} max={max} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </Section>
           )}
 
