@@ -321,6 +321,40 @@ export type LocationHourDemand = {
 /** View: derived peak-hour intensity (1 light / 2 standard / 3 peak). */
 export type DerivedPeakHour = LocationHourDemand & { intensity: number };
 
+/** Reporting views (Insights page) — all RLS-scoped via security_invoker. */
+export type ReportSalesMonthly = {
+  location_id: string;
+  ym: string; // 'YYYY-MM'
+  net: number;
+  checks: number;
+};
+export type ReportSalesByHour = {
+  location_id: string;
+  business_date: string;
+  hour: number;
+  revenue: number;
+  checks: number;
+};
+export type ReportSalesTotals = {
+  location_id: string;
+  latest_date: string;
+  latest_net: number;
+  ytd_net: number;
+  ytd_checks: number;
+};
+export type ReportForecastWeekly = {
+  location_id: string;
+  projected_week: number;
+};
+export type LocationSalesForecast = {
+  location_id: string;
+  day_of_week: number;
+  hour: number;
+  forecast_revenue: number;
+  trend_factor: number;
+  season_factor: number;
+};
+
 export type Quiz = {
   id: string;
   title: string;
@@ -404,6 +438,11 @@ export type Database = {
     Views: {
       location_hour_demand: { Row: LocationHourDemand; Relationships: [] };
       location_peak_hours_derived: { Row: DerivedPeakHour; Relationships: [] };
+      location_sales_forecast: { Row: LocationSalesForecast; Relationships: [] };
+      report_sales_monthly: { Row: ReportSalesMonthly; Relationships: [] };
+      report_sales_by_hour: { Row: ReportSalesByHour; Relationships: [] };
+      report_sales_totals: { Row: ReportSalesTotals; Relationships: [] };
+      report_forecast_weekly: { Row: ReportForecastWeekly; Relationships: [] };
     };
     Functions: Record<string, never>;
     Enums: {

@@ -8,6 +8,7 @@ import {
   Users,
   UserCircle,
   Settings,
+  BarChart3,
 } from 'lucide-react';
 import type { AppRole } from '@/lib/database.types';
 
@@ -22,6 +23,7 @@ const ITEMS: Item[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/team', label: 'Team', icon: Users, roles: ['super_admin', 'manager', 'employee'] },
+  { href: '/insights', label: 'Insights', icon: BarChart3, roles: ['super_admin', 'manager'] },
   { href: '/admin', label: 'Admin', icon: Settings, roles: ['super_admin'] },
   { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['super_admin', 'manager', 'employee'] },
 ];
