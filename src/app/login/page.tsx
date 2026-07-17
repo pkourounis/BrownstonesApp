@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
-import { Wordmark } from '@/components/wordmark';
 
 export default function LoginPage() {
   return (
@@ -63,8 +62,15 @@ function LoginForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <Wordmark size="lg" />
+        <div className="mb-8 flex flex-col items-center gap-4 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brownstones-logo.png"
+            alt="Brownstones Coffee"
+            width={491}
+            height={320}
+            className="h-auto w-52 drop-shadow-sm"
+          />
           <p className="text-xs uppercase tracking-[0.25em] text-brand-400">Team Portal</p>
         </div>
 
