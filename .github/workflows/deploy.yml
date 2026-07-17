@@ -1,0 +1,55 @@
+name: Deploy to Netlify
+
+# Builds the app on GitHub's runners and deploys to the Netlify site.
+# Runs on manual trigger and on push to main. It no-ops (green, not red) until
+# the NETLIFY_AUTH_TOKEN secret is set, so adding the workflow never spams
+# failures. Public NEXT_PUBLIC_* values are inlined (they ship to the browser
+# anyway); the Netlify site holds the server-only secrets at runtime.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: netlify-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: f2ba285a-1aeb-4e2e-8472-60b6c770a21a
+      NEXT_PUBLIC_SUPABASE_URL: https://quouwmnokxynzjnhpcep.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_pA6ilXc08FwW2e0PdMAJrw_J4YwQGho
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BLrpT6X3WKb3HXvgihM07DwXV0HooLytytoaKXKF8Iwu86zzMFQab_aBwOmJWHvlWBWLsnpxf74IrGqIavmLuns
+    steps:
+      - name: Check for Netlify token
+        id: guard
+        run: |
+          if [ -n "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::NETLIFY_AUTH_TOKEN not set yet — skipping deploy. Add it in Settings → Secrets and variables → Actions."
+            echo "go=no" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.guard.outputs.go == 'yes'
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: steps.guard.outputs.go == 'yes'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.guard.outputs.go == 'yes'
+        run: npm ci
+
+      - name: Build & deploy to Netlify (production)
+        if: steps.guard.outputs.go == 'yes'
+        run: npx --yes netlify-cli@17 deploy --build --prod --site "$NETLIFY_SITE_ID"
