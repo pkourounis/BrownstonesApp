@@ -20,13 +20,31 @@ Toast API ──sync──▶ pos_sales ──view──▶ location_hour_demand
   **pin/override** a window in `location_peak_hours` (auto + override).
 - Below `locations.revenue_per_hour_target`, an hour is flagged to trim labor.
 
-## The sync (to build server-side)
+## The sync (built — runs inside Postgres) ✅
 
-The only remaining piece is a server-side job (Supabase edge function on a
-schedule, using the service-role key so RLS is bypassed for writes) that:
-1. Authenticates to Toast (OAuth 2.0 client-credentials).
-2. Pulls hourly sales per restaurant GUID.
-3. Upserts into `pos_sales` (unique on location_id + business_date + hour).
+Implemented in migrations `0017` (functions) + `0018` (schedule). It runs
+**entirely inside the database** using the `http` extension — the DB can reach
+Toast directly, so there's no edge function to deploy and no egress issue.
+
+- **`toast_access_token()`** — reads client id/secret from **Vault**, returns a
+  bearer token.
+- **`toast_sync_location(slug, date)`** — pages `ordersBulk` for one store/date,
+  rolls up to hourly net sales + check counts, upserts into `pos_sales`
+  (unique on location_id + business_date + hour).
+- **`toast_sync_day(date)`** — every location with a `toast_guid`.
+- **`toast_sync_recent()`** — today + yesterday; the cron entry point.
+- **Schedule**: pg_cron job `toast-sales-sync`, daily `0 22 * * *` (≈6 PM ET).
+- All functions are SECURITY DEFINER with EXECUTE revoked from anon/authenticated
+  (admin/cron only).
+
+**Credentials** live in Supabase **Vault** (`toast_client_id`,
+`toast_client_secret`, `toast_api_host`) — never in source or the repo.
+
+Verified: all 5 stores backfilled for 2026-07-15 into `pos_sales`, totals match
+Toast exactly; the derived peak-hours view now computes from real sales.
+
+To backfill history manually: `select public.toast_sync_day(date '2026-07-14');`
+(repeat per date, or loop server-side).
 
 ### Reference MCP — security review
 
