@@ -467,6 +467,10 @@ export type Database = {
         Args: { p_range: string; p_location: string | null };
         Returns: unknown;
       };
+      sync_toast_now: {
+        Args: Record<string, never>;
+        Returns: unknown;
+      };
     };
     Enums: {
       app_role: AppRole;

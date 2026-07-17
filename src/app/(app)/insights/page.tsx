@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth';
 import { money, money2, moneyShort, hourLabel, monthAbbr, shiftDay, DOW_ABBR } from '@/lib/format';
 import type { Location } from '@/lib/database.types';
 import { InsightsFilter } from './insights-filter';
+import { SyncButton } from './sync-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -182,12 +183,15 @@ export default async function InsightsPage({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-brand-900">Insights</h1>
-        <p className="text-sm text-brand-600">
-          {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {RANGE_LABEL[range]}
-          {d?.latest_date ? ` · latest ${shiftDay(d.latest_date + 'T12:00:00')}` : ''}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-brand-900">Insights</h1>
+          <p className="text-sm text-brand-600">
+            {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {RANGE_LABEL[range]}
+            {d?.latest_date ? ` · latest ${shiftDay(d.latest_date + 'T12:00:00')}` : ''}
+          </p>
+        </div>
+        <SyncButton />
       </div>
 
       <InsightsFilter locations={locations} />
