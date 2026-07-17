@@ -41,10 +41,29 @@ Scoped to Today / WTD / MTD, each with a vs-last-period comp.
 ## Data sources
 | Metric family | Source | Status |
 |---|---|---|
-| Sales, checks, avg check, by-hour, daypart, menu mix, voids/comps, tender | Toast Orders API | ✅ proven |
+| Sales, checks, avg check, by-hour, daypart, menu mix, voids/comps, tender | Toast Orders API | ✅ live (daily sync → `pos_sales`) |
 | Server performance | Toast Orders (server on check) | ✅ available |
-| Labor %, SPLH, staffing variance | app `shifts` + `profile_compensation` (pay) | 🔒 needs staff + schedule data |
-| Trends / forecast | historical `pos_sales` (sync backfill) | ⏳ needs the scheduled sync |
+| **Employee wages / jobs** | **Toast Labor API** (`/labor/v1/employees` — per-job `wageOverrides`; `/labor/v1/jobs`) | ✅ **verified accessible** |
+| Labor %, SPLH, staffing variance | Toast wages **+** app `shifts` (scheduled hours) | ⏳ wages importable; needs scheduled hours |
+| Trends / forecast / **year view** | historical `pos_sales` (12-mo backfill) | ⏳ backfilling now |
+
+### Wages — Toast has them
+The Labor API exposes each employee with a **per-job hourly wage** (`wageOverrides`)
+and the job catalog. So the "add employee" flow can **import roster + wages from
+Toast** rather than hand-entering pay. What Toast does NOT hold is the **1–5 skill
+rating** (manager-set, private) — that stays in the app. Recommended flow: import
+from Toast → manager adds skill + can override pay → `profiles` +
+`profile_compensation` + `staff_positions`.
+
+## Year view (12-month)
+Backed by the 12-month `pos_sales` backfill:
+- **Monthly sales bars** across the year + **YoY** comparison once a second year exists.
+- **Seasonality curve** — which months run hot/cold per store. This feeds the
+  **month-based staffing overrides** (`staffing_requirements.month`) directly:
+  the year view tells you *which* months need more Servers / a Drink Runner, which
+  is exactly the seasonal input the scheduler was designed to take.
+- **Day-of-week × month heatmap** — demand patterns at a glance.
+- Range control on Insights becomes **Today / Week / Month / Year**.
 
 ## Build order
 1. **Phase 1 — now (Toast only):** sales KPIs, by-hour/day, daypart, store
