@@ -43,3 +43,13 @@ export function monthAbbr(ym: string): string {
   const m = Number(ym.slice(5, 7));
   return MONTH_ABBR[m - 1] ?? ym;
 }
+
+/** Compact money for axis labels: 1366600 -> "$1.4M", 8091 -> "$8k", 700 -> "$700". */
+export function moneyShort(n: number): string {
+  const a = Math.abs(Number(n) || 0);
+  if (a >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1_000) return '$' + Math.round(n / 1_000) + 'k';
+  return '$' + Math.round(n);
+}
+
+export const DOW_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

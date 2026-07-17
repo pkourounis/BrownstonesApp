@@ -346,6 +346,21 @@ export type ReportForecastWeekly = {
   location_id: string;
   projected_week: number;
 };
+export type ReportDaypart = {
+  location_id: string;
+  breakfast_net: number;
+  lunch_net: number;
+};
+export type ReportDow = {
+  location_id: string;
+  dow: number;
+  avg_net: number;
+};
+export type ReportSalesDaily = {
+  location_id: string;
+  business_date: string;
+  net: number;
+};
 export type LocationSalesForecast = {
   location_id: string;
   day_of_week: number;
@@ -443,8 +458,16 @@ export type Database = {
       report_sales_by_hour: { Row: ReportSalesByHour; Relationships: [] };
       report_sales_totals: { Row: ReportSalesTotals; Relationships: [] };
       report_forecast_weekly: { Row: ReportForecastWeekly; Relationships: [] };
+      report_daypart: { Row: ReportDaypart; Relationships: [] };
+      report_dow: { Row: ReportDow; Relationships: [] };
+      report_sales_daily: { Row: ReportSalesDaily; Relationships: [] };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      insights: {
+        Args: { p_range: string; p_location: string | null };
+        Returns: unknown;
+      };
+    };
     Enums: {
       app_role: AppRole;
       employment_status: EmploymentStatus;
