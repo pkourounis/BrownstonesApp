@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
 import { money, money2, moneyShort, hourLabel, monthAbbr, shiftDay, DOW_ABBR, DAY_NAMES } from '@/lib/format';
@@ -63,6 +64,23 @@ const RANGE_LABEL: Record<string, string> = {
   year: 'last 12 months',
 };
 
+/** Placeholder shown while the (streamed) data sections load. */
+function InsightsSkeleton() {
+  return (
+    <div className="animate-pulse space-y-5">
+      <div className="card h-24 bg-brand-700/90" />
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="card h-20" />
+        ))}
+      </div>
+      <div className="card h-56" />
+      <div className="card h-28" />
+      <div className="card h-56" />
+    </div>
+  );
+}
+
 export default async function InsightsPage({
   searchParams,
 }: {
@@ -73,15 +91,49 @@ export default async function InsightsPage({
   const range = ['today', 'week', 'month', 'year'].includes(sp.range ?? '') ? sp.range! : 'year';
   const store = sp.store && sp.store !== 'all' ? sp.store : null;
 
+  // Fast, tiny query so the shell (header + filter) can render immediately.
   const supabase = await createClient();
-  const [locsRes, rpcRes] = await Promise.all([
-    supabase.from('locations').select('id, name').eq('is_active', true),
-    supabase.rpc('insights', { p_range: range, p_location: store }),
-  ]);
-
-  const locations = (locsRes.data ?? []) as Pick<Location, 'id' | 'name'>[];
+  const { data: locsRes } = await supabase.from('locations').select('id, name').eq('is_active', true);
+  const locations = (locsRes ?? []) as Pick<Location, 'id' | 'name'>[];
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
-  const d = (rpcRes.data ?? null) as InsightsData | null;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-brand-900">Insights</h1>
+          <p className="text-sm text-brand-600">
+            {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {RANGE_LABEL[range]}
+          </p>
+        </div>
+        <SyncButton />
+      </div>
+
+      <InsightsFilter locations={locations} />
+
+      {/* The heavy data (insights RPC + charts) streams in; the shell above is instant.
+          Keying on range+store re-shows the skeleton on every filter change. */}
+      <Suspense key={`${range}:${store ?? 'all'}`} fallback={<InsightsSkeleton />}>
+        <InsightsContent range={range} store={store} locations={locations} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function InsightsContent({
+  range,
+  store,
+  locations,
+}: {
+  range: string;
+  store: string | null;
+  locations: Pick<Location, 'id' | 'name'>[];
+}) {
+  const nameById = new Map(locations.map((l) => [l.id, l.name]));
+
+  const supabase = await createClient();
+  const { data: rpcData } = await supabase.rpc('insights', { p_range: range, p_location: store });
+  const d = (rpcData ?? null) as InsightsData | null;
 
   const net = Number(d?.net ?? 0);
   const checks = Number(d?.checks ?? 0);
@@ -143,25 +195,15 @@ export default async function InsightsPage({
   if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
   if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
 
+  if (!hasData) {
+    return <div className="card text-center text-sm text-brand-500">No sales data for this selection.</div>;
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-brand-900">Insights</h1>
-          <p className="text-sm text-brand-600">
-            {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {RANGE_LABEL[range]}
-            {d?.latest_date ? ` · latest ${shiftDay(d.latest_date + 'T12:00:00')}` : ''}
-          </p>
-        </div>
-        <SyncButton />
-      </div>
-
-      <InsightsFilter locations={locations} />
-
-      {!hasData ? (
-        <div className="card text-center text-sm text-brand-500">No sales data for this selection.</div>
-      ) : (
-        <>
+      {d?.latest_date && (
+        <p className="-mt-2 text-xs text-brand-400">Latest data: {shiftDay(d.latest_date + 'T12:00:00')}</p>
+      )}
           <div className="card bg-brand-700 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · {RANGE_LABEL[range]}</p>
             <p className="mt-1 text-3xl font-bold tabular-nums">{money(net)}</p>
@@ -280,8 +322,6 @@ export default async function InsightsPage({
           <p className="px-1 text-center text-xs text-brand-400">
             Live from Toast. Labor %, sales-per-labor-hour, and top sellers connect as the schedule, pay, and menu sync come online.
           </p>
-        </>
-      )}
     </div>
   );
 }
