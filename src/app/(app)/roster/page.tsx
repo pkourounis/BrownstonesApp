@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Star, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight, CalendarClock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
 import { money2 } from '@/lib/format';
@@ -46,9 +46,14 @@ export default async function RosterPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-brand-900">Roster</h1>
-        <p className="text-sm text-brand-600">{employees.length} shown · imported from Toast + added here</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-brand-900">Roster</h1>
+          <p className="text-sm text-brand-600">{employees.length} shown · imported from Toast + added here</p>
+        </div>
+        <Link href="/meetings" className="btn-secondary h-9 shrink-0 px-3 text-xs">
+          <CalendarClock size={14} /> Meetings
+        </Link>
       </div>
 
       <RosterFilters locations={locations} />

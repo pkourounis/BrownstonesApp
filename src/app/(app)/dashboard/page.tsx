@@ -9,6 +9,7 @@ import {
   CircleDot,
   TrendingUp,
   ClipboardCheck,
+  CalendarClock,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
@@ -139,6 +140,7 @@ async function OpsHome() {
           <QuickAction href="/schedule/build" icon={<CalendarPlus size={20} />} label="Build schedule" />
           <QuickAction href="/schedule/staffing" icon={<TrendingUp size={20} />} label="Staffing needs" />
           <QuickAction href="/roster" icon={<UsersRound size={20} />} label="Roster" />
+          <QuickAction href="/meetings" icon={<CalendarClock size={20} />} label="Meetings" />
         </div>
       </section>
 

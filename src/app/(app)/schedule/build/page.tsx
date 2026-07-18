@@ -119,15 +119,27 @@ export default async function BuildSchedulePage({
       </div>
 
       {/* Week-at-a-glance: scheduled vs recommended hours per day. */}
-      <div className="-mx-1 grid grid-cols-7 gap-1 px-1">
-        {overview.map((o) => (
-          <a key={o.key} href={`#day-${o.key}`} className={`rounded-lg p-1.5 text-center ${o.tone}`}>
-            <p className="text-[10px] font-bold uppercase">{o.abbr}</p>
-            <p className="mt-0.5 text-xs font-semibold tabular-nums">{o.sched.toFixed(0)}<span className="text-[9px] font-normal">/{o.reco > 0 ? o.reco.toFixed(0) : '—'}h</span></p>
-            <p className="text-[9px] opacity-70">{o.count} shift{o.count === 1 ? '' : 's'}</p>
-          </a>
-        ))}
-      </div>
+      <section>
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h2 className="font-semibold text-brand-900">Week at a glance</h2>
+          <span className="text-[11px] text-brand-500">scheduled / recommended hrs</span>
+        </div>
+        <div className="-mx-1 grid grid-cols-7 gap-1 px-1">
+          {overview.map((o) => (
+            <a key={o.key} href={`#day-${o.key}`} className={`rounded-lg p-1.5 text-center ${o.tone}`} title={`${o.abbr}: ${o.sched.toFixed(0)}h scheduled vs ${o.reco > 0 ? o.reco.toFixed(0) + 'h recommended' : 'no recommendation'} · ${o.count} shifts`}>
+              <p className="text-[10px] font-bold uppercase">{o.abbr}</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums">{o.sched.toFixed(0)}</p>
+              <p className="text-[9px] font-medium tabular-nums opacity-80">of {o.reco > 0 ? o.reco.toFixed(0) : '—'}h</p>
+              <p className="mt-0.5 text-[9px] opacity-70">{o.count} shift{o.count === 1 ? '' : 's'}</p>
+            </a>
+          ))}
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
+          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
+          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed (add hours)</span>
+          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed (trim)</span>
+        </div>
+      </section>
 
       {days.map((d) => (
         <DayEditor

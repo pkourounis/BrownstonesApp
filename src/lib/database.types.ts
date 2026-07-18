@@ -10,6 +10,24 @@ export type Department = 'boh' | 'foh' | 'management';
 export type ShiftStatus = 'draft' | 'published';
 export type RequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 export type ReviewStatus = 'scheduled' | 'completed' | 'skipped';
+export type MeetingType = 'review' | 'disciplinary' | 'training' | 'discussion' | 'other';
+export type MeetingStatus = 'scheduled' | 'completed' | 'cancelled';
+
+export type Meeting = {
+  id: string;
+  employee_id: string;
+  requested_by: string | null;
+  type: MeetingType;
+  scheduled_at: string | null;
+  location: string | null;
+  description: string | null;
+  status: MeetingStatus;
+  rating: number | null;
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 export type SwapKind = 'swap' | 'pickup';
 export type ResourceType = 'product' | 'training' | 'compliance' | 'link' | 'document';
 export type SchedulingRuleType =
@@ -591,6 +609,7 @@ export type Database = {
       shift_swap_requests: Table<ShiftSwapRequest>;
       time_off_blackouts: Table<TimeOffBlackout>;
       employee_reviews: Table<EmployeeReview>;
+      meetings: Table<Meeting>;
       staffing_requirements: Table<StaffingRequirement>;
       location_peak_hours: Table<LocationPeakHours>;
       location_hours: Table<LocationHours>;
