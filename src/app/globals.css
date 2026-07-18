@@ -53,3 +53,23 @@ body {
     @apply mb-1.5 block text-sm font-medium text-brand-800;
   }
 }
+
+/* Print: drop the app chrome and interactive controls, show a clean schedule. */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .card {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  body {
+    background: white !important;
+  }
+}

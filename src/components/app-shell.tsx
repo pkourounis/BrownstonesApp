@@ -299,7 +299,7 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
       </aside>
 
       {/* ---------- Main ---------- */}
-      <div className={`transition-[padding] duration-200 ${collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-60'}`}>
+      <div className={`transition-[padding] duration-200 print:pl-0 ${collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-60'}`}>
         <main className="mx-auto max-w-2xl px-4 pb-10 pt-4">{children}</main>
       </div>
     </div>

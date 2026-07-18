@@ -8,6 +8,7 @@ import { TimeOffButton } from './time-off-button';
 import { OfferShift, ClaimShift } from './shift-actions';
 import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
+import { ScheduleExport, type ExportRow } from './schedule-export';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +117,21 @@ export default async function SchedulePage({
 
   const costOf = (s: ShiftRow) => shiftHours(s.starts_at, s.ends_at, s.break_minutes) * (Number(s.roster?.default_wage) || 0);
   const dayCost = (list: ShiftRow[]) => list.reduce((n, s) => n + costOf(s), 0);
+  const whoName = (s: ShiftRow) =>
+    s.employee ? s.employee.display_name || s.employee.full_name : s.roster ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim() : 'Open shift';
+
+  const visibleShifts = weekMode ? weekDayList.flatMap((d) => byDay.get(format(d, 'yyyy-MM-dd')) ?? []) : shifts;
+  const exportRows: ExportRow[] = manager
+    ? visibleShifts.map((s) => ({
+        date: format(parseISO(s.starts_at), 'EEE MMM d'),
+        time: shiftTimeRange(s.starts_at, s.ends_at),
+        hours: shiftHours(s.starts_at, s.ends_at, s.break_minutes).toFixed(1),
+        who: whoName(s),
+        role: s.position?.name ?? s.roster?.role_title ?? '',
+        cost: costOf(s) > 0 ? money(costOf(s)) : '',
+      }))
+    : [];
+  const exportTitle = weekMode ? weekLabel : 'next 2 weeks';
 
   const shiftCard = (s: ShiftRow) => {
     const mine = mineShift(s);
@@ -165,9 +181,12 @@ export default async function SchedulePage({
         )}
       </div>
 
-      <ViewControls view={view} weekLabel={weekLabel} monday={weekMonday} />
+      <div className="no-print space-y-2">
+        <ViewControls view={view} weekLabel={weekLabel} monday={weekMonday} />
+        {manager && <ScheduleExport rows={exportRows} title={exportTitle} />}
+      </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="no-print flex flex-wrap gap-2">
         <TimeOffButton />
         {manager && (
           <>
@@ -183,7 +202,7 @@ export default async function SchedulePage({
 
       {/* Blocked days */}
       {blackouts.length > 0 && (
-        <div className="card border-l-4 border-l-brick-400 py-3">
+        <div className="no-print card border-l-4 border-l-brick-400 py-3">
           <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-900"><CalendarX2 size={15} /> Blocked for time off</p>
           <p className="mt-1 text-xs text-brand-600">
             {blackouts.map((b) => `${bdate(b.start_date)}${b.end_date !== b.start_date ? `–${bdate(b.end_date)}` : ''}${b.reason ? ` (${b.reason})` : ''}`).join(' · ')}
@@ -192,11 +211,13 @@ export default async function SchedulePage({
       )}
 
       {/* My time-off requests */}
-      <MyRequests requests={myRequests} />
+      <div className="no-print">
+        <MyRequests requests={myRequests} />
+      </div>
 
       {/* Open shifts up for grabs */}
       {openDrops.length > 0 && (
-        <section>
+        <section className="no-print">
           <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><Hand size={18} /> Open shifts up for grabs</h2>
           <ul className="space-y-2">
             {openDrops.map((w) => (
