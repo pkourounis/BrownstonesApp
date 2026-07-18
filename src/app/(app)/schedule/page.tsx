@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
 import { shiftTimeRange, shiftHours } from '@/lib/format';
 import { format, parseISO, startOfToday, addDays } from 'date-fns';
-import { CalendarPlus, Clock, User } from 'lucide-react';
+import { CalendarPlus, Clock, User, Gauge, ClipboardCheck } from 'lucide-react';
 import Link from 'next/link';
 
 type ShiftRow = {
@@ -62,6 +62,17 @@ export default async function SchedulePage() {
           </Link>
         )}
       </div>
+
+      {manager && (
+        <div className="flex gap-2">
+          <Link href="/schedule/staffing" className="btn-secondary flex-1 justify-center text-xs">
+            <Gauge size={14} /> Staffing needs
+          </Link>
+          <Link href="/schedule/actuals" className="btn-secondary flex-1 justify-center text-xs">
+            <ClipboardCheck size={14} /> Scheduled vs actual
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div className="card text-sm text-red-700">Couldn&apos;t load shifts: {error.message}</div>

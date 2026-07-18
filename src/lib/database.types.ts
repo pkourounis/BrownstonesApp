@@ -543,6 +543,10 @@ export type Database = {
         Args: { p_location: string; p_monday: string };
         Returns: number;
       };
+      schedule_vs_actual: {
+        Args: { p_location: string; p_date: string | null };
+        Returns: unknown;
+      };
     };
     Enums: {
       app_role: AppRole;
