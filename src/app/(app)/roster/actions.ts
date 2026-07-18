@@ -60,6 +60,16 @@ async function provision(
       department: emp.department,
       title: emp.role_title,
       phone: emp.phone,
+      avatar_url: emp.avatar_url,
+      bio: emp.bio,
+      address: emp.address,
+      birthday: emp.birthday,
+      hired_at: emp.hired_at,
+      marital_status: emp.marital_status,
+      facebook: emp.facebook,
+      instagram: emp.instagram,
+      emergency_contact_name: emp.emergency_contact_name,
+      emergency_contact_phone: emp.emergency_contact_phone,
       must_change_password: true,
     })
     .eq('id', userId);
@@ -169,6 +179,16 @@ export async function updateEmployee(
     location_id?: string;
     default_wage?: number | null;
     active?: boolean;
+    avatar_url?: string | null;
+    bio?: string | null;
+    address?: string | null;
+    birthday?: string | null;
+    hired_at?: string | null;
+    marital_status?: string | null;
+    facebook?: string | null;
+    instagram?: string | null;
+    emergency_contact_name?: string | null;
+    emergency_contact_phone?: string | null;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   await requireRole('super_admin', 'manager');
@@ -183,6 +203,10 @@ export async function updateEmployee(
     default_wage: patch.default_wage ?? null,
   };
   if (patch.role_titles) update.role_titles = patch.role_titles;
+  const profileKeys = ['avatar_url', 'bio', 'address', 'birthday', 'hired_at', 'marital_status', 'facebook', 'instagram', 'emergency_contact_name', 'emergency_contact_phone'] as const;
+  for (const k of profileKeys) {
+    if (k in patch) (update as Record<string, unknown>)[k] = (patch[k] as string | null)?.toString().trim() || null;
+  }
   if (patch.location_id) update.location_id = patch.location_id;
   if (typeof patch.active === 'boolean') update.active = patch.active;
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Trash2, Archive, ArchiveRestore, KeyRound, Loader2, Check, Copy, UserCheck } from 'lucide-react';
+import { Star, Trash2, Archive, ArchiveRestore, KeyRound, Loader2, Check, Copy, UserCheck, Upload } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import type { Employee, Location, Department } from '@/lib/database.types';
 import { JOB_ROLES } from '@/lib/job-roles';
 import { updateEmployee, setEmployeeRating, deleteEmployee, grantAccess } from '../actions';
@@ -63,9 +64,41 @@ export function RosterMemberEdit({
     department: (member.department ?? '') as Department | '',
     location_id: member.location_id,
     default_wage: member.default_wage != null ? String(member.default_wage) : '',
+    bio: member.bio ?? '',
+    address: member.address ?? '',
+    birthday: member.birthday ?? '',
+    hired_at: member.hired_at ?? '',
+    marital_status: member.marital_status ?? '',
+    facebook: member.facebook ?? '',
+    instagram: member.instagram ?? '',
+    emergency_contact_name: member.emergency_contact_name ?? '',
+    emergency_contact_phone: member.emergency_contact_phone ?? '',
   });
+  const [avatarUrl, setAvatarUrl] = useState(member.avatar_url ?? '');
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
   const [roleTitles, setRoleTitles] = useState<string[]>(member.role_titles ?? []);
   const [active, setActive] = useState(member.active);
+
+  const onAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setMsg(null);
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) { setUploading(false); return; }
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${uid}/roster-${member.id}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type || undefined });
+    if (!error) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      setAvatarUrl(data.publicUrl);
+    } else setMsg(error.message);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
   const extras = (member.role_titles ?? []).filter((r) => !JOB_ROLES.includes(r));
   const roles = [...JOB_ROLES, ...(member.role_title && !JOB_ROLES.includes(member.role_title) ? [member.role_title] : []), ...extras.filter((r) => r !== member.role_title)];
   const allRoles = [...new Set(roles)];
@@ -88,6 +121,16 @@ export function RosterMemberEdit({
         department: (f.department || null) as Department | null,
         location_id: f.location_id,
         default_wage: f.default_wage ? Number(f.default_wage) : null,
+        avatar_url: avatarUrl || null,
+        bio: f.bio || null,
+        address: f.address || null,
+        birthday: f.birthday || null,
+        hired_at: f.hired_at || null,
+        marital_status: f.marital_status || null,
+        facebook: f.facebook || null,
+        instagram: f.instagram || null,
+        emergency_contact_name: f.emergency_contact_name || null,
+        emergency_contact_phone: f.emergency_contact_phone || null,
       });
       setMsg(res.ok ? 'Saved.' : res.error ?? 'Error');
       if (res.ok) router.refresh();
@@ -130,6 +173,20 @@ export function RosterMemberEdit({
       {/* Details */}
       <div className="card space-y-4">
         <h2 className="font-semibold text-brand-900">Details</h2>
+        <div className="flex items-center gap-3">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt="" className="h-16 w-16 rounded-full border border-brand-100 object-cover" />
+          ) : (
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-200 text-lg font-semibold text-brand-700">
+              {(f.first_name[0] ?? '') + (f.last_name[0] ?? '')}
+            </span>
+          )}
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary h-9 px-3 text-sm">
+            {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} Photo
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatar} />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">First name</label>
@@ -189,6 +246,55 @@ export function RosterMemberEdit({
             })}
           </div>
           <p className="mt-1 text-xs text-brand-500">Tap every role this person can work (e.g. server + host). ★ is their primary. Used when scheduling so they can be a server one day and a host another.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Hired</label>
+            <input type="date" className="input" value={f.hired_at} onChange={(e) => setF({ ...f, hired_at: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">Birthday</label>
+            <input type="date" className="input" value={f.birthday} onChange={(e) => setF({ ...f, birthday: e.target.value })} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Marital status</label>
+            <select className="input" value={f.marital_status} onChange={(e) => setF({ ...f, marital_status: e.target.value })}>
+              <option value="">—</option>
+              <option value="single">Single</option>
+              <option value="married">Married</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Address</label>
+            <input className="input" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder="Street, city" />
+          </div>
+        </div>
+        <div>
+          <label className="label">About</label>
+          <textarea className="input min-h-[70px]" value={f.bio} onChange={(e) => setF({ ...f, bio: e.target.value })} placeholder="A short bio…" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Facebook</label>
+            <input className="input" value={f.facebook} onChange={(e) => setF({ ...f, facebook: e.target.value })} placeholder="Profile URL or handle" />
+          </div>
+          <div>
+            <label className="label">Instagram</label>
+            <input className="input" value={f.instagram} onChange={(e) => setF({ ...f, instagram: e.target.value })} placeholder="@handle" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Emergency contact</label>
+            <input className="input" value={f.emergency_contact_name} onChange={(e) => setF({ ...f, emergency_contact_name: e.target.value })} placeholder="Name" />
+          </div>
+          <div>
+            <label className="label">Emergency phone</label>
+            <input className="input" value={f.emergency_contact_phone} onChange={(e) => setF({ ...f, emergency_contact_phone: e.target.value })} placeholder="(631) 555-0123" />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
