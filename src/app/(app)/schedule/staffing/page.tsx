@@ -8,9 +8,6 @@ import { StaffingControls } from './staffing-controls';
 
 export const dynamic = 'force-dynamic';
 
-// Store-level sales goal per operating hour. Cells at/above this are "on target".
-const HOURLY_SALES_GOAL = 1300;
-
 type Reco = {
   target: number;
   stores: { id: string; reco_hours: number; actual_hours: number; gap: number }[];
@@ -29,10 +26,10 @@ export default async function BuildSchedulePage({
 
   const supabase = await createClient();
   const [{ data: locs }, { data: recoData }] = await Promise.all([
-    supabase.from('locations').select('id, name').eq('is_active', true),
+    supabase.from('locations').select('id, name, revenue_per_hour_target').eq('is_active', true),
     supabase.rpc('staffing_reco', { p_location: store, p_target: target }),
   ]);
-  const locations = (locs ?? []) as Pick<Location, 'id' | 'name'>[];
+  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'revenue_per_hour_target'>[];
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
   const reco = (recoData ?? { target, stores: [], grid: [] }) as Reco;
 
@@ -42,10 +39,10 @@ export default async function BuildSchedulePage({
   const maxReco = Math.max(1, ...reco.grid.map((g) => g.reco));
   const peakStaff = reco.grid.reduce((m, g) => Math.max(m, g.reco), 0);
 
-  // The combined "all stores" grid sums revenue across stores, so scale the
-  // per-store $1,300/hr goal by the store count when no single store is picked.
-  const storeCount = Math.max(1, locations.length);
-  const hourlyGoal = HOURLY_SALES_GOAL * (store ? 1 : storeCount);
+  // Store-level sales goal per operating hour (from each location). The combined
+  // "all stores" grid sums revenue across stores, so sum their goals too.
+  const goalFor = (id: string) => Number(locations.find((l) => l.id === id)?.revenue_per_hour_target) || 1300;
+  const hourlyGoal = store ? goalFor(store) : locations.reduce((s, l) => s + (Number(l.revenue_per_hour_target) || 1300), 0);
   const onTarget = reco.grid.filter((g) => g.rev >= hourlyGoal).length;
   const openHours = reco.grid.length;
 

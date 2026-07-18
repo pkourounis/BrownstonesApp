@@ -30,7 +30,7 @@ function parse(formData: FormData) {
     opens_at: str('opens_at') || '06:00',
     seats: num('seats'),
     tables: num('tables'),
-    revenue_per_hour_target: num('revenue_per_hour_target') ?? 500,
+    revenue_per_hour_target: num('revenue_per_hour_target') ?? 1300,
     toast_guid: str('toast_guid'),
     is_active: formData.get('is_active') === 'on',
   };

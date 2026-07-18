@@ -8,6 +8,7 @@ import {
   UsersRound,
   CircleDot,
   TrendingUp,
+  ClipboardCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
@@ -60,7 +61,10 @@ export default async function DashboardPage() {
 
 async function OpsHome() {
   const supabase = await createClient();
-  const { data } = await supabase.rpc('home_summary');
+  const [{ data }, pendingApprovals] = await Promise.all([
+    supabase.rpc('home_summary'),
+    countPendingApprovals(supabase),
+  ]);
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
 
@@ -130,6 +134,7 @@ async function OpsHome() {
       <section>
         <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
         <div className="grid grid-cols-2 gap-3">
+          <QuickAction href="/approvals" icon={<ClipboardCheck size={20} />} label="Approvals" badge={pendingApprovals} />
           <QuickAction href="/insights" icon={<BarChart3 size={20} />} label="Insights" />
           <QuickAction href="/schedule/build" icon={<CalendarPlus size={20} />} label="Build schedule" />
           <QuickAction href="/schedule/staffing" icon={<TrendingUp size={20} />} label="Staffing needs" />
@@ -143,10 +148,25 @@ async function OpsHome() {
   );
 }
 
-function QuickAction({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+async function countPendingApprovals(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
+  const head = { count: 'exact' as const, head: true };
+  const [a, b, c] = await Promise.all([
+    supabase.from('time_off_requests').select('*', head).eq('status', 'pending'),
+    supabase.from('availability').select('*', head).eq('status', 'pending'),
+    supabase.from('shift_swap_requests').select('*', head).eq('status', 'pending'),
+  ]);
+  return (a.count ?? 0) + (b.count ?? 0) + (c.count ?? 0);
+}
+
+function QuickAction({ href, icon, label, badge }: { href: string; icon: React.ReactNode; label: string; badge?: number }) {
   return (
     <Link href={href} className="card flex items-center gap-3 py-3 hover:border-brand-300">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">{icon}</span>
+      <span className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+        {icon}
+        {badge ? (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brick-600 px-1 text-[10px] font-bold text-white">{badge}</span>
+        ) : null}
+      </span>
       <span className="font-medium text-brand-900">{label}</span>
     </Link>
   );

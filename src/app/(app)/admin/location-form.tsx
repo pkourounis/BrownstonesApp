@@ -77,7 +77,7 @@ export function LocationForm({ location }: { location: Location | null }) {
           <F label="Seats" name="seats" type="number" defaultValue={location?.seats} />
           <F label="Tables" name="tables" type="number" defaultValue={location?.tables} />
         </div>
-        <F label="Revenue / hour target ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 500} />
+        <F label="Revenue / hour target ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
       </div>
 
       <div className="card space-y-4">
