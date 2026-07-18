@@ -64,7 +64,8 @@ export default async function SchedulePage({
     weekMonday = format(monday, 'yyyy-MM-dd');
     weekLabel = `${format(monday, 'MMM d')} – ${format(addDays(monday, 6), 'MMM d')}`;
     const all7 = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-    weekDayList = view === 'weekend' ? all7.filter((d) => d.getDay() === 6 || d.getDay() === 0) : all7;
+    // Weekend = Friday, Saturday, Sunday (busiest days).
+    weekDayList = view === 'weekend' ? all7.filter((d) => d.getDay() === 5 || d.getDay() === 6 || d.getDay() === 0) : all7;
   } else {
     rangeStart = startOfToday();
     rangeEnd = addDays(rangeStart, 14);
