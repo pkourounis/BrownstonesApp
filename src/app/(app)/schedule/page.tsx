@@ -14,6 +14,7 @@ type ShiftRow = {
   notes: string | null;
   position: { name: string; color: string } | null;
   employee: { id: string; full_name: string; display_name: string | null } | null;
+  roster: { first_name: string; last_name: string | null; role_title: string | null } | null;
 };
 
 export default async function SchedulePage() {
@@ -29,7 +30,8 @@ export default async function SchedulePage() {
     .select(
       `id, starts_at, ends_at, break_minutes, status, notes,
        position:positions(name, color),
-       employee:profiles!shifts_employee_id_fkey(id, full_name, display_name)`
+       employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
+       roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title)`
     )
     .gte('starts_at', rangeStart.toISOString())
     .lt('starts_at', rangeEnd.toISOString())
@@ -97,8 +99,12 @@ export default async function SchedulePage() {
                         <User size={13} className="text-brand-400" />
                         {s.employee
                           ? s.employee.display_name || s.employee.full_name
-                          : 'Open shift'}
-                        {s.position && <span className="text-brand-400">· {s.position.name}</span>}
+                          : s.roster
+                            ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim()
+                            : 'Open shift'}
+                        {(s.position?.name || s.roster?.role_title) && (
+                          <span className="text-brand-400">· {s.position?.name ?? s.roster?.role_title}</span>
+                        )}
                       </p>
                     </div>
                     {s.status === 'draft' && (

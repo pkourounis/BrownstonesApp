@@ -23,7 +23,7 @@ export function StaffingControls({
       if (!v || (k === 'store' && v === 'all')) p.delete(k);
       else p.set(k, v);
     });
-    startTransition(() => router.push(`/schedule/build?${p.toString()}`));
+    startTransition(() => router.push(`/schedule/staffing?${p.toString()}`));
   };
 
   return (

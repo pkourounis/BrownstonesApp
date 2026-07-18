@@ -1,18 +1,26 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { format, addDays, parseISO, startOfWeek } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
-import { hourLabel, DOW_ABBR, DAY_NAMES } from '@/lib/format';
-import type { Location } from '@/lib/database.types';
-import { StaffingControls } from './staffing-controls';
+import type { Location, Employee } from '@/lib/database.types';
+import { BuilderControls } from './builder-controls';
+import { DayEditor } from './day-editor';
 
 export const dynamic = 'force-dynamic';
 
-type Reco = {
-  target: number;
-  stores: { id: string; reco_hours: number; actual_hours: number; gap: number }[];
-  grid: { dow: number; hour: number; rev: number; reco: number }[];
+type WeekShift = {
+  id: string;
+  employee: string | null;
+  role: string | null;
+  wage: number | null;
+  starts_at: string;
+  ends_at: string;
+  break_minutes: number;
+  status: string;
+  day: string;
 };
+type Grid = { grid: { dow: number; reco: number }[] };
 
 export default async function BuildSchedulePage({
   searchParams,
@@ -22,138 +30,94 @@ export default async function BuildSchedulePage({
   await requireRole('super_admin', 'manager');
   const sp = await searchParams;
   const store = sp.store && sp.store !== 'all' ? sp.store : null;
-  const target = Math.min(150, Math.max(40, Number(sp.target) || 75));
+  const monday =
+    sp.week && /^\d{4}-\d{2}-\d{2}$/.test(sp.week)
+      ? format(startOfWeek(parseISO(sp.week), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
   const supabase = await createClient();
-  const [{ data: locs }, { data: recoData }] = await Promise.all([
-    supabase.from('locations').select('id, name').eq('is_active', true),
-    supabase.rpc('staffing_reco', { p_location: store, p_target: target }),
-  ]);
+  const { data: locs } = await supabase.from('locations').select('id, name').eq('is_active', true);
   const locations = (locs ?? []) as Pick<Location, 'id' | 'name'>[];
-  const nameById = new Map(locations.map((l) => [l.id, l.name]));
-  const reco = (recoData ?? { target, stores: [], grid: [] }) as Reco;
 
-  // Build the day-of-week × hour grid.
-  const hours = [...new Set(reco.grid.map((g) => g.hour))].sort((a, b) => a - b);
-  const cell = new Map(reco.grid.map((g) => [`${g.dow}-${g.hour}`, g]));
-  const maxReco = Math.max(1, ...reco.grid.map((g) => g.reco));
-  const peakStaff = reco.grid.reduce((m, g) => Math.max(m, g.reco), 0);
+  const weekStart = parseISO(monday);
+  const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
+
+  if (!store) {
+    return (
+      <div className="space-y-5">
+        <Link href="/schedule" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+          <ArrowLeft size={16} /> Back to schedule
+        </Link>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-brand-900">Build schedule</h1>
+          <p className="text-sm text-brand-600">Create the week&apos;s shifts, staffed to demand.</p>
+        </div>
+        <div className="card">
+          <BuilderControls locations={locations} store={null} monday={monday} weekLabel={weekLabel} draftCount={0} />
+        </div>
+        <div className="card text-center text-sm text-brand-500">Pick a store to start building the schedule.</div>
+      </div>
+    );
+  }
+
+  const [{ data: emps }, { data: weekData }, { data: recoData }] = await Promise.all([
+    supabase.from('employees').select('*').eq('active', true).eq('location_id', store).order('first_name'),
+    supabase.rpc('week_shifts', { p_location: store, p_monday: monday }),
+    supabase.rpc('staffing_reco', { p_location: store, p_target: 75 }),
+  ]);
+
+  const roster = ((emps ?? []) as Employee[]).map((e) => ({
+    id: e.id,
+    label: `${e.first_name} ${e.last_name ?? ''}`.trim(),
+    role: e.role_title,
+  }));
+  const shifts = (weekData ?? []) as WeekShift[];
+  const reco = (recoData ?? { grid: [] }) as Grid;
+
+  // Recommended labor hours per day-of-week = sum of hourly recommended staff.
+  const recoByDow = new Map<number, number>();
+  for (const g of reco.grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
+
+  const draftCount = shifts.filter((s) => s.status === 'draft').length;
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(weekStart, i);
+    const iso = format(d, 'yyyy-MM-dd');
+    return {
+      date: iso,
+      weekday: format(d, 'EEEE'),
+      dayLabel: format(d, 'MMM d'),
+      dow: d.getDay(),
+      shifts: shifts.filter((s) => s.day === iso),
+    };
+  });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Link href="/schedule" className="flex items-center gap-1 text-sm font-medium text-brand-700">
         <ArrowLeft size={16} /> Back to schedule
       </Link>
-
       <div>
-        <h1 className="font-display text-2xl font-bold text-brand-900">Staffing needs</h1>
-        <p className="text-sm text-brand-600">
-          Demand-driven head-count from your Toast sales-per-hour. Use it to plan the week.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-brand-900">Build schedule</h1>
+        <p className="text-sm text-brand-600">{locations.find((l) => l.id === store)?.name} · staffed to demand</p>
       </div>
 
       <div className="card">
-        <StaffingControls locations={locations} target={target} />
+        <BuilderControls locations={locations} store={store} monday={monday} weekLabel={weekLabel} draftCount={draftCount} />
       </div>
 
-      {/* Which stores need staff */}
-      {reco.stores.length > 0 && (
-        <section className="card">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
-            <h2 className="font-semibold text-brand-900">Where to adjust staff</h2>
-            <span className="text-xs text-brand-400">reco vs actual · hrs/week</span>
-          </div>
-          <ul className="space-y-3">
-            {reco.stores.map((s) => {
-              const under = s.gap > 8; // needs more people
-              const over = s.gap < -8; // running heavy
-              return (
-                <li key={s.id} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 truncate text-sm font-medium text-brand-900">{nameById.get(s.id) ?? '—'}</span>
-                  <span className="flex-1 text-xs text-brand-500">
-                    <span className="tabular-nums text-brand-700">{s.reco_hours}</span> reco ·{' '}
-                    <span className="tabular-nums text-brand-700">{s.actual_hours}</span> actual
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                      under ? 'bg-brick-500/15 text-brick-600' : over ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                    }`}
-                  >
-                    {under ? `add ~${Math.round(s.gap)}h` : over ? `trim ~${Math.round(-s.gap)}h` : 'on target'}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-3 border-t border-brand-100 pt-3 text-xs text-brand-500">
-            &ldquo;Reco&rdquo; is the weekly labor hours demand supports at ${reco.target}/labor-hr; &ldquo;actual&rdquo; is what was
-            punched (last 8 weeks avg). Positive gap = add people; negative = running heavy.
-          </p>
-        </section>
-      )}
-
-      {/* Coverage heat grid */}
-      {hours.length > 0 && (
-        <section className="card">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
-            <h2 className="font-semibold text-brand-900">Recommended coverage</h2>
-            <span className="text-xs text-brand-400">{store ? nameById.get(store) : 'all stores'} · staff/hr</span>
-          </div>
-          <div className="-mx-1 overflow-x-auto px-1">
-            <table className="border-separate" style={{ borderSpacing: '2px' }}>
-              <thead>
-                <tr>
-                  <th className="sticky left-0 bg-white" />
-                  {hours.map((h) => (
-                    <th key={h} className="pb-1 text-[9px] font-medium tabular-nums text-brand-400">
-                      {hourLabel(h).replace(':00', '')}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 7 }, (_, dow) => (
-                  <tr key={dow}>
-                    <td className="sticky left-0 bg-white pr-1 text-right text-[10px] font-semibold text-brand-500">
-                      {DOW_ABBR[dow]}
-                    </td>
-                    {hours.map((h) => {
-                      const g = cell.get(`${dow}-${h}`);
-                      const n = g?.reco ?? 0;
-                      const a = n > 0 ? 0.15 + 0.7 * (n / maxReco) : 0;
-                      return (
-                        <td
-                          key={h}
-                          title={g ? `${DAY_NAMES[dow]} ${hourLabel(h)} — ${n} staff (~$${Math.round(g.rev)}/hr)` : ''}
-                          className="h-7 w-7 rounded text-center text-[10px] font-bold tabular-nums"
-                          style={{
-                            backgroundColor: n > 0 ? `rgba(122, 84, 40, ${a})` : '#f4efe6',
-                            color: a > 0.5 ? 'white' : '#5b4a34',
-                          }}
-                        >
-                          {n || ''}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-xs text-brand-500">
-            Darker = busier. Peak demand needs about <span className="font-semibold text-brand-700">{peakStaff} on the floor</span>.
-            Pick a store above for its own pattern.
-          </p>
-        </section>
-      )}
-
-      <div className="card">
-        <h2 className="font-semibold text-brand-900">Build the week&apos;s shifts — next</h2>
-        <p className="mt-1 text-sm text-brand-600">
-          Next we&apos;ll turn these targets into actual shifts: drop people from your Toast roster onto each day, and the app
-          checks coverage against these numbers and against real punches. Scheduling moves out of Sling and into here.
-        </p>
-      </div>
+      {days.map((d) => (
+        <DayEditor
+          key={d.date}
+          date={d.date}
+          weekday={d.weekday}
+          dayLabel={d.dayLabel}
+          store={store}
+          roster={roster}
+          shifts={d.shifts}
+          recoHours={recoByDow.get(d.dow) ?? 0}
+        />
+      ))}
     </div>
   );
 }

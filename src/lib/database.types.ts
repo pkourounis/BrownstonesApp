@@ -162,6 +162,7 @@ export type Shift = {
   location_id: string;
   position_id: string | null;
   employee_id: string | null;
+  roster_employee_id: string | null;
   starts_at: string;
   ends_at: string;
   break_minutes: number;
@@ -521,6 +522,25 @@ export type Database = {
       };
       roster_import_from_toast: {
         Args: Record<string, never>;
+        Returns: number;
+      };
+      create_shift: {
+        Args: {
+          p_location: string;
+          p_date: string;
+          p_start: string;
+          p_end: string;
+          p_break: number;
+          p_employee: string | null;
+        };
+        Returns: string;
+      };
+      week_shifts: {
+        Args: { p_location: string; p_monday: string };
+        Returns: unknown;
+      };
+      publish_week: {
+        Args: { p_location: string; p_monday: string };
         Returns: number;
       };
     };
