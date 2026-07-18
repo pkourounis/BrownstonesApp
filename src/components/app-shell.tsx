@@ -77,8 +77,17 @@ function NavLinks({
   );
 }
 
-/** Profile photo, or an initials fallback circle. */
-function Avatar({ url, initial, size = 36 }: { url: string | null; initial: string; size?: number }) {
+/** Two-letter initials from a name: first + last, else first two letters. */
+function initialsOf(fullName: string | null, displayName: string | null): string {
+  const src = (fullName || displayName || '').trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return 'BC';
+}
+
+/** Profile photo, or a two-letter initials fallback circle. */
+function Avatar({ url, initials, size = 36 }: { url: string | null; initials: string; size?: number }) {
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -90,9 +99,9 @@ function Avatar({ url, initial, size = 36 }: { url: string | null; initial: stri
   ) : (
     <span
       className="flex shrink-0 items-center justify-center rounded-full bg-brand-200 font-semibold text-brand-700"
-      style={{ height: size, width: size, fontSize: size * 0.42 }}
+      style={{ height: size, width: size, fontSize: size * 0.38 }}
     >
-      {initial}
+      {initials}
     </span>
   );
 }
@@ -120,7 +129,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
   const [collapsed, setCollapsed] = useState(false);
 
   const name = profile.display_name || profile.full_name || 'Team member';
-  const initial = name.trim().charAt(0).toUpperCase() || 'B';
+  const initials = initialsOf(profile.full_name, profile.display_name);
   const items = ITEMS.filter((i) => i.roles.includes(profile.role));
 
   // Restore the desktop collapse preference.
@@ -164,7 +173,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
         <div className={`flex h-16 items-center border-b border-brand-100 ${collapsed ? 'justify-center px-2' : 'px-4'}`}>
           <Link href="/dashboard" aria-label="Brownstones Coffee home">
             {collapsed ? (
-              <span className="font-display text-xl font-bold text-brand-800">{initial}</span>
+              <span className="font-display text-xl font-bold text-brand-800">B</span>
             ) : (
               <Wordmark size="sm" />
             )}
@@ -176,11 +185,11 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
         <div className="border-t border-brand-100 p-3">
           {collapsed ? (
             <Link href="/profile" aria-label="Your profile" className="mb-1 flex justify-center py-1">
-              <Avatar url={profile.avatar_url} initial={initial} size={36} />
+              <Avatar url={profile.avatar_url} initials={initials} size={36} />
             </Link>
           ) : (
             <Link href="/profile" className="mb-1 flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-brand-100">
-              <Avatar url={profile.avatar_url} initial={initial} size={36} />
+              <Avatar url={profile.avatar_url} initials={initials} size={36} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-brand-900">{name}</p>
                 <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
@@ -222,7 +231,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
           </div>
           <Link href="/profile" aria-label="Your profile">
-            <Avatar url={profile.avatar_url} initial={initial} size={36} />
+            <Avatar url={profile.avatar_url} initials={initials} size={36} />
           </Link>
           <form action="/auth/signout" method="post">
             <button
