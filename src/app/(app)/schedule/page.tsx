@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { shiftTimeRange, shiftHours } from '@/lib/format';
+import { shiftTimeRange, shiftHours, money } from '@/lib/format';
 import { format, parseISO, startOfToday, startOfWeek, addDays } from 'date-fns';
 import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand, CalendarX2 } from 'lucide-react';
 import Link from 'next/link';
@@ -22,7 +22,7 @@ type ShiftRow = {
   roster_employee_id: string | null;
   position: { name: string; color: string } | null;
   employee: { id: string; full_name: string; display_name: string | null } | null;
-  roster: { first_name: string; last_name: string | null; role_title: string | null } | null;
+  roster: { first_name: string; last_name: string | null; role_title: string | null; default_wage: number | null } | null;
 };
 
 type SwapRow = {
@@ -79,7 +79,7 @@ export default async function SchedulePage({
         `id, starts_at, ends_at, break_minutes, status, notes, employee_id, roster_employee_id,
          position:positions(name, color),
          employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
-         roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title)`
+         roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, default_wage)`
       )
       .gte('starts_at', rangeStart.toISOString())
       .lt('starts_at', rangeEnd.toISOString())
@@ -113,6 +113,9 @@ export default async function SchedulePage({
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key)!.push(s);
   }
+
+  const costOf = (s: ShiftRow) => shiftHours(s.starts_at, s.ends_at, s.break_minutes) * (Number(s.roster?.default_wage) || 0);
+  const dayCost = (list: ShiftRow[]) => list.reduce((n, s) => n + costOf(s), 0);
 
   const shiftCard = (s: ShiftRow) => {
     const mine = mineShift(s);
@@ -213,18 +216,33 @@ export default async function SchedulePage({
 
       {error && <div className="card text-sm text-red-700">Couldn&apos;t load shifts: {error.message}</div>}
 
+      {weekMode && manager && (() => {
+        const weekShifts = weekDayList.flatMap((d) => byDay.get(format(d, 'yyyy-MM-dd')) ?? []);
+        const wHrs = weekShifts.reduce((n, s) => n + shiftHours(s.starts_at, s.ends_at, s.break_minutes), 0);
+        const wCost = dayCost(weekShifts);
+        return (
+          <div className="card flex items-center justify-between py-3">
+            <span className="text-sm font-semibold text-brand-900">{view === 'weekend' ? 'Weekend' : 'Week'} labor</span>
+            <span className="text-sm tabular-nums text-brand-700">{wHrs.toFixed(1)}h{wCost > 0 ? ` · ${money(wCost)}` : ''}</span>
+          </div>
+        );
+      })()}
+
       {weekMode ? (
         <div className="space-y-5">
           {weekDayList.map((d) => {
             const key = format(d, 'yyyy-MM-dd');
             const dayShifts = byDay.get(key) ?? [];
             const hrs = dayShifts.reduce((n, s) => n + shiftHours(s.starts_at, s.ends_at, s.break_minutes), 0);
+            const cost = dayCost(dayShifts);
             return (
               <section key={key}>
                 <div className="mb-2 flex items-baseline justify-between">
                   <h2 className="text-sm font-bold uppercase tracking-wide text-brand-500">{format(d, 'EEEE, MMM d')}</h2>
                   {dayShifts.length > 0 && (
-                    <span className="text-xs text-brand-400">{dayShifts.length} shift{dayShifts.length === 1 ? '' : 's'} · {hrs.toFixed(1)}h</span>
+                    <span className="text-xs text-brand-400">
+                      {dayShifts.length} shift{dayShifts.length === 1 ? '' : 's'} · {hrs.toFixed(1)}h{manager && cost > 0 ? ` · ${money(cost)}` : ''}
+                    </span>
                   )}
                 </div>
                 {dayShifts.length === 0 ? (
@@ -242,14 +260,20 @@ export default async function SchedulePage({
         </div>
       ) : (
         <div className="space-y-6">
-          {[...byDay.entries()].map(([day, dayShifts]) => (
-            <section key={day}>
-              <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-brand-500">
-                {format(parseISO(day + 'T00:00:00'), 'EEEE, MMM d')}
-              </h2>
-              <ul className="space-y-2">{dayShifts.map(shiftCard)}</ul>
-            </section>
-          ))}
+          {[...byDay.entries()].map(([day, dayShifts]) => {
+            const cost = dayCost(dayShifts);
+            return (
+              <section key={day}>
+                <div className="mb-2 flex items-baseline justify-between">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-brand-500">
+                    {format(parseISO(day + 'T00:00:00'), 'EEEE, MMM d')}
+                  </h2>
+                  {manager && cost > 0 && <span className="text-xs tabular-nums text-brand-400">{money(cost)}</span>}
+                </div>
+                <ul className="space-y-2">{dayShifts.map(shiftCard)}</ul>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
