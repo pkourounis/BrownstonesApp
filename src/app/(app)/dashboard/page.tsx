@@ -73,9 +73,9 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
 
   return (
-    <>
+    <div className="lg:columns-2 lg:gap-6">
       {/* Today (live) + yesterday */}
-      <div className="card bg-brand-700 text-white">
+      <div className="card mb-6 break-inside-avoid bg-brand-700 text-white">
         <div className="flex items-baseline justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · Today (live)</p>
           <span className="flex items-center gap-1 text-xs text-gold-200">
@@ -97,7 +97,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
 
       {/* By store — exact numbers + tap to see who's on now */}
       {s.stores.length > 1 && (
-        <section>
+        <section className="mb-6 break-inside-avoid">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="font-semibold text-brand-900">By store · today</h2>
             <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">
@@ -110,7 +110,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
 
       {/* How last week's coverage went — one strip per store */}
       {coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0)) && (
-        <section>
+        <section className="mb-6 break-inside-avoid">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
             <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
@@ -138,7 +138,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
       )}
 
       {/* Year to date */}
-      <section>
+      <section className="mb-6 break-inside-avoid">
         <h2 className="mb-2 font-semibold text-brand-900">Year to date</h2>
         <div className="card">
         <div className="grid grid-cols-3 gap-3 text-center">
@@ -164,7 +164,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
       </section>
 
       {/* Quick actions */}
-      <section>
+      <section className="mb-6 break-inside-avoid">
         <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
         <div className="grid grid-cols-2 gap-3">
           <QuickAction href="/approvals" icon={<ClipboardCheck size={20} />} label="Approvals" badge={pendingApprovals} />
@@ -177,8 +177,10 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
       </section>
 
       {/* Live feed */}
-      <FeedPreview />
-    </>
+      <div className="mb-6 break-inside-avoid">
+        <FeedPreview />
+      </div>
+    </div>
   );
 }
 

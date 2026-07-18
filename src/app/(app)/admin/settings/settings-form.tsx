@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { AppSettings } from '@/lib/database.types';
 import { updateAppSettings } from './actions';
 
-function Uploader({ label, url, onUploaded }: { label: string; url: string | null; onUploaded: (url: string) => void }) {
+function Uploader({ label, url, onUploaded, hint }: { label: string; url: string | null; onUploaded: (url: string) => void; hint?: string }) {
   const supabase = createClient();
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +42,7 @@ function Uploader({ label, url, onUploaded }: { label: string; url: string | nul
         </button>
         <input ref={ref} type="file" accept="image/*" className="hidden" onChange={onFile} />
       </div>
+      {hint && <p className="mt-1 text-xs text-brand-500">{hint}</p>}
       {err && <p className="mt-1 text-xs text-brick-600">{err}</p>}
     </div>
   );
@@ -68,8 +69,8 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
     <div className="space-y-4">
       <div className="card space-y-4">
         <h2 className="font-semibold text-brand-900">Branding</h2>
-        <Uploader label="Logo" url={logo} onUploaded={setLogo} />
-        <Uploader label="Splash" url={splash} onUploaded={setSplash} />
+        <Uploader label="Logo" url={logo} onUploaded={setLogo} hint="PNG with a transparent background. Landscape wordmark works best — about 480×320 px (shows ~180px wide)." />
+        <Uploader label="Splash" url={splash} onUploaded={setSplash} hint="Full-screen phone image, portrait 9:16 — about 1080×1920 px. Shown briefly after login on mobile." />
         <div>
           <label className="label">Primary color</label>
           <div className="flex items-center gap-2">
