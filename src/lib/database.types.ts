@@ -308,6 +308,25 @@ export type PosSales = {
   synced_at: string;
 }
 
+/** Unified schedulable roster: imported from Toast or added in-app. */
+export type Employee = {
+  id: string;
+  location_id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  role_title: string | null;
+  position_id: string | null;
+  default_wage: number | null;
+  source: 'toast' | 'manual';
+  toast_employee_guid: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Punch in/out record synced from the Toast Labor API. */
 export type ToastTimeEntry = {
   location_id: string;
@@ -460,6 +479,7 @@ export type Database = {
       scheduling_rules: Table<SchedulingRule>;
       pos_sales: Table<PosSales>;
       toast_time_entries: Table<ToastTimeEntry>;
+      employees: Table<Employee>;
       quizzes: Table<Quiz>;
       quiz_questions: Table<QuizQuestion>;
       quiz_attempts: Table<QuizAttempt>;
@@ -498,6 +518,10 @@ export type Database = {
       staffing_reco: {
         Args: { p_location: string | null; p_target: number };
         Returns: unknown;
+      };
+      roster_import_from_toast: {
+        Args: Record<string, never>;
+        Returns: number;
       };
     };
     Enums: {
