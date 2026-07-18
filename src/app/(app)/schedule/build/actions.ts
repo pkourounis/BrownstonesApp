@@ -227,11 +227,13 @@ export async function autoFillWeek(
 ): Promise<{ ok: boolean; error?: string; created?: number; open?: number }> {
   await requireRole('super_admin', 'manager');
   const supabase = await createClient();
-  const shiftLen = Math.min(10, Math.max(4, opts?.shiftLen ?? 6));
-  const maxWeekly = Math.min(60, Math.max(10, opts?.maxWeeklyHours ?? 40));
+  const { data: settings } = await supabase.from('app_settings').select('labor_target_splh, weekly_hour_cap, shift_length').eq('id', true).maybeSingle();
+  const shiftLen = Math.min(10, Math.max(4, opts?.shiftLen ?? settings?.shift_length ?? 6));
+  const maxWeekly = Math.min(60, Math.max(10, opts?.maxWeeklyHours ?? settings?.weekly_hour_cap ?? 40));
+  const target = Number(settings?.labor_target_splh) || 75;
 
   const [{ data: recoData }, { data: emps }] = await Promise.all([
-    supabase.rpc('staffing_reco', { p_location: location_id, p_target: 75 }),
+    supabase.rpc('staffing_reco', { p_location: location_id, p_target: target }),
     supabase.from('employees').select('id, first_name, last_name, role_title, rating, profile_id').eq('active', true).eq('location_id', location_id),
   ]);
   const grid = ((recoData as { grid?: { dow: number; hour: number; reco: number }[] })?.grid ?? []);

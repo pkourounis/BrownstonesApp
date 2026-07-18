@@ -321,6 +321,18 @@ export type PushSubscription = {
   created_at: string;
 }
 
+export type AppSettings = {
+  id: boolean;
+  logo_url: string | null;
+  splash_url: string | null;
+  primary_color: string | null;
+  labor_target_splh: number;
+  weekly_hour_cap: number;
+  shift_length: number;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 /** Hourly sales from Toast (per location per hour). */
 export type PosSales = {
   id: string;
@@ -602,6 +614,7 @@ export type Database = {
       resource_attachments: Table<ResourceAttachment>;
       notifications: Table<Notification>;
       push_subscriptions: Table<PushSubscription>;
+      app_settings: Table<AppSettings>;
     };
     Views: {
       location_hour_demand: { Row: LocationHourDemand; Relationships: [] };

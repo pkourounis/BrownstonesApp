@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { MapPin, Building2, Plus, ChevronRight, Users } from 'lucide-react';
+import { MapPin, Building2, Plus, ChevronRight, Users, Palette } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,17 @@ export default async function AdminPage() {
         <div className="flex-1">
           <p className="font-semibold text-brand-900">People &amp; roles</p>
           <p className="text-sm text-brand-500">Add managers &amp; admins, set roles, reset app access</p>
+        </div>
+        <ChevronRight size={18} className="text-brand-300" />
+      </Link>
+
+      <Link href="/admin/settings" className="card flex items-center gap-3 hover:border-brand-300">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+          <Palette size={18} />
+        </span>
+        <div className="flex-1">
+          <p className="font-semibold text-brand-900">App settings</p>
+          <p className="text-sm text-brand-500">Logo, splash, colors &amp; scheduling defaults</p>
         </div>
         <ChevronRight size={18} className="text-brand-300" />
       </Link>

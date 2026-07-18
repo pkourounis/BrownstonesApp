@@ -143,8 +143,9 @@ function SignOutButton({ collapsed }: { collapsed?: boolean }) {
   );
 }
 
-export function AppShell({ profile, children, unread = 0 }: { profile: Profile; children: React.ReactNode; unread?: number }) {
+export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: Profile; children: React.ReactNode; unread?: number; logoUrl?: string | null }) {
   const pathname = usePathname();
+  const logo = logoUrl || '/brownstones-logo.png';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -194,7 +195,7 @@ export function AppShell({ profile, children, unread = 0 }: { profile: Profile; 
           <Link href="/dashboard" aria-label="Brownstones Coffee home" className="flex items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brownstones-logo.png"
+              src={logo}
               alt="Brownstones Coffee"
               className={collapsed ? 'h-9 w-auto' : 'h-auto w-44'}
             />
@@ -244,7 +245,7 @@ export function AppShell({ profile, children, unread = 0 }: { profile: Profile; 
           </button>
           <Link href="/dashboard" aria-label="Brownstones Coffee home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brownstones-logo.png" alt="Brownstones Coffee" className="h-9 w-auto" />
+            <img src={logo} alt="Brownstones Coffee" className="h-9 w-auto" />
           </Link>
         </div>
         <div className="flex items-center gap-1">
@@ -280,7 +281,7 @@ export function AppShell({ profile, children, unread = 0 }: { profile: Profile; 
       >
         <div className="flex items-center justify-between border-b border-brand-100 px-4 py-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brownstones-logo.png" alt="Brownstones Coffee" className="h-11 w-auto" />
+          <img src={logo} alt="Brownstones Coffee" className="h-11 w-auto" />
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
