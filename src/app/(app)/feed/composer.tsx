@@ -37,17 +37,23 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
         placeholder="Share an announcement with the team…"
         className="input min-h-[70px] text-sm"
       />
-      <div className="flex items-center gap-2">
-        <select name="location_id" defaultValue={canPostAll ? 'all' : locations[0]?.id ?? ''} className="input h-9 flex-1 text-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <select name="category" defaultValue="announcement" className="input h-9 text-sm">
+          <option value="announcement">Announcement</option>
+          <option value="product">New product</option>
+          <option value="seasonal">Seasonal</option>
+          <option value="menu">Menu change</option>
+        </select>
+        <select name="location_id" defaultValue={canPostAll ? 'all' : locations[0]?.id ?? ''} className="input h-9 text-sm">
           {canPostAll && <option value="all">All locations</option>}
           {locations.map((l) => (
             <option key={l.id} value={l.id}>{l.name}</option>
           ))}
         </select>
-        <button type="submit" disabled={pending || !body.trim()} className="btn-primary h-9 shrink-0 px-4 text-sm">
-          <Send size={15} /> Post
-        </button>
       </div>
+      <button type="submit" disabled={pending || !body.trim()} className="btn-primary h-9 w-full text-sm">
+        <Send size={15} /> Post to feed
+      </button>
       {error && <p className="text-xs text-brick-600">{error}</p>}
     </form>
   );

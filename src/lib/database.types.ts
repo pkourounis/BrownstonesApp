@@ -317,13 +317,24 @@ export type PosSales = {
   synced_at: string;
 }
 
+export type PostCategory = 'announcement' | 'product' | 'seasonal' | 'menu';
+
 /** Feed announcement post. */
 export type Post = {
   id: string;
   author_id: string | null;
   location_id: string | null;
   body: string;
+  category: PostCategory;
   pinned: boolean;
+  created_at: string;
+}
+
+export type PostComment = {
+  id: string;
+  post_id: string;
+  author_id: string | null;
+  body: string;
   created_at: string;
 }
 
@@ -540,6 +551,7 @@ export type Database = {
       staff_ratings: Table<StaffRating>;
       posts: Table<Post>;
       post_reactions: Table<PostReaction>;
+      post_comments: Table<PostComment>;
       chat_channels: Table<ChatChannel>;
       chat_messages: Table<ChatMessage>;
       chat_channel_members: Table<ChatChannelMember>;
