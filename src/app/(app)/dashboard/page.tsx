@@ -14,7 +14,7 @@ import {
 import { format, startOfWeek, addDays } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { money, money2, shiftDay, shiftTimeRange, shiftHours } from '@/lib/format';
+import { money, money2, shiftDay, shiftTimeRange } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
 import { StoreBoard } from './store-board';
@@ -111,11 +111,18 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
       {/* How last week's coverage went — one strip per store */}
       {coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0)) && (
         <section>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-1 flex items-center justify-between">
             <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
             <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
               Schedule <ArrowRight size={14} />
             </Link>
+          </div>
+          <p className="mb-2 text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
+          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brand-50 ring-1 ring-brand-200" /> No recommendation</span>
           </div>
           <div className="space-y-3">
             {coverage.map((c) => (
@@ -190,30 +197,28 @@ async function lastWeekCoverage(
 
   const monday = startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 });
   const ids = list.map((l) => l.id);
-  const [{ data: shiftData }, recos] = await Promise.all([
-    supabase.from('shifts').select('location_id, starts_at, ends_at, break_minutes').in('location_id', ids).gte('starts_at', monday.toISOString()).lt('starts_at', addDays(monday, 7).toISOString()),
+  const mondayStr = format(monday, 'yyyy-MM-dd');
+  const sundayStr = format(addDays(monday, 6), 'yyyy-MM-dd');
+  // Actual hours worked (from Toast time entries) vs recommended — real history.
+  const [{ data: teData }, recos] = await Promise.all([
+    supabase.from('toast_time_entries').select('location_id, business_date, regular_hours, overtime_hours').in('location_id', ids).gte('business_date', mondayStr).lte('business_date', sundayStr).eq('deleted', false),
     Promise.all(list.map((l) => supabase.rpc('staffing_reco', { p_location: l.id, p_target: Number(l.labor_target_splh) || 130 }))),
   ]);
-  const shifts = (shiftData as { location_id: string; starts_at: string; ends_at: string; break_minutes: number }[]) ?? [];
+  const entries = (teData as { location_id: string; business_date: string; regular_hours: number | null; overtime_hours: number | null }[]) ?? [];
 
   return list.map((l, idx) => {
     const grid = ((recos[idx].data as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
     const recoByDow = new Map<number, number>();
     for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
-    const byDay = new Map<string, { sched: number; count: number }>();
-    for (const s of shifts) {
-      if (s.location_id !== l.id) continue;
-      const key = format(new Date(s.starts_at), 'yyyy-MM-dd');
-      const cur = byDay.get(key) ?? { sched: 0, count: 0 };
-      cur.sched += shiftHours(s.starts_at, s.ends_at, s.break_minutes);
-      cur.count += 1;
-      byDay.set(key, cur);
+    const byDay = new Map<string, number>();
+    for (const e of entries) {
+      if (e.location_id !== l.id) continue;
+      byDay.set(e.business_date, (byDay.get(e.business_date) ?? 0) + (Number(e.regular_hours) || 0) + (Number(e.overtime_hours) || 0));
     }
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = addDays(monday, i);
       const key = format(d, 'yyyy-MM-dd');
-      const cur = byDay.get(key) ?? { sched: 0, count: 0 };
-      return { key, abbr: format(d, 'EEE'), sched: cur.sched, reco: recoByDow.get(d.getDay()) ?? 0, count: cur.count };
+      return { key, abbr: format(d, 'EEE'), sched: byDay.get(key) ?? 0, reco: recoByDow.get(d.getDay()) ?? 0, count: 0 };
     });
     return { id: l.id, name: l.name, days };
   });
