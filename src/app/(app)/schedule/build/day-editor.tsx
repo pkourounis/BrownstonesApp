@@ -247,13 +247,13 @@ export function DayEditor({
                 <div className="mt-2 space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
                   <div>
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-400">Copy to days</p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {weekDates.filter((d) => d.date !== date).map((d) => (
                         <button
                           key={d.date}
                           type="button"
                           onClick={() => toggle(copyDays, d.date, setCopyDays)}
-                          className={`rounded-full px-2 py-1 text-[11px] font-medium ${copyDays.has(d.date) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium leading-none ${copyDays.has(d.date) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
                         >
                           {d.label}
                         </button>
@@ -262,13 +262,13 @@ export function DayEditor({
                   </div>
                   <div>
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-400">Copy to people (optional)</p>
-                    <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+                    <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
                       {roster.map((r) => (
                         <button
                           key={r.id}
                           type="button"
                           onClick={() => toggle(copyEmps, r.id, setCopyEmps)}
-                          className={`rounded-full px-2 py-1 text-[11px] font-medium ${copyEmps.has(r.id) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium leading-none ${copyEmps.has(r.id) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
                         >
                           {r.label}
                         </button>

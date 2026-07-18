@@ -98,6 +98,34 @@ export async function deleteShift(id: string): Promise<{ ok: boolean; error?: st
   return { ok: true };
 }
 
+/**
+ * Clear a store's week. scope 'draft' removes only unpublished draft shifts
+ * (published shifts staff can already see are kept); 'all' removes every shift
+ * in the week. Used to wipe an auto-filled / copied draft and start over.
+ */
+export async function clearWeek(
+  location_id: string,
+  monday: string,
+  scope: 'draft' | 'all' = 'draft'
+): Promise<{ ok: boolean; error?: string; count?: number }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+
+  const winStart = etWallToUtc(monday, '00:00');
+  const winEnd = etWallToUtc(addDaysStr(monday, 7), '00:00');
+  let q = supabase
+    .from('shifts')
+    .delete()
+    .eq('location_id', location_id)
+    .gte('starts_at', winStart)
+    .lt('starts_at', winEnd);
+  if (scope === 'draft') q = q.eq('status', 'draft');
+  const { data, error } = await q.select('id');
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/schedule/build');
+  return { ok: true, count: data?.length ?? 0 };
+}
+
 /** Publish all draft shifts in a store's week (ET), making them visible to staff. */
 export async function publishWeek(
   location_id: string,
@@ -364,9 +392,11 @@ export async function reviewSchedule(
 
   const winStart = etWallToUtc(monday, '00:00');
   const winEnd = etWallToUtc(addDaysStr(monday, 7), '00:00');
+  const { data: locRow } = await supabase.from('locations').select('labor_target_splh').eq('id', location_id).maybeSingle();
+  const target = Number(locRow?.labor_target_splh) || 130;
   const [{ data: shiftData }, { data: recoData }, { data: emps }] = await Promise.all([
     supabase.from('shifts').select('id, roster_employee_id, starts_at, ends_at, break_minutes, status').eq('location_id', location_id).gte('starts_at', winStart).lt('starts_at', winEnd),
-    supabase.rpc('staffing_reco', { p_location: location_id, p_target: 75 }),
+    supabase.rpc('staffing_reco', { p_location: location_id, p_target: target }),
     supabase.from('employees').select('id, first_name, last_name, role_title, rating, profile_id').eq('active', true).eq('location_id', location_id),
   ]);
   const shifts = (shiftData ?? []) as ShiftRow[];

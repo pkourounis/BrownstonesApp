@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Send, Gauge, Sparkles, CopyPlus, ClipboardCheck, AlertTriangle, Info, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Send, Gauge, Sparkles, CopyPlus, ClipboardCheck, AlertTriangle, Info, X, Trash2, Loader2 } from 'lucide-react';
 import type { Location } from '@/lib/database.types';
-import { publishWeek, autoFillWeek, repeatLastWeek, reviewSchedule, type ScheduleFinding } from './actions';
+import { publishWeek, autoFillWeek, repeatLastWeek, reviewSchedule, clearWeek, type ScheduleFinding } from './actions';
 
 export function BuilderControls({
   locations,
@@ -24,7 +24,7 @@ export function BuilderControls({
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
-  const [busy, setBusy] = useState<null | 'fill' | 'repeat' | 'review' | 'publish'>(null);
+  const [busy, setBusy] = useState<null | 'fill' | 'repeat' | 'review' | 'publish' | 'clear'>(null);
   const [findings, setFindings] = useState<ScheduleFinding[] | null>(null);
 
   const push = (next: Record<string, string>) => {
@@ -74,6 +74,26 @@ export function BuilderControls({
     startTransition(async () => {
       const res = await repeatLastWeek(store, monday);
       setMsg(res.ok ? (res.count ? `Copied ${res.count} shifts from last week.` : 'Last week had no shifts to copy.') : res.error ?? 'Copy failed.');
+      setBusy(null);
+      if (res.ok) router.refresh();
+    });
+  };
+
+  const onClear = () => {
+    if (!store) return;
+    let scope: 'draft' | 'all';
+    if (draftCount > 0) {
+      if (!confirm(`Clear all ${draftCount} draft shift${draftCount === 1 ? '' : 's'} for this week? Published shifts are kept.`)) return;
+      scope = 'draft';
+    } else {
+      if (!confirm('No drafts to clear. Delete ALL shifts for this week — including published ones staff can see? This cannot be undone.')) return;
+      scope = 'all';
+    }
+    setMsg(null);
+    setBusy('clear');
+    startTransition(async () => {
+      const res = await clearWeek(store, monday, scope);
+      setMsg(res.ok ? (res.count ? `Cleared ${res.count} shift${res.count === 1 ? '' : 's'}.` : 'Nothing to clear.') : res.error ?? 'Clear failed.');
       setBusy(null);
       if (res.ok) router.refresh();
     });
@@ -131,6 +151,9 @@ export function BuilderControls({
           <Link href={`/schedule/staffing?store=${store}`} className="btn-secondary h-9 justify-center text-xs">
             <Gauge size={14} /> Staffing guide
           </Link>
+          <button onClick={onClear} disabled={pending} className="col-span-2 h-9 justify-center rounded-lg border border-brick-200 text-xs font-medium text-brick-600 hover:bg-brick-50 inline-flex items-center gap-1.5 disabled:opacity-50">
+            {busy === 'clear' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Clear week{draftCount > 0 ? ` (${draftCount} draft${draftCount === 1 ? '' : 's'})` : ''}
+          </button>
         </div>
       )}
 

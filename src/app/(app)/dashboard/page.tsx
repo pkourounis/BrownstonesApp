@@ -16,7 +16,6 @@ import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
 import { money, money2, shiftDay, shiftTimeRange } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
-import { SyncButton } from '../insights/sync-button';
 import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
 import { FeedPreview } from './feed-preview';
@@ -47,12 +46,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-brand-900">Hi, {firstName} 👋</h1>
-          <p className="text-sm text-brand-600">{manager ? "Here's how the business is doing." : "Here's what's coming up."}</p>
-        </div>
-        {manager && <SyncButton />}
+      <div>
+        <h1 className="font-display text-2xl font-bold text-brand-900">Hi, {firstName} 👋</h1>
+        <p className="text-sm text-brand-600">{manager ? "Here's how the business is doing." : "Here's what's coming up."}</p>
       </div>
 
       <AckPrompt />
@@ -72,112 +68,118 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
 
+  const hasCoverage = coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0));
+
   return (
-    <div className="lg:columns-2 lg:gap-6">
-      {/* Today (live) + yesterday */}
-      <div className="card mb-6 break-inside-avoid bg-brand-700 text-white">
-        <div className="flex items-baseline justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · Today (live)</p>
-          <span className="flex items-center gap-1 text-xs text-gold-200">
-            <CircleDot size={12} className="text-green-300" /> {s.clocked_total} on the clock
-          </span>
+    <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 lg:items-start">
+      {/* ---- Left column: live numbers ---- */}
+      <div className="space-y-5">
+        {/* Today (live) + yesterday */}
+        <div className="card bg-brand-700 text-white">
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · Today (live)</p>
+            <span className="flex items-center gap-1 text-xs text-gold-200">
+              <CircleDot size={12} className="text-green-300" /> {s.clocked_total} on the clock
+            </span>
+          </div>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{money2(s.today.net)}</p>
+          {s.today.net === 0 ? (
+            <p className="mt-1 text-xs text-gold-200">No sales synced yet today.</p>
+          ) : (
+            <p className="mt-1 text-xs text-gold-100">Labor {s.today.labor_pct > 0 ? `${s.today.labor_pct}%` : '—'}</p>
+          )}
+          <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-2 text-sm">
+            <span className="text-gold-100">Yesterday</span>
+            <span className="font-semibold tabular-nums">{money2(s.prev.net)}</span>
+          </div>
+          <p className="mt-2 text-[11px] text-gold-200/80">As of {fmtTime(s.synced_at)} · live from Toast</p>
         </div>
-        <p className="mt-1 text-3xl font-bold tabular-nums">{money2(s.today.net)}</p>
-        {s.today.net === 0 ? (
-          <p className="mt-1 text-xs text-gold-200">No sales synced yet today — tap Sync now.</p>
-        ) : (
-          <p className="mt-1 text-xs text-gold-100">Labor {s.today.labor_pct > 0 ? `${s.today.labor_pct}%` : '—'}</p>
+
+        {/* By store — exact numbers + tap to see who's on now */}
+        {s.stores.length > 1 && (
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="font-semibold text-brand-900">By store · today</h2>
+              <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+                Insights <ArrowRight size={14} />
+              </Link>
+            </div>
+            <StoreBoard stores={s.stores} />
+          </section>
         )}
-        <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-2 text-sm">
-          <span className="text-gold-100">Yesterday</span>
-          <span className="font-semibold tabular-nums">{money2(s.prev.net)}</span>
-        </div>
-        <p className="mt-2 text-[11px] text-gold-200/80">As of {fmtTime(s.synced_at)} · live from Toast</p>
+
+        {/* How last week's coverage went — one strip per store */}
+        {hasCoverage && (
+          <section>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
+              <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+                Schedule <ArrowRight size={14} />
+              </Link>
+            </div>
+            <div className="card space-y-3">
+              <div>
+                <p className="text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed</span>
+                  <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brand-50 ring-1 ring-brand-200" /> No recommendation</span>
+                </div>
+              </div>
+              {coverage.map((c) => (
+                <div key={c.id} className="border-t border-brand-50 pt-3 first:border-0 first:pt-0">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-500">{c.name}</p>
+                  <WeekStrip days={c.days} compact />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* By store — exact numbers + tap to see who's on now */}
-      {s.stores.length > 1 && (
-        <section className="mb-6 break-inside-avoid">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-brand-900">By store · today</h2>
-            <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">
-              Insights <ArrowRight size={14} />
-            </Link>
-          </div>
-          <StoreBoard stores={s.stores} />
-        </section>
-      )}
-
-      {/* How last week's coverage went — one strip per store */}
-      {coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0)) && (
-        <section className="mb-6 break-inside-avoid">
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
-            <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
-              Schedule <ArrowRight size={14} />
-            </Link>
-          </div>
-          <div className="card space-y-3">
-            <div>
-              <p className="text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brand-50 ring-1 ring-brand-200" /> No recommendation</span>
+      {/* ---- Right column: trends, actions, feed ---- */}
+      <div className="space-y-5">
+        {/* Year to date */}
+        <section>
+          <h2 className="mb-2 font-semibold text-brand-900">Year to date</h2>
+          <div className="card">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-lg font-bold tabular-nums text-brand-900">{money(s.ytd.net)}</p>
+                <p className="mt-0.5 text-xs text-brand-500">sales</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums text-brand-900">{money2(s.ytd.avg)}</p>
+                <p className="mt-0.5 text-xs text-brand-500">avg ticket</p>
+              </div>
+              <div>
+                <p className={`text-lg font-bold tabular-nums ${s.labor.pct <= 30 ? 'text-brand-900' : 'text-brick-600'}`}>
+                  {s.labor.pct > 0 ? `${s.labor.pct}%` : '—'}
+                </p>
+                <p className="mt-0.5 text-xs text-brand-500">labor · 8 wk</p>
               </div>
             </div>
-            {coverage.map((c) => (
-              <div key={c.id} className="border-t border-brand-50 pt-3 first:border-0 first:pt-0">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-500">{c.name}</p>
-                <WeekStrip days={c.days} compact />
-              </div>
-            ))}
+            <div className="mt-4">
+              <YtdChart monthly={s.ytd.monthly} weekly={s.labor.weekly} />
+            </div>
           </div>
         </section>
-      )}
 
-      {/* Year to date */}
-      <section className="mb-6 break-inside-avoid">
-        <h2 className="mb-2 font-semibold text-brand-900">Year to date</h2>
-        <div className="card">
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <p className="text-lg font-bold tabular-nums text-brand-900">{money(s.ytd.net)}</p>
-            <p className="mt-0.5 text-xs text-brand-500">sales</p>
+        {/* Quick actions */}
+        <section>
+          <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <QuickAction href="/approvals" icon={<ClipboardCheck size={20} />} label="Approvals" badge={pendingApprovals} />
+            <QuickAction href="/insights" icon={<BarChart3 size={20} />} label="Insights" />
+            <QuickAction href="/schedule/build" icon={<CalendarPlus size={20} />} label="Build schedule" />
+            <QuickAction href="/schedule/staffing" icon={<TrendingUp size={20} />} label="Staffing needs" />
+            <QuickAction href="/roster" icon={<UsersRound size={20} />} label="Roster" />
+            <QuickAction href="/meetings" icon={<CalendarClock size={20} />} label="Meetings" />
           </div>
-          <div>
-            <p className="text-lg font-bold tabular-nums text-brand-900">{money2(s.ytd.avg)}</p>
-            <p className="mt-0.5 text-xs text-brand-500">avg ticket</p>
-          </div>
-          <div>
-            <p className={`text-lg font-bold tabular-nums ${s.labor.pct <= 30 ? 'text-brand-900' : 'text-brick-600'}`}>
-              {s.labor.pct > 0 ? `${s.labor.pct}%` : '—'}
-            </p>
-            <p className="mt-0.5 text-xs text-brand-500">labor · 8 wk</p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <YtdChart monthly={s.ytd.monthly} weekly={s.labor.weekly} />
-        </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Quick actions */}
-      <section className="mb-6 break-inside-avoid">
-        <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <QuickAction href="/approvals" icon={<ClipboardCheck size={20} />} label="Approvals" badge={pendingApprovals} />
-          <QuickAction href="/insights" icon={<BarChart3 size={20} />} label="Insights" />
-          <QuickAction href="/schedule/build" icon={<CalendarPlus size={20} />} label="Build schedule" />
-          <QuickAction href="/schedule/staffing" icon={<TrendingUp size={20} />} label="Staffing needs" />
-          <QuickAction href="/roster" icon={<UsersRound size={20} />} label="Roster" />
-          <QuickAction href="/meetings" icon={<CalendarClock size={20} />} label="Meetings" />
-        </div>
-      </section>
-
-      {/* Live feed */}
-      <div className="mb-6 break-inside-avoid">
+        {/* Live feed */}
         <FeedPreview />
       </div>
     </div>
