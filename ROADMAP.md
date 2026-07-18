@@ -3,7 +3,7 @@
 > **Living document.** Update this every session as features move between states.
 > It is the shared source of truth so work doesn't drift from the plan.
 
-**Last updated:** 2026-07-18
+**Last updated:** 2026-07-18 (added: Home redesign, schedule visibility scoping, push notifications, App Settings & Branding)
 
 **Legend:** ✅ Done · 🟡 Partial · 🗄️ Database ready, no UI · ⬜ Not started
 
@@ -48,6 +48,7 @@ half; the **Team & Social** half is largely still to build.
 | Admin: add / edit locations | ✅ | All fields: name, number, address, hours, seats/tables, revenue target, Toast GUID |
 | Shift builder (create + publish the week) | ✅ | |
 | Scheduled vs actual | ✅ | |
+| Schedule visibility scoping | 🟡 → ⬜ | Managers see only their assigned location (RLS already scopes data); **super-admin needs an all-locations schedule view** (selector / combined) |
 
 ## Team & People
 | Feature | Status | Notes |
@@ -67,7 +68,7 @@ half; the **Team & Social** half is largely still to build.
 | Manager approvals hub (availability + time-off + swaps) | ⬜ | Central queue for everything needing a manager's yes/no |
 | Chat (team / store messaging) | ⬜ | No table, no UI |
 | Feed / announcements | ⬜ | No table, no UI |
-| In-app notifications | 🟡 → ⬜ | `notifications` table + push plumbing exist; no in-app UI |
+| **Push notifications** | 🟡 → ⬜ | Notifications are **push** (web-push service worker already present). Fire on schedule publish, approvals, swaps, etc. In-app notification center is secondary. |
 
 ## Training & Resources (from schema, unbuilt UI)
 | Feature | Status | Notes |
@@ -76,6 +77,28 @@ half; the **Team & Social** half is largely still to build.
 | Resources / attachments / sign-offs | 🗄️ → ⬜ | Tables exist |
 
 ---
+
+## Home / Dashboard — **redesign (added 2026-07-18)**
+The current Home screen feels empty and doesn't read like a home screen. Rebuild it
+into a real landing hub. Candidate content (to refine):
+| Idea | Notes |
+|---|---|
+| Today at a glance | Today's sales vs target, labor %, who's on now (from punches) |
+| My next shift / today's schedule | Personalized per role |
+| Action items | Pending approvals (manager), availability status, tasks |
+| Alerts | Understaffed hours, no-shows, sync issues |
+| Announcements / feed preview | Ties into the future Feed |
+| Quick actions | Sync now, build schedule, add employee, etc. |
+| Role-aware layout | Super-admin/manager see ops tiles; employees see their schedule + team |
+
+## App Settings & Branding — **new section (added 2026-07-18)**
+An in-app settings area to customize the app without code. ⬜ Not started.
+| Setting | Notes |
+|---|---|
+| Theme / colors | Adjust the brand palette in-app |
+| Splash screen image | Replace the login/splash image |
+| Logo upload | Replace the menu/sidebar logo |
+| _More to come_ | User will expand this list |
 
 ## Known follow-ups / tech debt
 - Enforce `must_change_password` as a hard gate at login (flag is set on reset, not enforced).
