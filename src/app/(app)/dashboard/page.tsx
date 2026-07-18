@@ -20,6 +20,7 @@ import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
 import { FeedPreview } from './feed-preview';
 import { AckPrompt } from './ack-prompt';
+import { CollapsibleSection } from './collapsible-section';
 import { WeekStrip, type StripDay } from '../schedule/week-strip';
 
 export const dynamic = 'force-dynamic';
@@ -97,26 +98,14 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
 
         {/* By store — exact numbers + tap to see who's on now */}
         {s.stores.length > 1 && (
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-semibold text-brand-900">By store · today</h2>
-              <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">
-                Insights <ArrowRight size={14} />
-              </Link>
-            </div>
+          <CollapsibleSection title="By store · today" storageKey="bystore" summary={`${s.stores.length} stores`} linkHref="/insights" linkLabel="Insights">
             <StoreBoard stores={s.stores} />
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* How last week's coverage went — one strip per store */}
         {hasCoverage && (
-          <section>
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
-              <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
-                Schedule <ArrowRight size={14} />
-              </Link>
-            </div>
+          <CollapsibleSection title="Last week's coverage" storageKey="coverage" defaultOpen={false} summary="hours worked vs recommended" linkHref="/schedule?view=week" linkLabel="Schedule">
             <div className="card space-y-3">
               <div>
                 <p className="text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
@@ -134,7 +123,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
                 </div>
               ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
       </div>
 
