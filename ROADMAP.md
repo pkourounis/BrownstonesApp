@@ -78,9 +78,11 @@ half; the **Team & Social** half is largely still to build.
 
 ---
 
-## Home / Dashboard — **redesign (added 2026-07-18)**
-The current Home screen feels empty and doesn't read like a home screen. Rebuild it
-into a real landing hub. Candidate content (to refine):
+## Home / Dashboard — **v1 command center shipped 2026-07-18** 🟡
+Role-aware daily command center is live: managers/admins get a sales hero (vs prior
+day + sync freshness), by-store snapshot, needs-attention list, and quick actions;
+employees get next shifts + availability status. Still to add: approvals tile,
+announcements/feed preview, and per-alert push. Original candidate list:
 | Idea | Notes |
 |---|---|
 | Today at a glance | Today's sales vs target, labor %, who's on now (from punches) |
