@@ -6,6 +6,7 @@ import type { Location } from '@/lib/database.types';
 import { InsightsFilter } from './insights-filter';
 import { SyncButton } from './sync-button';
 import { BarChart, type Bar } from './chart';
+import { HourlyGoalChart, type HourPoint } from './hourly-goal-chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,8 +100,8 @@ export default async function InsightsPage({
 
   // Fast, tiny query so the shell (header + filter) can render immediately.
   const supabase = await createClient();
-  const { data: locsRes } = await supabase.from('locations').select('id, name').eq('is_active', true);
-  const locations = (locsRes ?? []) as Pick<Location, 'id' | 'name'>[];
+  const { data: locsRes } = await supabase.from('locations').select('id, name, revenue_per_hour_target').eq('is_active', true);
+  const locations = (locsRes ?? []) as Pick<Location, 'id' | 'name' | 'revenue_per_hour_target'>[];
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
 
   return (
@@ -133,7 +134,7 @@ async function InsightsContent({
 }: {
   range: string;
   store: string | null;
-  locations: Pick<Location, 'id' | 'name'>[];
+  locations: Pick<Location, 'id' | 'name' | 'revenue_per_hour_target'>[];
 }) {
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
 
@@ -181,6 +182,19 @@ async function InsightsContent({
   const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peakDow.dow }));
 
   const peakHour = (d?.by_hour ?? []).reduce((a, r) => (r.net > a.net ? r : a), { hour: -1, net: 0 });
+
+  // Sales per hour vs the store's hourly goal ($1,300 in settings).
+  // Average each hour's net across the days in range so it's comparable to a per-hour goal.
+  const daysInRange = Math.max(1, (d?.daily ?? []).filter((x) => Number(x.net) > 0).length);
+  const hourly: HourPoint[] = (d?.by_hour ?? [])
+    .map((r) => ({ hour: r.hour, value: Number(r.net) / daysInRange }))
+    .filter((r) => r.value > 0)
+    .sort((a, b) => a.hour - b.hour);
+  // Goal: the picked store's target, or the combined target across all active stores.
+  const hourlyGoal = store
+    ? Number(locations.find((l) => l.id === store)?.revenue_per_hour_target) || 0
+    : locations.reduce((s, l) => s + (Number(l.revenue_per_hour_target) || 0), 0);
+  const hoursHitGoal = hourlyGoal > 0 ? hourly.filter((h) => h.value >= hourlyGoal).length : 0;
 
   const breakfast = Number(d?.daypart.breakfast ?? 0);
   const lunch = Number(d?.daypart.lunch ?? 0);
@@ -251,7 +265,7 @@ async function InsightsContent({
             <p className="mt-1 text-xs text-gold-200">{checks.toLocaleString()} checks · live Toast data</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi label="Avg check" value={money2(avgCheck)} sub={`${checks.toLocaleString()} checks`} />
             <Kpi label="Projected next week" value={money(projTotal)} sub="forecast" />
             <Kpi
@@ -268,6 +282,26 @@ async function InsightsContent({
             />
           </div>
 
+          {/* Sales per hour vs. the hourly goal — the headline chart. */}
+          {hourly.length > 0 && (
+            <Section
+              title="Sales per hour vs. goal"
+              meta={range === 'today' ? 'today' : `avg/hr · ${RANGE_LABEL[range]}`}
+            >
+              {hourlyGoal > 0 && (
+                <p className="mb-3 text-xs text-brand-500">
+                  {store ? nameById.get(store) ?? 'Store' : 'Combined'} goal is{' '}
+                  <span className="font-semibold text-brand-800">{money(hourlyGoal)}/hr</span> —
+                  {hoursHitGoal > 0
+                    ? <> hit or beaten in <span className="font-semibold text-green-700">{hoursHitGoal} hour{hoursHitGoal === 1 ? '' : 's'}</span> of the day.</>
+                    : ' not reached in any hour this period.'}
+                </p>
+              )}
+              <HourlyGoalChart hours={hourly} goal={hourlyGoal} />
+            </Section>
+          )}
+
+          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
           {trendBars.length > 0 && (
             <Section title="Sales trend" meta={trendMeta}>
               <BarChart bars={trendBars} max={trendMax} showEvery={trendEvery} />
@@ -413,6 +447,7 @@ async function InsightsContent({
               </Section>
             );
           })()}
+          </div>
 
           <p className="px-1 text-center text-xs text-brand-400">
             Live from Toast. Labor % and sales-per-labor-hour connect as the schedule and pay data come online.
