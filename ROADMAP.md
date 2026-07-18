@@ -73,6 +73,7 @@ half; the **Team & Social** half is largely still to build.
 ## Training & Resources (from schema, unbuilt UI)
 | Feature | Status | Notes |
 |---|---|---|
+| Employee reviews (request / complete) | 🗄️ → ⬜ | `employee_reviews` table exists; requestable from Home |
 | Quizzes / training completions | 🗄️ → ⬜ | Tables exist |
 | Resources / attachments / sign-offs | 🗄️ → ⬜ | Tables exist |
 
@@ -92,6 +93,8 @@ announcements/feed preview, and per-alert push. Original candidate list:
 | Announcements / feed preview | Ties into the future Feed |
 | Quick actions | Sync now, build schedule, add employee, etc. |
 | Role-aware layout | Super-admin/manager see ops tiles; employees see their schedule + team |
+| Request an employee review | ⬜ From Home, start a review with anyone on the roster (`employee_reviews` table exists) |
+| Approve swaps / time-off inline | ⬜ Surface pending shift-swap & time-off requests on Home with approve/deny |
 
 ## App Settings & Branding — **new section (added 2026-07-18)**
 An in-app settings area to customize the app without code. ⬜ Not started.

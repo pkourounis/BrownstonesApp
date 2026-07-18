@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import type { Profile, AppRole } from '@/lib/database.types';
 import { roleLabel } from '@/lib/roles';
-import { Wordmark } from '@/components/wordmark';
 
 type Item = {
   href: string;
@@ -213,7 +212,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
       </aside>
 
       {/* ---------- Mobile top bar ---------- */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-brand-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-brand-100 bg-white/95 px-4 py-2.5 backdrop-blur lg:hidden">
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setMobileOpen(true)}
@@ -223,27 +222,13 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <Menu size={22} />
           </button>
           <Link href="/dashboard" aria-label="Brownstones Coffee home">
-            <Wordmark size="sm" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brownstones-logo.png" alt="Brownstones Coffee" className="h-9 w-auto" />
           </Link>
         </div>
-        <div className="flex items-center gap-2.5">
-          <div className="text-right leading-tight">
-            <p className="text-sm font-semibold text-brand-900">{name}</p>
-            <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
-          </div>
-          <Link href="/profile" aria-label="Your profile">
-            <Avatar url={profile.avatar_url} initials={initials} size={36} />
-          </Link>
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-400 hover:bg-brand-100 hover:text-brand-700"
-            >
-              <LogOut size={18} />
-            </button>
-          </form>
-        </div>
+        <Link href="/profile" aria-label="Your profile">
+          <Avatar url={profile.avatar_url} initials={initials} size={36} />
+        </Link>
       </header>
 
       {/* ---------- Mobile drawer ---------- */}
@@ -263,7 +248,8 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
         }`}
       >
         <div className="flex items-center justify-between border-b border-brand-100 px-4 py-4">
-          <Wordmark size="sm" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brownstones-logo.png" alt="Brownstones Coffee" className="h-11 w-auto" />
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
