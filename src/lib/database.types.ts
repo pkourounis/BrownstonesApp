@@ -103,6 +103,8 @@ export type Profile = {
   id: string;
   full_name: string;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone: string | null;
   avatar_url: string | null;
@@ -110,12 +112,18 @@ export type Profile = {
   employment_status: EmploymentStatus;
   primary_location_id: string | null;
   title: string | null;
+  department: Department | null;
   hired_at: string | null;
   birthday: string | null;
   bio: string | null;
+  address: string | null;
+  marital_status: string | null;
+  facebook: string | null;
   instagram: string | null;
   tiktok: string | null;
   website: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   is_floor_cleared: boolean;
   must_change_password: boolean;
   invited_at: string | null;

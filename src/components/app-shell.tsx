@@ -170,13 +170,14 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
           collapsed ? 'w-[4.75rem]' : 'w-60'
         }`}
       >
-        <div className={`flex h-16 items-center border-b border-brand-100 ${collapsed ? 'justify-center px-2' : 'px-4'}`}>
-          <Link href="/dashboard" aria-label="Brownstones Coffee home">
-            {collapsed ? (
-              <span className="font-display text-xl font-bold text-brand-800">B</span>
-            ) : (
-              <Wordmark size="sm" />
-            )}
+        <div className={`flex items-center justify-center border-b border-brand-100 ${collapsed ? 'h-16 px-2' : 'px-4 py-5'}`}>
+          <Link href="/dashboard" aria-label="Brownstones Coffee home" className="flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brownstones-logo.png"
+              alt="Brownstones Coffee"
+              className={collapsed ? 'h-9 w-auto' : 'h-auto w-44'}
+            />
           </Link>
         </div>
 
