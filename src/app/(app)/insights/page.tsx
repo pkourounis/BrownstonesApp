@@ -56,7 +56,7 @@ function toDowBars(days: { dow: number; net: number }[]) {
   const rows = Array.from({ length: 7 }, (_, i) => ({ dow: i, net: m.get(i) ?? 0 }));
   const max = Math.max(1, ...rows.map((r) => r.net));
   const peak = rows.reduce((a, r) => (r.net > a.net ? r : a), { dow: -1, net: 0 }).dow;
-  const bars: Bar[] = rows.map((r) => ({ label: DOW_ABBR[r.dow][0], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peak }));
+  const bars: Bar[] = rows.map((r) => ({ label: DOW_ABBR[r.dow], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peak }));
   return { bars, max, peak };
 }
 
@@ -178,7 +178,7 @@ async function InsightsContent({
   const dowRows = Array.from({ length: 7 }, (_, i) => ({ dow: i, net: Number(d?.by_dow.find((x) => x.dow === i)?.net ?? 0) }));
   const dowMax = Math.max(1, ...dowRows.map((r) => r.net));
   const peakDow = dowRows.reduce((a, r) => (r.net > a.net ? r : a), { dow: -1, net: 0 });
-  const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow][0], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peakDow.dow }));
+  const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peakDow.dow }));
 
   const peakHour = (d?.by_hour ?? []).reduce((a, r) => (r.net > a.net ? r : a), { hour: -1, net: 0 });
 

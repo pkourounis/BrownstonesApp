@@ -6,30 +6,27 @@ import {
   BarChart3,
   CalendarPlus,
   UsersRound,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
   CircleDot,
+  TrendingUp,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { money, moneyShort, shiftDay, shiftTimeRange } from '@/lib/format';
+import { money, money2, monthAbbr, shiftDay, shiftTimeRange } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
+import { BarChart, type Bar } from '../insights/chart';
 
 export const dynamic = 'force-dynamic';
 
-type Store = { id: string; name: string; net: number; labor_pct: number; on_now: number };
+type Store = { id: string; name: string; net: number; prev: number; on_now: number; names: string[] };
 type Summary = {
-  date: string;
-  is_today: boolean;
-  net: number;
-  net_prev: number;
-  labor_cost: number;
-  labor_pct: number;
-  on_now: number;
-  synced_at: string | null;
+  today: { date: string; net: number; checks: number; labor_pct: number; on_now: number };
+  prev: { date: string; net: number; checks: number };
+  clocked_total: number;
   stores: Store[];
+  ytd: { net: number; checks: number; avg: number; monthly: { ym: string; net: number }[] };
+  labor: { pct: number };
+  synced_at: string | null;
 };
 
 const fmtTime = (iso: string | null) =>
@@ -45,9 +42,7 @@ export default async function DashboardPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-900">Hi, {firstName} 👋</h1>
-          <p className="text-sm text-brand-600">
-            {manager ? "Here's how the business is doing." : "Here's what's coming up."}
-          </p>
+          <p className="text-sm text-brand-600">{manager ? "Here's how the business is doing." : "Here's what's coming up."}</p>
         </div>
         {manager && <SyncButton />}
       </div>
@@ -63,83 +58,100 @@ async function OpsHome() {
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
 
-  const delta = s.net_prev > 0 ? Math.round(((s.net - s.net_prev) / s.net_prev) * 100) : null;
-  const laborTone = s.labor_pct > 0 && s.labor_pct <= 30 ? 'text-green-700' : s.labor_pct > 30 ? 'text-brick-600' : 'text-brand-400';
-  const dayLabel = s.is_today ? 'Today' : new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(s.date + 'T12:00:00'));
-
-  const attention: string[] = [];
-  for (const st of s.stores) {
-    if (st.net > 0 && st.labor_pct > 32) attention.push(`${st.name} labor is high at ${st.labor_pct}%.`);
-    if (st.net === 0) attention.push(`${st.name} has no sales synced ${s.is_today ? 'yet today' : 'for this day'}.`);
-  }
+  const ytdBars: Bar[] = s.ytd.monthly.map((m, i) => ({
+    label: monthAbbr(m.ym),
+    full: `${monthAbbr(m.ym)} ${m.ym.slice(0, 4)}`,
+    value: Number(m.net),
+    peak: i === s.ytd.monthly.length - 1,
+  }));
+  const ytdMax = Math.max(1, ...ytdBars.map((b) => b.value));
 
   return (
     <>
-      {/* Hero */}
+      {/* Today (live) + yesterday */}
       <div className="card bg-brand-700 text-white">
         <div className="flex items-baseline justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · {dayLabel}</p>
-          {delta != null && (
-            <span className="flex items-center gap-1 text-xs font-medium text-gold-200">
-              {delta >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} {Math.abs(delta)}% vs prior day
-            </span>
-          )}
+          <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · Today (live)</p>
+          <span className="flex items-center gap-1 text-xs text-gold-200">
+            <CircleDot size={12} className="text-green-300" /> {s.clocked_total} on the clock
+          </span>
         </div>
-        <p className="mt-1 text-3xl font-bold tabular-nums">{money(s.net)}</p>
-        <div className="mt-3 flex items-center gap-4 text-sm">
-          <span className="text-gold-100">
-            Labor <span className={`font-bold ${s.labor_pct <= 30 ? 'text-white' : 'text-gold-200'}`}>{s.labor_pct > 0 ? `${s.labor_pct}%` : '—'}</span>
-          </span>
-          <span className="flex items-center gap-1 text-gold-100">
-            <CircleDot size={13} className="text-green-300" /> {s.on_now} on the clock
-          </span>
+        <p className="mt-1 text-3xl font-bold tabular-nums">{money2(s.today.net)}</p>
+        {s.today.net === 0 ? (
+          <p className="mt-1 text-xs text-gold-200">No sales synced yet today — tap Sync now.</p>
+        ) : (
+          <p className="mt-1 text-xs text-gold-100">Labor {s.today.labor_pct > 0 ? `${s.today.labor_pct}%` : '—'}</p>
+        )}
+        <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-2 text-sm">
+          <span className="text-gold-100">Yesterday</span>
+          <span className="font-semibold tabular-nums">{money2(s.prev.net)}</span>
         </div>
         <p className="mt-2 text-[11px] text-gold-200/80">As of {fmtTime(s.synced_at)} · live from Toast</p>
       </div>
 
-      {/* Per-store snapshot */}
+      {/* By store — exact numbers + who's on now */}
       {s.stores.length > 1 && (
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-brand-900">By store</h2>
+            <h2 className="font-semibold text-brand-900">By store · today</h2>
             <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">
               Insights <ArrowRight size={14} />
             </Link>
           </div>
           <ul className="space-y-2">
             {s.stores.map((st) => (
-              <li key={st.id} className="card flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-brand-900">{st.name}</p>
-                  <p className="text-xs text-brand-500">
-                    {st.on_now} on now · labor{' '}
-                    <span className={st.net > 0 && st.labor_pct > 30 ? 'font-semibold text-brick-600' : 'text-brand-600'}>
-                      {st.net > 0 ? `${st.labor_pct}%` : '—'}
-                    </span>
-                  </p>
+              <li key={st.id} className="card py-3">
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-brand-900">{st.name}</p>
+                    <p className="truncate text-xs text-brand-500">
+                      {st.on_now > 0 ? (
+                        <>
+                          <CircleDot size={11} className="mr-0.5 inline text-green-500" />
+                          {st.on_now} on{st.names.length > 0 ? ` · ${st.names.slice(0, 4).join(', ')}${st.names.length > 4 ? '…' : ''}` : ''}
+                        </>
+                      ) : (
+                        'none clocked in'
+                      )}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-bold tabular-nums text-brand-900">{money2(st.net)}</p>
+                    <p className="text-[11px] tabular-nums text-brand-400">yest {money2(st.prev)}</p>
+                  </div>
                 </div>
-                <span className="shrink-0 text-right font-bold tabular-nums text-brand-900">{moneyShort(st.net)}</span>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {/* Needs attention */}
-      {attention.length > 0 && (
-        <section className="card border-l-4 border-l-gold-400">
-          <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900">
-            <AlertTriangle size={16} className="text-gold-500" /> Needs attention
-          </h2>
-          <ul className="space-y-1.5">
-            {attention.map((a, i) => (
-              <li key={i} className="flex gap-2 text-sm text-brand-700">
-                <span className="text-gold-500">•</span> {a}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Year to date */}
+      <section className="card">
+        <h2 className="mb-3 font-semibold text-brand-900">Year to date</h2>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <p className="text-lg font-bold tabular-nums text-brand-900">{money(s.ytd.net)}</p>
+            <p className="mt-0.5 text-xs text-brand-500">sales</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold tabular-nums text-brand-900">{money2(s.ytd.avg)}</p>
+            <p className="mt-0.5 text-xs text-brand-500">avg ticket</p>
+          </div>
+          <div>
+            <p className={`text-lg font-bold tabular-nums ${s.labor.pct <= 30 ? 'text-brand-900' : 'text-brick-600'}`}>
+              {s.labor.pct > 0 ? `${s.labor.pct}%` : '—'}
+            </p>
+            <p className="mt-0.5 text-xs text-brand-500">labor · 8 wk</p>
+          </div>
+        </div>
+        {ytdBars.length > 1 && (
+          <div className="mt-4">
+            <p className="mb-1 text-xs text-brand-400">Monthly sales</p>
+            <BarChart bars={ytdBars} max={ytdMax} />
+          </div>
+        )}
+      </section>
 
       {/* Quick actions */}
       <section>
