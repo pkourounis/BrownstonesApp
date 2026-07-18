@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
 import { shiftTimeRange, shiftHours } from '@/lib/format';
 import { format, parseISO, startOfToday, addDays } from 'date-fns';
-import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand } from 'lucide-react';
+import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand, CalendarX2 } from 'lucide-react';
 import Link from 'next/link';
 import { TimeOffButton } from './time-off-button';
 import { OfferShift, ClaimShift } from './shift-actions';
+import { MyRequests, type MyReq } from './my-requests';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +44,8 @@ export default async function SchedulePage() {
   const rangeStart = startOfToday();
   const rangeEnd = addDays(rangeStart, 14);
 
-  const [{ data, error }, { data: myEmps }, { data: swapData }] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data, error }, { data: myEmps }, { data: swapData }, { data: myReqData }, { data: blackoutData }] = await Promise.all([
     supabase
       .from('shifts')
       .select(
@@ -60,11 +62,16 @@ export default async function SchedulePage() {
       .from('shift_swap_requests')
       .select('id, shift_id, requested_by, requested_to, note, by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name), shift:shifts(starts_at, ends_at)')
       .eq('status', 'pending'),
+    supabase.from('time_off_requests').select('id, start_date, end_date, reason, status').eq('profile_id', profile.id).gte('end_date', today).order('start_date'),
+    supabase.from('time_off_blackouts').select('start_date, end_date, reason').gte('end_date', today).order('start_date').limit(10),
   ]);
 
   const shifts = (data as unknown as ShiftRow[]) ?? [];
   const myEmpIds = new Set((myEmps ?? []).map((e) => e.id));
   const swaps = (swapData as unknown as SwapRow[]) ?? [];
+  const myRequests = (myReqData as MyReq[]) ?? [];
+  const blackouts = (blackoutData as { start_date: string; end_date: string; reason: string | null }[]) ?? [];
+  const bdate = (d: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00'));
 
   const mineShift = (s: ShiftRow) => s.employee_id === profile.id || (!!s.roster_employee_id && myEmpIds.has(s.roster_employee_id));
   const offerByShift = new Map<string, string>(); // shift_id -> my offer id
@@ -107,6 +114,19 @@ export default async function SchedulePage() {
           </>
         )}
       </div>
+
+      {/* Blocked days */}
+      {blackouts.length > 0 && (
+        <div className="card border-l-4 border-l-brick-400 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-900"><CalendarX2 size={15} /> Blocked for time off</p>
+          <p className="mt-1 text-xs text-brand-600">
+            {blackouts.map((b) => `${bdate(b.start_date)}${b.end_date !== b.start_date ? `–${bdate(b.end_date)}` : ''}${b.reason ? ` (${b.reason})` : ''}`).join(' · ')}
+          </p>
+        </div>
+      )}
+
+      {/* My time-off requests */}
+      <MyRequests requests={myRequests} />
 
       {/* Open shifts up for grabs */}
       {openDrops.length > 0 && (
