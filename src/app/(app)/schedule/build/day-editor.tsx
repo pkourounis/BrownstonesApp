@@ -27,7 +27,11 @@ const hhmmET = (iso: string) =>
 const shiftHours = (s: Shift) =>
   Math.max(0, (new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 3_600_000 - (s.break_minutes || 0) / 60);
 
+const usd = (n: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+
 type Requirement = { role: string; need: number };
+type Demand = { peakRev: number; dayRev: number; revTarget: number; serversByVolume: number; base: number; extra: number } | null;
 
 export function DayEditor({
   date,
@@ -38,6 +42,7 @@ export function DayEditor({
   shifts,
   recoHours,
   requirements = [],
+  demand = null,
   weekDates,
 }: {
   date: string;
@@ -48,6 +53,7 @@ export function DayEditor({
   shifts: Shift[];
   recoHours: number;
   requirements?: Requirement[];
+  demand?: Demand;
   weekDates: { date: string; label: string }[];
 }) {
   const router = useRouter();
@@ -151,6 +157,24 @@ export function DayEditor({
           {scheduled.toFixed(1)}h{recoHours > 0 ? ` / ${recoHours.toFixed(0)}h` : ''}
         </span>
       </div>
+
+      {demand && (
+        <div className={`mb-2 rounded-lg px-2.5 py-2 text-xs ${demand.extra > 0 ? 'bg-amber-50 text-amber-900' : 'bg-brand-50 text-brand-600'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <span>Projected <span className="font-semibold tabular-nums">{usd(demand.dayRev)}</span> · peak <span className="font-semibold tabular-nums">{usd(demand.peakRev)}</span>/hr</span>
+            {demand.extra > 0 ? (
+              <span className="shrink-0 rounded-full bg-amber-200/70 px-2 py-0.5 font-semibold text-amber-800">+{demand.extra} server{demand.extra > 1 ? 's' : ''}</span>
+            ) : (
+              <span className="shrink-0 text-brand-400">base covers it</span>
+            )}
+          </div>
+          {demand.extra > 0 && (
+            <p className="mt-1 text-[11px] leading-snug">
+              Peak sales suggest ~{demand.serversByVolume} servers on the floor ({usd(demand.revTarget)}/hr each) vs {demand.base} in the base rules — schedule extra staff for the rush.
+            </p>
+          )}
+        </div>
+      )}
 
       {coverage.length > 0 && (
         <div className="mb-2 rounded-lg bg-brand-50 p-2">

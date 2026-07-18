@@ -22,7 +22,7 @@ type WeekShift = {
   status: string;
   day: string;
 };
-type Grid = { grid: { dow: number; reco: number }[] };
+type Grid = { grid: { dow: number; hour: number; rev: number; reco: number }[] };
 
 export default async function BuildSchedulePage({
   searchParams,
@@ -38,8 +38,8 @@ export default async function BuildSchedulePage({
       : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
   const supabase = await createClient();
-  const { data: locs } = await supabase.from('locations').select('id, name, labor_target_splh').eq('is_active', true);
-  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'labor_target_splh'>[];
+  const { data: locs } = await supabase.from('locations').select('id, name, labor_target_splh, revenue_per_hour_target').eq('is_active', true);
+  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'labor_target_splh' | 'revenue_per_hour_target'>[];
 
   const weekStart = parseISO(monday);
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
@@ -93,6 +93,28 @@ export default async function BuildSchedulePage({
       .map((r) => ({ role: r.role, need: Number(r[dowKey[dow]]) || 0 }))
       .filter((r) => r.need > 0);
   const staffingNotes = (locRow?.staffing_notes as string | null) ?? null;
+
+  // Sales-per-hour trigger: the base rules are the floor; when a day's projected
+  // peak-hour sales exceed the store's $/hr goal per server, extra staff are called for.
+  const revTarget = Number(locations.find((l) => l.id === store)?.revenue_per_hour_target) || 1300;
+  const peakRevByDow = new Map<number, number>();
+  const dayRevByDow = new Map<number, number>();
+  for (const g of reco.grid) {
+    peakRevByDow.set(g.dow, Math.max(peakRevByDow.get(g.dow) ?? 0, g.rev ?? 0));
+    dayRevByDow.set(g.dow, (dayRevByDow.get(g.dow) ?? 0) + (g.rev ?? 0));
+  }
+  const baseServersFor = (dow: number) =>
+    rules
+      .filter((r) => r.role.trim().toLowerCase() === 'server')
+      .reduce((n, r) => n + (Number(r[dowKey[dow]]) || 0), 0);
+  const demandFor = (dow: number) => {
+    const peakRev = peakRevByDow.get(dow) ?? 0;
+    const dayRev = dayRevByDow.get(dow) ?? 0;
+    if (peakRev <= 0) return null;
+    const serversByVolume = Math.round(peakRev / revTarget);
+    const base = baseServersFor(dow);
+    return { peakRev, dayRev, revTarget, serversByVolume, base, extra: Math.max(0, serversByVolume - base) };
+  };
 
   const draftCount = shifts.filter((s) => s.status === 'draft').length;
 
@@ -154,6 +176,7 @@ export default async function BuildSchedulePage({
             shifts={d.shifts}
             recoHours={recoByDow.get(d.dow) ?? 0}
             requirements={requirementsFor(d.dow)}
+            demand={demandFor(d.dow)}
             weekDates={weekDates}
           />
         ))}

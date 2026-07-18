@@ -77,8 +77,8 @@ export function LocationForm({ location }: { location: Location | null }) {
           <F label="Seats" name="seats" type="number" defaultValue={location?.seats} />
           <F label="Tables" name="tables" type="number" defaultValue={location?.tables} />
         </div>
-        <F label="Sales / hour target ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
-        <p className="-mt-2 text-xs text-brand-500">The store&apos;s hourly sales goal. On the staffing grid, hours averaging at/above this are flagged as on-target.</p>
+        <F label="Sales / hour per server ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
+        <p className="-mt-2 text-xs text-brand-500">How much in sales one server handles per hour (default $1,300). The staffing rules below are the floor; when a day&apos;s projected peak-hour sales exceed this per server, the builder flags that extra staff are needed for the rush.</p>
       </div>
 
       <div className="card space-y-4">
