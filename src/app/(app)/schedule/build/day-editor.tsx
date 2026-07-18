@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
-import { createShift, deleteShift } from './actions';
+import { Plus, X, Copy, Check } from 'lucide-react';
+import { createShift, deleteShift, duplicateShift } from './actions';
 
 type Shift = {
   id: string;
@@ -30,6 +30,7 @@ export function DayEditor({
   roster,
   shifts,
   recoHours,
+  weekDates,
 }: {
   date: string;
   weekday: string;
@@ -38,11 +39,37 @@ export function DayEditor({
   roster: RosterOpt[];
   shifts: Shift[];
   recoHours: number;
+  weekDates: { date: string; label: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [copyId, setCopyId] = useState<string | null>(null);
+  const [copyDays, setCopyDays] = useState<Set<string>>(new Set());
+  const [copyEmps, setCopyEmps] = useState<Set<string>>(new Set());
+
+  const openCopy = (id: string) => {
+    setCopyId(id);
+    setCopyDays(new Set());
+    setCopyEmps(new Set());
+  };
+  const toggle = (set: Set<string>, val: string, setter: (s: Set<string>) => void) => {
+    const next = new Set(set);
+    if (next.has(val)) next.delete(val);
+    else next.add(val);
+    setter(next);
+  };
+  const runCopy = () => {
+    if (!copyId) return;
+    startTransition(async () => {
+      const res = await duplicateShift(copyId, { days: [...copyDays], employeeIds: [...copyEmps] });
+      if (res.ok) {
+        setCopyId(null);
+        router.refresh();
+      } else setErr(res.error ?? 'Could not copy.');
+    });
+  };
 
   const scheduled = shifts.reduce((s, x) => s + shiftHours(x), 0);
   const gap = recoHours - scheduled;
@@ -89,19 +116,66 @@ export function DayEditor({
       {shifts.length > 0 && (
         <ul className="mb-2 divide-y divide-brand-50">
           {shifts.map((s) => (
-            <li key={s.id} className="flex items-center gap-2 py-1.5">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-brand-900">
-                  <span className="font-medium">{s.employee ?? 'Unassigned'}</span>
-                  {s.status === 'draft' && <span className="ml-1.5 text-[10px] uppercase text-brand-400">draft</span>}
-                </p>
-                <p className="truncate text-xs text-brand-500">
-                  {fmt(s.starts_at)}–{fmt(s.ends_at)} · {shiftHours(s).toFixed(1)}h{s.role ? ` · ${s.role}` : ''}
-                </p>
+            <li key={s.id} className="py-1.5">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-brand-900">
+                    <span className="font-medium">{s.employee ?? 'Unassigned'}</span>
+                    {s.status === 'draft' && <span className="ml-1.5 text-[10px] uppercase text-brand-400">draft</span>}
+                  </p>
+                  <p className="truncate text-xs text-brand-500">
+                    {fmt(s.starts_at)}–{fmt(s.ends_at)} · {shiftHours(s).toFixed(1)}h{s.role ? ` · ${s.role}` : ''}
+                  </p>
+                </div>
+                <button onClick={() => (copyId === s.id ? setCopyId(null) : openCopy(s.id))} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Copy shift">
+                  <Copy size={15} />
+                </button>
+                <button onClick={() => onDelete(s.id)} disabled={pending} className="shrink-0 text-brand-300 hover:text-brick-600" aria-label="Remove shift">
+                  <X size={16} />
+                </button>
               </div>
-              <button onClick={() => onDelete(s.id)} disabled={pending} className="shrink-0 text-brand-300 hover:text-brick-600" aria-label="Remove shift">
-                <X size={16} />
-              </button>
+
+              {copyId === s.id && (
+                <div className="mt-2 space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-400">Copy to days</p>
+                    <div className="flex flex-wrap gap-1">
+                      {weekDates.filter((d) => d.date !== date).map((d) => (
+                        <button
+                          key={d.date}
+                          type="button"
+                          onClick={() => toggle(copyDays, d.date, setCopyDays)}
+                          className={`rounded-full px-2 py-1 text-[11px] font-medium ${copyDays.has(d.date) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-400">Copy to people (optional)</p>
+                    <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+                      {roster.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => toggle(copyEmps, r.id, setCopyEmps)}
+                          className={`rounded-full px-2 py-1 text-[11px] font-medium ${copyEmps.has(r.id) ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'}`}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[10px] text-brand-400">No one picked = keep the same person. Pick days and/or people.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={runCopy} disabled={pending || (copyDays.size === 0 && copyEmps.size === 0)} className="btn-primary h-8 flex-1 justify-center text-xs">
+                      <Check size={13} /> {pending ? 'Copying…' : 'Copy shift'}
+                    </button>
+                    <button onClick={() => setCopyId(null)} className="btn-secondary h-8 px-3 text-xs">Cancel</button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

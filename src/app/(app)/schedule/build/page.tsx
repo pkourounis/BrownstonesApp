@@ -91,6 +91,7 @@ export default async function BuildSchedulePage({
       shifts: shifts.filter((s) => s.day === iso),
     };
   });
+  const weekDates = days.map((d) => ({ date: d.date, label: `${d.weekday.slice(0, 3)} ${d.dayLabel}` }));
 
   return (
     <div className="space-y-4">
@@ -116,6 +117,7 @@ export default async function BuildSchedulePage({
           roster={roster}
           shifts={d.shifts}
           recoHours={recoByDow.get(d.dow) ?? 0}
+          weekDates={weekDates}
         />
       ))}
     </div>
