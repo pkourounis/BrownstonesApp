@@ -20,8 +20,16 @@
   --brand-950: 36 26 13;
 }
 
+html {
+  /* Stop the rubber-band overscroll that reveals blank space past the app. */
+  overscroll-behavior-y: none;
+  background-color: #f7f1e2; /* cream — matches the app so any overscroll blends in */
+}
+
 body {
   @apply bg-cream text-brand-950 antialiased;
+  overscroll-behavior-y: none;
+  min-height: 100dvh;
 }
 
 /* Classic serif wordmark / display headings for the turn-of-the-century feel. */

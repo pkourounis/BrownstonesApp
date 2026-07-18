@@ -77,7 +77,7 @@ export default async function ChatPage({
   if (active) {
     const { data: msgs } = await supabase
       .from('chat_messages')
-      .select('id, author_id, body, created_at')
+      .select('id, author_id, body, image_url, created_at')
       .eq('channel_id', active.id)
       .order('created_at')
       .limit(100);

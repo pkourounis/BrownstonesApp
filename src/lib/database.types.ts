@@ -431,6 +431,7 @@ export type ChatMessage = {
   channel_id: string;
   author_id: string | null;
   body: string;
+  image_url: string | null;
   created_at: string;
 }
 

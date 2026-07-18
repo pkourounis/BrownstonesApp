@@ -117,16 +117,18 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
               Schedule <ArrowRight size={14} />
             </Link>
           </div>
-          <p className="mb-2 text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
-          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
-            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
-            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed</span>
-            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed</span>
-            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brand-50 ring-1 ring-brand-200" /> No recommendation</span>
-          </div>
-          <div className="space-y-3">
+          <div className="card space-y-3">
+            <div>
+              <p className="text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-500">
+                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-green-100 ring-1 ring-green-300" /> On target</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brick-500/10 ring-1 ring-brick-400" /> Understaffed</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-amber-100 ring-1 ring-amber-400" /> Overstaffed</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded bg-brand-50 ring-1 ring-brand-200" /> No recommendation</span>
+              </div>
+            </div>
             {coverage.map((c) => (
-              <div key={c.id}>
+              <div key={c.id} className="border-t border-brand-50 pt-3 first:border-0 first:pt-0">
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-500">{c.name}</p>
                 <WeekStrip days={c.days} compact />
               </div>

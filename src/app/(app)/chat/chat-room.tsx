@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Send, ArrowLeft, Users, Hash } from 'lucide-react';
+import { Send, ArrowLeft, Users, Hash, ImagePlus, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { notifyMessage } from './actions';
 
-type Msg = { id: string; author_id: string | null; body: string; created_at: string };
+type Msg = { id: string; author_id: string | null; body: string; image_url: string | null; created_at: string };
 type People = Record<string, { name: string; avatar: string | null }>;
 
 const fmt = (iso: string) =>
@@ -33,7 +33,9 @@ export function ChatRoom({
   const [messages, setMessages] = useState<Msg[]>(initial);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,6 +67,22 @@ export function ChatRoom({
     if (error) setInput(text); // restore on failure
     else notifyMessage(channelId, text).catch(() => {}); // fan out push (best-effort)
     setSending(false);
+  };
+
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${channelId}/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('chat').upload(path, file, { contentType: file.type || undefined });
+    if (!upErr) {
+      const { data } = supabase.storage.from('chat').getPublicUrl(path);
+      await supabase.from('chat_messages').insert({ channel_id: channelId, author_id: myId, body: '', image_url: data.publicUrl });
+      notifyMessage(channelId, '📷 Photo').catch(() => {});
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   return (
@@ -110,8 +128,14 @@ export function ChatRoom({
                   ))}
                 <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
                   {!mine && <span className="mb-0.5 px-1 text-[11px] text-brand-400">{who?.name ?? 'Someone'}</span>}
-                  <div className={`rounded-2xl px-3 py-2 text-sm ${mine ? 'bg-brand-700 text-white' : 'bg-white text-brand-800 shadow-sm'}`}>
-                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                  <div className={`overflow-hidden rounded-2xl text-sm ${mine ? 'bg-brand-700 text-white' : 'bg-white text-brand-800 shadow-sm'} ${m.image_url && !m.body ? '' : 'px-3 py-2'}`}>
+                    {m.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <a href={m.image_url} target="_blank" rel="noopener noreferrer">
+                        <img src={m.image_url} alt="" className="max-h-64 w-full rounded-2xl object-cover" />
+                      </a>
+                    )}
+                    {m.body && <p className={`whitespace-pre-wrap break-words ${m.image_url ? 'px-3 py-2' : ''}`}>{m.body}</p>}
                   </div>
                   <span className="mt-0.5 px-1 text-[10px] text-brand-300">{fmt(m.created_at)}</span>
                 </div>
@@ -123,6 +147,10 @@ export function ChatRoom({
       </div>
 
       <div className="flex items-center gap-2 border-t border-brand-100 px-3 py-2.5">
+        <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary h-11 w-11 shrink-0 justify-center p-0" aria-label="Add photo">
+          {uploading ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhoto} />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
