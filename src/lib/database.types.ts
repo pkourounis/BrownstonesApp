@@ -317,6 +317,14 @@ export type PosSales = {
   synced_at: string;
 }
 
+/** Manager-only star ranking (0–5) for a team member. */
+export type StaffRating = {
+  profile_id: string;
+  rating: number;
+  updated_by: string | null;
+  updated_at: string;
+}
+
 /** Unified schedulable roster: imported from Toast or added in-app. */
 export type Employee = {
   id: string;
@@ -489,6 +497,7 @@ export type Database = {
       pos_sales: Table<PosSales>;
       toast_time_entries: Table<ToastTimeEntry>;
       employees: Table<Employee>;
+      staff_ratings: Table<StaffRating>;
       quizzes: Table<Quiz>;
       quiz_questions: Table<QuizQuestion>;
       quiz_attempts: Table<QuizAttempt>;
