@@ -94,6 +94,16 @@ export default async function BuildSchedulePage({
   });
   const weekDates = days.map((d) => ({ date: d.date, label: `${d.weekday.slice(0, 3)} ${d.dayLabel}` }));
 
+  const shiftHrs = (s: WeekShift) =>
+    Math.max(0, (new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 3_600_000 - (s.break_minutes || 0) / 60);
+  const overview = days.map((d) => {
+    const sched = d.shifts.reduce((n, s) => n + shiftHrs(s), 0);
+    const reco = recoByDow.get(d.dow) ?? 0;
+    const gap = reco - sched;
+    const tone = reco <= 0 ? 'bg-brand-50 text-brand-400' : gap > 4 ? 'bg-brick-500/10 text-brick-600' : gap < -4 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+    return { key: d.date, abbr: d.weekday.slice(0, 3), count: d.shifts.length, sched, reco, tone };
+  });
+
   return (
     <div className="space-y-4">
       <Link href="/schedule" className="flex items-center gap-1 text-sm font-medium text-brand-700">
@@ -106,6 +116,17 @@ export default async function BuildSchedulePage({
 
       <div className="card">
         <BuilderControls locations={locations} store={store} monday={monday} weekLabel={weekLabel} draftCount={draftCount} />
+      </div>
+
+      {/* Week-at-a-glance: scheduled vs recommended hours per day. */}
+      <div className="-mx-1 grid grid-cols-7 gap-1 px-1">
+        {overview.map((o) => (
+          <a key={o.key} href={`#day-${o.key}`} className={`rounded-lg p-1.5 text-center ${o.tone}`}>
+            <p className="text-[10px] font-bold uppercase">{o.abbr}</p>
+            <p className="mt-0.5 text-xs font-semibold tabular-nums">{o.sched.toFixed(0)}<span className="text-[9px] font-normal">/{o.reco > 0 ? o.reco.toFixed(0) : '—'}h</span></p>
+            <p className="text-[9px] opacity-70">{o.count} shift{o.count === 1 ? '' : 's'}</p>
+          </a>
+        ))}
       </div>
 
       {days.map((d) => (

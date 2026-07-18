@@ -120,7 +120,7 @@ export function DayEditor({
   };
 
   return (
-    <section className="card">
+    <section id={`day-${date}`} className="card scroll-mt-4">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="font-semibold text-brand-900">
           {weekday} <span className="text-sm font-normal text-brand-400">{dayLabel}</span>
