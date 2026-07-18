@@ -9,6 +9,8 @@ import { OfferShift, ClaimShift } from './shift-actions';
 import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
+import { StoreSelect } from './store-select';
+import type { Location } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +52,19 @@ export default async function SchedulePage({
 
   const view = sp.view === 'week' || sp.view === 'weekend' ? sp.view : 'list';
   const weekMode = view !== 'list';
+  const isSuper = profile.role === 'super_admin';
+
+  // Which store's schedule are we viewing? Super admins pick any store; managers
+  // see their own; employees aren't store-filtered (they see their own shifts).
+  const { data: locData } = manager
+    ? await supabase.from('locations').select('id, name').eq('is_active', true).order('name')
+    : { data: [] };
+  const allLocs = (locData ?? []) as Pick<Location, 'id' | 'name'>[];
+  const selectable = isSuper ? allLocs : allLocs.filter((l) => l.id === profile.primary_location_id);
+  const selectedStore = manager
+    ? (sp.store && selectable.some((l) => l.id === sp.store) ? sp.store : selectable[0]?.id ?? profile.primary_location_id ?? null)
+    : null;
+  const storeName = selectable.find((l) => l.id === selectedStore)?.name ?? null;
 
   // Range + which days to render.
   let rangeStart: Date;
@@ -73,18 +88,21 @@ export default async function SchedulePage({
   }
 
   const today = new Date().toISOString().slice(0, 10);
+  let shiftQuery = supabase
+    .from('shifts')
+    .select(
+      `id, starts_at, ends_at, break_minutes, status, notes, employee_id, roster_employee_id,
+       position:positions(name, color),
+       employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
+       roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, default_wage)`
+    )
+    .gte('starts_at', rangeStart.toISOString())
+    .lt('starts_at', rangeEnd.toISOString())
+    .order('starts_at', { ascending: true });
+  if (selectedStore) shiftQuery = shiftQuery.eq('location_id', selectedStore);
+
   const [{ data, error }, { data: myEmps }, { data: swapData }, { data: myReqData }, { data: blackoutData }] = await Promise.all([
-    supabase
-      .from('shifts')
-      .select(
-        `id, starts_at, ends_at, break_minutes, status, notes, employee_id, roster_employee_id,
-         position:positions(name, color),
-         employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
-         roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, default_wage)`
-      )
-      .gte('starts_at', rangeStart.toISOString())
-      .lt('starts_at', rangeEnd.toISOString())
-      .order('starts_at', { ascending: true }),
+    shiftQuery,
     supabase.from('employees').select('id').eq('profile_id', profile.id),
     supabase
       .from('shift_swap_requests')
@@ -172,16 +190,17 @@ export default async function SchedulePage({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-900">Schedule</h1>
-          <p className="text-sm text-brand-600">{manager ? 'Your location' : 'Your shifts'}</p>
+          <p className="text-sm text-brand-600">{manager ? (storeName ?? 'Your location') : 'Your shifts'}</p>
         </div>
         {manager && (
-          <Link href="/schedule/build" className="btn-primary">
+          <Link href={`/schedule/build${selectedStore ? `?store=${selectedStore}` : ''}`} className="btn-primary">
             <CalendarPlus size={18} /> Build
           </Link>
         )}
       </div>
 
       <div className="no-print space-y-2">
+        {isSuper && selectable.length > 1 && selectedStore && <StoreSelect locations={selectable} store={selectedStore} />}
         <ViewControls view={view} weekLabel={weekLabel} monday={weekMonday} />
         {manager && <ScheduleExport rows={exportRows} title={exportTitle} />}
       </div>

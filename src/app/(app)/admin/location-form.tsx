@@ -78,6 +78,7 @@ export function LocationForm({ location }: { location: Location | null }) {
           <F label="Tables" name="tables" type="number" defaultValue={location?.tables} />
         </div>
         <F label="Sales / hour target ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
+        <p className="-mt-2 text-xs text-brand-500">The store&apos;s hourly sales goal. On the staffing grid, hours averaging at/above this are flagged as on-target.</p>
       </div>
 
       <div className="card space-y-4">
@@ -88,6 +89,11 @@ export function LocationForm({ location }: { location: Location | null }) {
           <F label="Weekly cap (h)" name="weekly_hour_cap" type="number" defaultValue={location?.weekly_hour_cap ?? 40} />
           <F label="Shift length (h)" name="shift_length" type="number" defaultValue={location?.shift_length ?? 6} />
         </div>
+        <ul className="space-y-1 text-xs text-brand-500">
+          <li><span className="font-semibold text-brand-700">Sales / labor-hr</span> — target sales each staffed hour should bring in. Auto-fill divides demand by this to decide headcount; <em>higher = leaner staffing</em>.</li>
+          <li><span className="font-semibold text-brand-700">Weekly cap</span> — the most hours Auto-fill will give one person in a week (keeps people under overtime).</li>
+          <li><span className="font-semibold text-brand-700">Shift length</span> — the default shift block Auto-fill lays down (a 30-min break is added at 6h+).</li>
+        </ul>
       </div>
 
       <div className="card space-y-4">
