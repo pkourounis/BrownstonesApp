@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
 import type { StaffingRule } from '@/lib/database.types';
 import { LocationForm } from '../../location-form';
-import { rowsFromRules, type CopySource } from '../../staffing-grid';
+import { rowsFromRules, type CopySource } from '../../staffing-shared';
 
 export const dynamic = 'force-dynamic';
 
