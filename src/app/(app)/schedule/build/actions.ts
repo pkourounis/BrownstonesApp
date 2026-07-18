@@ -109,10 +109,45 @@ export async function clearWeek(
   scope: 'draft' | 'all' = 'draft'
 ): Promise<{ ok: boolean; error?: string; count?: number }> {
   await requireRole('super_admin', 'manager');
+  // Lock past weeks — the whole week is before today.
+  if (addDaysStr(monday, 6) < etToday()) return { ok: false, error: 'That week is in the past and cannot be cleared.' };
   const supabase = await createClient();
 
   const winStart = etWallToUtc(monday, '00:00');
   const winEnd = etWallToUtc(addDaysStr(monday, 7), '00:00');
+  let q = supabase
+    .from('shifts')
+    .delete()
+    .eq('location_id', location_id)
+    .gte('starts_at', winStart)
+    .lt('starts_at', winEnd);
+  if (scope === 'draft') q = q.eq('status', 'draft');
+  const { data, error } = await q.select('id');
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/schedule/build');
+  return { ok: true, count: data?.length ?? 0 };
+}
+
+/** ET calendar date (yyyy-mm-dd) for "today". */
+function etToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+/**
+ * Clear a single day. scope 'draft' removes only draft shifts, 'all' removes
+ * every shift that day. Past days are locked (can't clear history).
+ */
+export async function clearDay(
+  location_id: string,
+  date: string,
+  scope: 'draft' | 'all' = 'draft'
+): Promise<{ ok: boolean; error?: string; count?: number }> {
+  await requireRole('super_admin', 'manager');
+  if (date < etToday()) return { ok: false, error: 'That day is in the past and cannot be cleared.' };
+  const supabase = await createClient();
+
+  const winStart = etWallToUtc(date, '00:00');
+  const winEnd = etWallToUtc(addDaysStr(date, 1), '00:00');
   let q = supabase
     .from('shifts')
     .delete()

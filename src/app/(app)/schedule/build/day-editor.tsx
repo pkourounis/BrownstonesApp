@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X, Copy, Check, Pencil } from 'lucide-react';
-import { createShift, deleteShift, duplicateShift, updateShift } from './actions';
+import { Plus, X, Copy, Check, Pencil, Trash2 } from 'lucide-react';
+import { createShift, deleteShift, duplicateShift, updateShift, clearDay } from './actions';
 
 type Shift = {
   id: string;
@@ -43,6 +43,7 @@ export function DayEditor({
   recoHours,
   requirements = [],
   demand = null,
+  isPast = false,
   weekDates,
 }: {
   date: string;
@@ -54,6 +55,7 @@ export function DayEditor({
   recoHours: number;
   requirements?: Requirement[];
   demand?: Demand;
+  isPast?: boolean;
   weekDates: { date: string; label: string }[];
 }) {
   const router = useRouter();
@@ -144,6 +146,24 @@ export function DayEditor({
     startTransition(async () => {
       await deleteShift(id);
       router.refresh();
+    });
+  };
+
+  const draftCount = shifts.filter((s) => s.status === 'draft').length;
+  const onClearDay = () => {
+    let scope: 'draft' | 'all';
+    if (draftCount > 0) {
+      if (!confirm(`Clear ${draftCount} draft shift${draftCount === 1 ? '' : 's'} on ${weekday}? Published shifts are kept.`)) return;
+      scope = 'draft';
+    } else {
+      if (!confirm(`Delete ALL shifts on ${weekday}, including published ones? This cannot be undone.`)) return;
+      scope = 'all';
+    }
+    setErr(null);
+    startTransition(async () => {
+      const res = await clearDay(store, date, scope);
+      if (res.ok) router.refresh();
+      else setErr(res.error ?? 'Could not clear the day.');
     });
   };
 
@@ -359,10 +379,18 @@ export function DayEditor({
           {err && <p className="text-xs text-brick-600">{err}</p>}
         </form>
       ) : (
-        <button onClick={() => { setAdding(true); setAddEmp(''); }} className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-brand-200 py-2 text-xs font-medium text-brand-500 hover:border-brand-400 hover:text-brand-700">
-          <Plus size={14} /> Add shift
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => { setAdding(true); setAddEmp(''); }} className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-dashed border-brand-200 py-2 text-xs font-medium text-brand-500 hover:border-brand-400 hover:text-brand-700">
+            <Plus size={14} /> Add shift
+          </button>
+          {!isPast && shifts.length > 0 && (
+            <button onClick={onClearDay} disabled={pending} className="flex shrink-0 items-center justify-center gap-1 rounded-lg border border-brick-200 px-3 py-2 text-xs font-medium text-brick-600 hover:bg-brick-50 disabled:opacity-50" title="Clear this day">
+              <Trash2 size={14} /> Clear day
+            </button>
+          )}
+        </div>
       )}
+      {!adding && !editId && err && <p className="mt-2 text-xs text-brick-600">{err}</p>}
     </section>
   );
 }

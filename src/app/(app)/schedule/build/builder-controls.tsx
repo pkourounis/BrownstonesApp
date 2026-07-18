@@ -13,12 +13,14 @@ export function BuilderControls({
   monday,
   weekLabel,
   draftCount,
+  pastWeek = false,
 }: {
   locations: Pick<Location, 'id' | 'name'>[];
   store: string | null;
   monday: string;
   weekLabel: string;
   draftCount: number;
+  pastWeek?: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -151,9 +153,11 @@ export function BuilderControls({
           <Link href={`/schedule/staffing?store=${store}`} className="btn-secondary h-9 justify-center text-xs">
             <Gauge size={14} /> Staffing guide
           </Link>
-          <button onClick={onClear} disabled={pending} className="col-span-2 h-9 justify-center rounded-lg border border-brick-200 text-xs font-medium text-brick-600 hover:bg-brick-50 inline-flex items-center gap-1.5 disabled:opacity-50">
-            {busy === 'clear' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Clear week{draftCount > 0 ? ` (${draftCount} draft${draftCount === 1 ? '' : 's'})` : ''}
-          </button>
+          {!pastWeek && (
+            <button onClick={onClear} disabled={pending} className="col-span-2 h-9 justify-center rounded-lg border border-brick-200 text-xs font-medium text-brick-600 hover:bg-brick-50 inline-flex items-center gap-1.5 disabled:opacity-50">
+              {busy === 'clear' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Clear week{draftCount > 0 ? ` (${draftCount} draft${draftCount === 1 ? '' : 's'})` : ''}
+            </button>
+          )}
         </div>
       )}
 

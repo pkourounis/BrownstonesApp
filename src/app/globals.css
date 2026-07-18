@@ -62,6 +62,28 @@ body {
   }
 }
 
+/* iOS/iPadOS render native date/time/number controls far taller than the CSS
+   height, which made the shift-form inputs balloon and crowd each other.
+   Strip the native appearance so the h-9 sizing is respected. */
+input[type='time'],
+input[type='date'],
+input[type='datetime-local'],
+input[type='number'] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  min-height: 0;
+}
+input[type='time']::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 /* Print: drop the app chrome and interactive controls, show a clean schedule. */
 @media print {
   aside,

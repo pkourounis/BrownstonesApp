@@ -117,6 +117,7 @@ export default async function BuildSchedulePage({
   };
 
   const draftCount = shifts.filter((s) => s.status === 'draft').length;
+  const todayEt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);
@@ -152,7 +153,7 @@ export default async function BuildSchedulePage({
       </div>
 
       <div className="card">
-        <BuilderControls locations={locations} store={store} monday={monday} weekLabel={weekLabel} draftCount={draftCount} />
+        <BuilderControls locations={locations} store={store} monday={monday} weekLabel={weekLabel} draftCount={draftCount} pastWeek={days[6].date < todayEt} />
       </div>
 
       <WeekStrip days={overview} title="Week at a glance" linkBase="#day-" />
@@ -177,6 +178,7 @@ export default async function BuildSchedulePage({
             recoHours={recoByDow.get(d.dow) ?? 0}
             requirements={requirementsFor(d.dow)}
             demand={demandFor(d.dow)}
+            isPast={d.date < todayEt}
             weekDates={weekDates}
           />
         ))}

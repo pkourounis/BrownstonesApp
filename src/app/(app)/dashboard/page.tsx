@@ -71,9 +71,9 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
   const hasCoverage = coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0));
 
   return (
-    <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 lg:items-start">
+    <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
       {/* ---- Left column: live numbers ---- */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Today (live) + yesterday */}
         <div className="card bg-brand-700 text-white">
           <div className="flex items-baseline justify-between">
@@ -139,11 +139,11 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
       </div>
 
       {/* ---- Right column: trends, actions, feed ---- */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Year to date */}
         <section>
-          <h2 className="mb-2 font-semibold text-brand-900">Year to date</h2>
           <div className="card">
+            <h2 className="mb-3 font-semibold text-brand-900">Year to date</h2>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <p className="text-lg font-bold tabular-nums text-brand-900">{money(s.ytd.net)}</p>
