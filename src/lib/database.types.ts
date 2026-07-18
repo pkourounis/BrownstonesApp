@@ -317,9 +317,9 @@ export type PosSales = {
   synced_at: string;
 }
 
-export type PostCategory = 'announcement' | 'product' | 'seasonal' | 'menu';
+export type PostCategory = 'post' | 'announcement' | 'product' | 'seasonal' | 'menu';
 
-/** Feed announcement post. */
+/** Feed post. */
 export type Post = {
   id: string;
   author_id: string | null;
@@ -329,6 +329,8 @@ export type Post = {
   category: PostCategory;
   requires_ack: boolean;
   pinned: boolean;
+  pinned_until: string | null;
+  reposted_from: string | null;
   created_at: string;
 }
 

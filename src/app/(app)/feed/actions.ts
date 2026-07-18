@@ -4,23 +4,34 @@ import { createClient } from '@/lib/supabase/server';
 import { requireProfile, requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-const CATEGORIES = ['announcement', 'product', 'seasonal', 'menu'] as const;
+const CATEGORIES = ['post', 'announcement', 'product', 'seasonal', 'menu'] as const;
 type Category = (typeof CATEGORIES)[number];
 
-/** Publish a feed announcement (super-admin only). */
+/** Convert a pin-duration choice into an expiry timestamp (null = not pinned). */
+function pinExpiry(pin: string): string | null {
+  const now = Date.now();
+  const day = 86_400_000;
+  const map: Record<string, number> = { '1d': day, '3d': 3 * day, '1w': 7 * day, '2w': 14 * day, forever: 3650 * day };
+  if (!pin || !(pin in map)) return null;
+  return new Date(now + map[pin]).toISOString();
+}
+
+/** Publish a feed post (managers + super-admins). */
 export async function createPost(input: {
   title: string;
   body: string;
   category: string;
   location_id: string | null;
   requires_ack: boolean;
+  pin: string;
   attachments: { url: string; mime: string }[];
 }): Promise<{ ok: boolean; error?: string }> {
-  const profile = await requireRole('super_admin');
+  const profile = await requireRole('super_admin', 'manager');
   const supabase = await createClient();
   const body = input.body.trim();
   if (!body && !input.title.trim()) return { ok: false, error: 'Add a title or description.' };
-  const category: Category = (CATEGORIES as readonly string[]).includes(input.category) ? (input.category as Category) : 'announcement';
+  const category: Category = (CATEGORIES as readonly string[]).includes(input.category) ? (input.category as Category) : 'post';
+  const pinned_until = pinExpiry(input.pin);
 
   const { data: post, error } = await supabase
     .from('posts')
@@ -31,6 +42,8 @@ export async function createPost(input: {
       body,
       category,
       requires_ack: input.requires_ack,
+      pinned: !!pinned_until,
+      pinned_until,
     })
     .select('id')
     .single();
@@ -40,6 +53,29 @@ export async function createPost(input: {
     const rows = input.attachments.map((a) => ({ post_id: post.id, url: a.url, mime: a.mime }));
     await supabase.from('post_attachments').insert(rows);
   }
+  revalidatePath('/feed');
+  return { ok: true };
+}
+
+/** Repost an existing post to the feed (managers + super-admins). */
+export async function repost(originalId: string): Promise<{ ok: boolean; error?: string }> {
+  const profile = await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data: orig, error: readErr } = await supabase
+    .from('posts')
+    .select('category, location_id')
+    .eq('id', originalId)
+    .single();
+  if (readErr || !orig) return { ok: false, error: 'Original post not found.' };
+
+  const { error } = await supabase.from('posts').insert({
+    author_id: profile.id,
+    location_id: orig.location_id,
+    body: '',
+    category: orig.category,
+    reposted_from: originalId,
+  });
+  if (error) return { ok: false, error: error.message };
   revalidatePath('/feed');
   return { ok: true };
 }

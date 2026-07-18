@@ -9,7 +9,7 @@ import { createPost } from './actions';
 
 type Attachment = { url: string; mime: string };
 
-export function Composer({ locations }: { locations: Pick<Location, 'id' | 'name'>[] }) {
+export function Composer({ locations, canPostAll }: { locations: Pick<Location, 'id' | 'name'>[]; canPostAll: boolean }) {
   const router = useRouter();
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -17,9 +17,10 @@ export function Composer({ locations }: { locations: Pick<Location, 'id' | 'name
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [category, setCategory] = useState('announcement');
-  const [audience, setAudience] = useState('all');
+  const [category, setCategory] = useState('post');
+  const [audience, setAudience] = useState(canPostAll ? 'all' : locations[0]?.id ?? '');
   const [requireAck, setRequireAck] = useState(false);
+  const [pin, setPin] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export function Composer({ locations }: { locations: Pick<Location, 'id' | 'name
         category,
         location_id: audience === 'all' ? null : audience,
         requires_ack: requireAck,
+        pin,
         attachments,
       });
       if (res.ok) {
@@ -93,23 +95,34 @@ export function Composer({ locations }: { locations: Pick<Location, 'id' | 'name
 
       <div className="grid grid-cols-2 gap-2">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="input h-9 text-sm">
+          <option value="post">Post</option>
           <option value="announcement">Announcement</option>
           <option value="product">New product</option>
           <option value="seasonal">Seasonal</option>
           <option value="menu">Menu change</option>
         </select>
         <select value={audience} onChange={(e) => setAudience(e.target.value)} className="input h-9 text-sm">
-          <option value="all">All stores &amp; employees</option>
+          {canPostAll && <option value="all">All stores &amp; employees</option>}
           {locations.map((l) => (
             <option key={l.id} value={l.id}>{l.name}</option>
           ))}
         </select>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-brand-700">
-        <input type="checkbox" checked={requireAck} onChange={(e) => setRequireAck(e.target.checked)} className="h-4 w-4 accent-brand-700" />
-        Require acknowledgment from everyone it&apos;s sent to
-      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <select value={pin} onChange={(e) => setPin(e.target.value)} className="input h-9 text-sm">
+          <option value="">Don&apos;t pin</option>
+          <option value="1d">Pin 1 day</option>
+          <option value="3d">Pin 3 days</option>
+          <option value="1w">Pin 1 week</option>
+          <option value="2w">Pin 2 weeks</option>
+          <option value="forever">Pin until removed</option>
+        </select>
+        <label className="flex items-center gap-2 rounded-lg border border-brand-100 px-2 text-xs text-brand-700">
+          <input type="checkbox" checked={requireAck} onChange={(e) => setRequireAck(e.target.checked)} className="h-4 w-4 accent-brand-700" />
+          Require acknowledgment
+        </label>
+      </div>
 
       <div className="flex items-center gap-2">
         <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary h-9 px-3 text-sm">

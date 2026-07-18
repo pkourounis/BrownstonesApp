@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThumbsUp, Trash2, MessageCircle, Share2, Send, Check, ShieldCheck } from 'lucide-react';
+import { ThumbsUp, Trash2, MessageCircle, Repeat2, Send, Check, ShieldCheck, Pin } from 'lucide-react';
 import type { PostCategory } from '@/lib/database.types';
-import { toggleReaction, deletePost, addComment, acknowledgePost } from './actions';
+import { toggleReaction, deletePost, addComment, acknowledgePost, repost } from './actions';
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
 
-const CATEGORY: Record<PostCategory, { label: string; cls: string }> = {
+const CATEGORY: Partial<Record<PostCategory, { label: string; cls: string }>> = {
   announcement: { label: 'Announcement', cls: 'bg-brand-100 text-brand-700' },
   product: { label: 'New product', cls: 'bg-green-100 text-green-700' },
   seasonal: { label: 'Seasonal', cls: 'bg-amber-100 text-amber-700' },
@@ -17,26 +17,27 @@ const CATEGORY: Record<PostCategory, { label: string; cls: string }> = {
 };
 
 export type Comment = { id: string; author: string; body: string; createdAt: string };
+export type Original = { author: string; title: string | null; body: string; category: PostCategory; photos: string[] };
 
-export function PostCard({
-  id,
-  author,
-  avatar,
-  scope,
-  category,
-  title,
-  body,
-  photos,
-  createdAt,
-  likeCount,
-  likedByMe,
-  canDelete,
-  comments,
-  requiresAck,
-  ackedByMe,
-  ackCount,
-  isSuperAdmin,
-}: {
+function Photos({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  return (
+    <div className={`mt-3 grid gap-2 ${urls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      {urls.map((url, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={i} src={url} alt="" className="max-h-72 w-full rounded-lg object-cover" />
+      ))}
+    </div>
+  );
+}
+
+function CatBadge({ category }: { category: PostCategory }) {
+  const c = CATEGORY[category];
+  if (!c) return null;
+  return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.cls}`}>{c.label}</span>;
+}
+
+export function PostCard(props: {
   id: string;
   author: string;
   avatar: string | null;
@@ -49,60 +50,48 @@ export function PostCard({
   likeCount: number;
   likedByMe: boolean;
   canDelete: boolean;
+  canRepost: boolean;
+  pinned: boolean;
   comments: Comment[];
   requiresAck: boolean;
   ackedByMe: boolean;
   ackCount: number;
   isSuperAdmin: boolean;
+  original: Original | null;
 }) {
+  const {
+    id, author, avatar, scope, category, title, body, photos, createdAt,
+    likeCount, likedByMe, canDelete, canRepost, pinned, comments,
+    requiresAck, ackedByMe, ackCount, isSuperAdmin, original,
+  } = props;
+
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [liked, setLiked] = useState(likedByMe);
   const [count, setCount] = useState(likeCount);
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState('');
-  const [shared, setShared] = useState(false);
   const [acked, setAcked] = useState(ackedByMe);
-
-  const cat = CATEGORY[category] ?? CATEGORY.announcement;
-
-  const onAck = () => {
-    setAcked(true);
-    startTransition(async () => {
-      await acknowledgePost(id);
-      router.refresh();
-    });
-  };
+  const [reposted, setReposted] = useState(false);
 
   const onLike = () => {
     setLiked((v) => !v);
     setCount((c) => c + (liked ? -1 : 1));
-    startTransition(async () => {
-      await toggleReaction(id);
-      router.refresh();
-    });
+    startTransition(async () => { await toggleReaction(id); router.refresh(); });
   };
-
   const onComment = () => {
     const text = draft.trim();
     if (!text) return;
     setDraft('');
-    startTransition(async () => {
-      await addComment(id, text);
-      router.refresh();
-    });
+    startTransition(async () => { await addComment(id, text); router.refresh(); });
   };
-
-  const onShare = async () => {
-    const url = `${window.location.origin}/feed`;
-    try {
-      if (navigator.share) await navigator.share({ title: 'Brownstones', text: body, url });
-      else await navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 1500);
-    } catch {
-      /* cancelled */
-    }
+  const onAck = () => {
+    setAcked(true);
+    startTransition(async () => { await acknowledgePost(id); router.refresh(); });
+  };
+  const onRepost = () => {
+    setReposted(true);
+    startTransition(async () => { await repost(id); router.refresh(); });
   };
 
   return (
@@ -112,58 +101,59 @@ export function PostCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
         ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-200 text-xs font-semibold text-brand-700">
-            {author.slice(0, 1)}
-          </span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-200 text-xs font-semibold text-brand-700">{author.slice(0, 1)}</span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-brand-900">{author}</p>
+          <p className="truncate text-sm font-semibold text-brand-900">
+            {author}
+            {original && <span className="font-normal text-brand-400"> reposted</span>}
+          </p>
           <p className="text-[11px] text-brand-400">{fmt(createdAt)} · {scope}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cat.cls}`}>{cat.label}</span>
+        {pinned && (
+          <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-gold-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+            <Pin size={10} /> Pinned
+          </span>
+        )}
+        {!original && <CatBadge category={category} />}
         {canDelete && (
-          <button
-            onClick={() => startTransition(async () => { await deletePost(id); router.refresh(); })}
-            disabled={pending}
-            className="text-brand-300 hover:text-brick-600"
-            aria-label="Delete post"
-          >
+          <button onClick={() => startTransition(async () => { await deletePost(id); router.refresh(); })} disabled={pending} className="text-brand-300 hover:text-brick-600" aria-label="Delete post">
             <Trash2 size={15} />
           </button>
         )}
       </div>
 
-      {title && <p className="mb-1 text-base font-bold text-brand-900">{title}</p>}
-      {body && <p className="whitespace-pre-wrap text-sm text-brand-800">{body}</p>}
-
-      {photos.length > 0 && (
-        <div className={`mt-3 grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-          {photos.map((url, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={url} alt="" className="max-h-72 w-full rounded-lg object-cover" />
-          ))}
+      {original ? (
+        <div className="rounded-xl border border-brand-100 bg-brand-50 p-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-brand-800">{original.author}</span>
+            <CatBadge category={original.category} />
+          </div>
+          {original.title && <p className="text-sm font-bold text-brand-900">{original.title}</p>}
+          {original.body && <p className="whitespace-pre-wrap text-sm text-brand-700">{original.body}</p>}
+          <Photos urls={original.photos} />
         </div>
+      ) : (
+        <>
+          {title && <p className="mb-1 text-base font-bold text-brand-900">{title}</p>}
+          {body && <p className="whitespace-pre-wrap text-sm text-brand-800">{body}</p>}
+          <Photos urls={photos} />
+        </>
       )}
 
       {requiresAck && (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-gold-100 px-3 py-2">
           {acked ? (
-            <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
-              <Check size={15} /> You acknowledged this
-            </span>
+            <span className="flex items-center gap-1.5 text-sm font-medium text-green-700"><Check size={15} /> You acknowledged this</span>
           ) : (
             <>
               <span className="text-sm font-medium text-brand-800">Please acknowledge you&apos;ve seen this</span>
-              <button onClick={onAck} disabled={pending} className="btn-primary h-8 shrink-0 px-3 text-xs">
-                <ShieldCheck size={14} /> Acknowledge
-              </button>
+              <button onClick={onAck} disabled={pending} className="btn-primary h-8 shrink-0 px-3 text-xs"><ShieldCheck size={14} /> Acknowledge</button>
             </>
           )}
         </div>
       )}
-      {requiresAck && isSuperAdmin && (
-        <p className="mt-1 text-xs text-brand-500">{ackCount} acknowledged</p>
-      )}
+      {requiresAck && isSuperAdmin && <p className="mt-1 text-xs text-brand-500">{ackCount} acknowledged</p>}
 
       <div className="mt-3 flex items-center gap-2 border-t border-brand-50 pt-2 text-xs font-semibold text-brand-500">
         <button onClick={onLike} disabled={pending} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${liked ? 'bg-brand-700 text-white' : 'bg-brand-100'}`}>
@@ -172,9 +162,11 @@ export function PostCard({
         <button onClick={() => setShowComments((v) => !v)} className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1">
           <MessageCircle size={13} /> {comments.length > 0 ? comments.length : ''} Comment
         </button>
-        <button onClick={onShare} className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1">
-          {shared ? <Check size={13} /> : <Share2 size={13} />} {shared ? 'Shared' : 'Share'}
-        </button>
+        {canRepost && (
+          <button onClick={onRepost} disabled={pending || reposted} className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1">
+            {reposted ? <Check size={13} /> : <Repeat2 size={13} />} {reposted ? 'Reposted' : 'Repost'}
+          </button>
+        )}
       </div>
 
       {showComments && (
@@ -187,16 +179,8 @@ export function PostCard({
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onComment()}
-              placeholder="Write a comment…"
-              className="input h-9 flex-1 text-sm"
-            />
-            <button onClick={onComment} disabled={pending || !draft.trim()} className="btn-secondary h-9 w-9 shrink-0 justify-center p-0" aria-label="Send comment">
-              <Send size={15} />
-            </button>
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onComment()} placeholder="Write a comment…" className="input h-9 flex-1 text-sm" />
+            <button onClick={onComment} disabled={pending || !draft.trim()} className="btn-secondary h-9 w-9 shrink-0 justify-center p-0" aria-label="Send comment"><Send size={15} /></button>
           </div>
         </div>
       )}
