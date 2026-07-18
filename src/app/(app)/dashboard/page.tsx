@@ -128,7 +128,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
 
         {/* How last week's coverage went — one strip per store */}
         {hasCoverage && (
-          <CollapsibleSection title="Last week's coverage" storageKey="coverage" defaultOpen={false} summary="hours worked vs recommended" linkHref="/schedule?view=week" linkLabel="Schedule">
+          <CollapsibleSection title="Last week's coverage" storageKey="coverage-v2" defaultOpen summary="hours worked vs recommended" linkHref="/schedule?view=week" linkLabel="Schedule">
             <div className="card space-y-3">
               <div>
                 <p className="text-xs text-brand-500">Hours actually worked vs. recommended, per day. The number is hours worked; &ldquo;of Nh&rdquo; is what demand recommended.</p>
