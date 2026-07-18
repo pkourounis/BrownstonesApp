@@ -30,8 +30,8 @@ function Inner({ logoUrl }: { logoUrl: string | null }) {
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) { setError(error.message); return; }
+    if (error) { setError(error.message); setLoading(false); return; }
+    // Keep the spinner going — the page is navigating now.
     router.replace(next);
     router.refresh();
   }
@@ -79,8 +79,8 @@ function Inner({ logoUrl }: { logoUrl: string | null }) {
 
             {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-            <button type="submit" className="btn-primary w-full" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" size={18} /> : 'Sign in'}
+            <button type="submit" className="btn-primary w-full justify-center" disabled={loading}>
+              {loading ? (<><Loader2 className="animate-spin" size={18} /> Signing in…</>) : 'Sign in'}
             </button>
             <button type="button" onClick={sendMagicLink} className="w-full text-center text-sm font-medium text-brand-700 hover:underline" disabled={loading}>
               Email me a sign-in link instead
