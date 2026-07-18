@@ -77,6 +77,26 @@ function NavLinks({
   );
 }
 
+/** Profile photo, or an initials fallback circle. */
+function Avatar({ url, initial, size = 36 }: { url: string | null; initial: string; size?: number }) {
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt=""
+      className="shrink-0 rounded-full border border-brand-100 object-cover"
+      style={{ height: size, width: size }}
+    />
+  ) : (
+    <span
+      className="flex shrink-0 items-center justify-center rounded-full bg-brand-200 font-semibold text-brand-700"
+      style={{ height: size, width: size, fontSize: size * 0.42 }}
+    >
+      {initial}
+    </span>
+  );
+}
+
 function SignOutButton({ collapsed }: { collapsed?: boolean }) {
   return (
     <form action="/auth/signout" method="post">
@@ -154,11 +174,18 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
         <NavLinks items={items} pathname={pathname} collapsed={collapsed} />
 
         <div className="border-t border-brand-100 p-3">
-          {!collapsed && (
-            <div className="mb-1 px-3 py-1">
-              <p className="truncate text-sm font-semibold text-brand-900">{name}</p>
-              <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
-            </div>
+          {collapsed ? (
+            <Link href="/profile" aria-label="Your profile" className="mb-1 flex justify-center py-1">
+              <Avatar url={profile.avatar_url} initial={initial} size={36} />
+            </Link>
+          ) : (
+            <Link href="/profile" className="mb-1 flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-brand-100">
+              <Avatar url={profile.avatar_url} initial={initial} size={36} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-brand-900">{name}</p>
+                <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
+              </div>
+            </Link>
           )}
           <SignOutButton collapsed={collapsed} />
           <button
@@ -189,11 +216,14 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <Wordmark size="sm" />
           </Link>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="text-right leading-tight">
             <p className="text-sm font-semibold text-brand-900">{name}</p>
             <p className="text-[11px] uppercase tracking-wide text-brand-500">{roleLabel(profile.role)}</p>
           </div>
+          <Link href="/profile" aria-label="Your profile">
+            <Avatar url={profile.avatar_url} initial={initial} size={36} />
+          </Link>
           <form action="/auth/signout" method="post">
             <button
               type="submit"
