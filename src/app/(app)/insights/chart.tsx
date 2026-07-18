@@ -6,7 +6,19 @@ import { money, moneyShort } from '@/lib/format';
 export type Bar = { label: string; value: number; peak: boolean; full?: string };
 
 /** Interactive bar chart: gradient bars, value axis + gridlines, tap to read out. */
-export function BarChart({ bars, max, showEvery = 1 }: { bars: Bar[]; max: number; showEvery?: number }) {
+export function BarChart({
+  bars,
+  max,
+  showEvery = 1,
+  format = money,
+  formatAxis = moneyShort,
+}: {
+  bars: Bar[];
+  max: number;
+  showEvery?: number;
+  format?: (n: number) => string;
+  formatAxis?: (n: number) => string;
+}) {
   const [sel, setSel] = useState<number | null>(null);
   const active = sel != null ? bars[sel] : null;
   const ticks = 4;
@@ -17,7 +29,7 @@ export function BarChart({ bars, max, showEvery = 1 }: { bars: Bar[]; max: numbe
         {active ? (
           <>
             <span className="truncate text-sm font-semibold text-brand-800">{active.full ?? active.label}</span>
-            <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-brick-600">{money(active.value)}</span>
+            <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-brick-600">{format(active.value)}</span>
           </>
         ) : (
           <span className="text-xs text-brand-400">Tap a bar to see the numbers</span>
@@ -32,7 +44,7 @@ export function BarChart({ bars, max, showEvery = 1 }: { bars: Bar[]; max: numbe
               className="absolute right-0 -translate-y-1/2 text-[9px] tabular-nums text-brand-400"
               style={{ top: `${(i / ticks) * 100}%` }}
             >
-              {moneyShort((max * (ticks - i)) / ticks)}
+              {formatAxis((max * (ticks - i)) / ticks)}
             </span>
           ))}
         </div>
@@ -48,7 +60,7 @@ export function BarChart({ bars, max, showEvery = 1 }: { bars: Bar[]; max: numbe
                   type="button"
                   onClick={() => setSel(sel === i ? null : i)}
                   className="flex h-full min-w-0 flex-1 items-end justify-center focus:outline-none"
-                  aria-label={`${b.full ?? b.label}: ${money(b.value)}`}
+                  aria-label={`${b.full ?? b.label}: ${format(b.value)}`}
                 >
                   <div
                     className={`w-full max-w-[26px] rounded-t-sm bg-gradient-to-t shadow-sm transition ${

@@ -23,6 +23,8 @@ type InsightsData = {
   daypart: { breakfast: number; lunch: number };
   leaderboard: { id: string; net: number }[];
   top_sellers: { name: string; units: number; net: number }[];
+  labor: { cost: number; hours: number; pct: number; splh: number };
+  labor_daily: { date: string; cost: number; hours: number }[];
   forecast: { id: string; proj: number; days: { dow: number; net: number }[] }[];
 };
 
@@ -64,6 +66,9 @@ const RANGE_LABEL: Record<string, string> = {
   month: 'this month',
   year: 'last 12 months',
 };
+
+const pct1 = (n: number) => `${n.toFixed(1)}%`;
+const pct0 = (n: number) => `${Math.round(n)}%`;
 
 /** Placeholder shown while the (streamed) data sections load. */
 function InsightsSkeleton() {
@@ -189,6 +194,31 @@ async function InsightsContent({
   const topSellers = (d?.top_sellers ?? []).map((t) => ({ name: t.name, units: Number(t.units), net: Number(t.net) }));
   const topMax = Math.max(1, ...topSellers.map((t) => t.net));
 
+  // Labor (from Toast punch records).
+  const labor = {
+    cost: Number(d?.labor?.cost ?? 0),
+    hours: Number(d?.labor?.hours ?? 0),
+    pct: Number(d?.labor?.pct ?? 0),
+    splh: Number(d?.labor?.splh ?? 0),
+  };
+  const hasLabor = labor.hours > 0;
+  const netByDate = new Map((d?.daily ?? []).map((x) => [x.date, Number(x.net)]));
+  const laborTrendRows = (d?.labor_daily ?? [])
+    .map((x) => {
+      const dayNet = netByDate.get(x.date) ?? 0;
+      return { date: x.date, pct: dayNet > 0 ? (Number(x.cost) / dayNet) * 100 : 0 };
+    })
+    .filter((r) => r.pct > 0);
+  const laborTrendMax = Math.max(1, ...laborTrendRows.map((r) => r.pct));
+  const laborPeak = laborTrendRows.reduce((a, r) => (r.pct > a.pct ? r : a), { date: '', pct: 0 });
+  const laborBars: Bar[] = laborTrendRows.map((r) => ({
+    label: `${Number(r.date.slice(8, 10))}`,
+    full: shiftDay(r.date + 'T12:00:00'),
+    value: r.pct,
+    peak: r.date === laborPeak.date,
+  }));
+  const showLaborTrend = (range === 'week' || range === 'month') && laborBars.length > 1;
+
   const forecast = d?.forecast ?? [];
   const projTotal = forecast.reduce((s, f) => s + Number(f.proj), 0);
 
@@ -197,6 +227,12 @@ async function InsightsContent({
   if (peakDow.dow >= 0 && peakDow.net > 0) actions.push(`${DAY_NAMES[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
   if (peakHour.hour >= 0) actions.push(`Demand peaks at ${hourLabel(peakHour.hour)} — schedule your highest-rated team then.`);
   if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
+  if (hasLabor)
+    actions.push(
+      labor.pct <= 30
+        ? `Labor is a healthy ${labor.pct}% of sales (${money2(labor.splh)}/labor hr).`
+        : `Labor is ${labor.pct}% of sales — above the 30% target; tighten scheduling on slower days.`
+    );
   if (topSellers.length) actions.push(`${topSellers[0].name} is your top seller (${money(topSellers[0].net)}) — never 86 it.`);
   if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
 
@@ -218,13 +254,54 @@ async function InsightsContent({
           <div className="grid grid-cols-2 gap-3">
             <Kpi label="Avg check" value={money2(avgCheck)} sub={`${checks.toLocaleString()} checks`} />
             <Kpi label="Projected next week" value={money(projTotal)} sub="forecast" />
-            <Kpi label="Labor %" value="—" sub="connect schedule + pay" dim />
-            <Kpi label="Sales / labor hr" value="—" sub="connect schedule" dim />
+            <Kpi
+              label="Labor %"
+              value={hasLabor ? `${labor.pct}%` : '—'}
+              sub={hasLabor ? `${money(labor.cost)} labor cost` : 'syncing punches…'}
+              dim={!hasLabor}
+            />
+            <Kpi
+              label="Sales / labor hr"
+              value={hasLabor ? money2(labor.splh) : '—'}
+              sub={hasLabor ? `${labor.hours.toLocaleString()} hrs worked` : 'syncing punches…'}
+              dim={!hasLabor}
+            />
           </div>
 
           {trendBars.length > 0 && (
             <Section title="Sales trend" meta={trendMeta}>
               <BarChart bars={trendBars} max={trendMax} showEvery={trendEvery} />
+            </Section>
+          )}
+
+          {hasLabor && (
+            <Section title="Labor" meta={RANGE_LABEL[range]}>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className={`text-2xl font-bold tabular-nums ${labor.pct <= 30 ? 'text-brand-900' : 'text-brick-600'}`}>{labor.pct}%</p>
+                  <p className="mt-0.5 text-xs text-brand-500">of sales</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums text-brand-900">{money2(labor.splh)}</p>
+                  <p className="mt-0.5 text-xs text-brand-500">per labor hr</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tabular-nums text-brand-900">{labor.hours.toLocaleString()}</p>
+                  <p className="mt-0.5 text-xs text-brand-500">hours</p>
+                </div>
+              </div>
+              <p className="mt-3 border-t border-brand-100 pt-3 text-xs text-brand-500">
+                {money(labor.cost)} labor cost · target under 30% ·{' '}
+                <span className={labor.pct <= 30 ? 'font-semibold text-green-700' : 'font-semibold text-brick-600'}>
+                  {labor.pct <= 30 ? 'on target' : 'running high'}
+                </span>
+              </p>
+              {showLaborTrend && (
+                <div className="mt-4">
+                  <p className="mb-1 text-xs text-brand-400">Labor % by day</p>
+                  <BarChart bars={laborBars} max={laborTrendMax} showEvery={range === 'month' ? 5 : 1} format={pct1} formatAxis={pct0} />
+                </div>
+              )}
             </Section>
           )}
 
