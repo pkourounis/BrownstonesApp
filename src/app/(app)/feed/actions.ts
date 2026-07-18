@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, requireRole, canManage } from '@/lib/auth';
+import { sendPush } from '@/lib/push';
 import { revalidatePath } from 'next/cache';
 
 const CATEGORIES = ['post', 'announcement', 'product', 'seasonal', 'menu'] as const;
@@ -53,6 +54,20 @@ export async function createPost(input: {
     const rows = input.attachments.map((a) => ({ post_id: post.id, url: a.url, mime: a.mime }));
     await supabase.from('post_attachments').insert(rows);
   }
+
+  // Push posts that require acknowledgment to their audience.
+  if (input.requires_ack) {
+    let aud = supabase.from('profiles').select('id').neq('employment_status', 'inactive').neq('id', profile.id);
+    if (input.location_id) aud = aud.eq('primary_location_id', input.location_id);
+    const { data: people } = await aud;
+    await sendPush((people ?? []).map((p) => p.id), {
+      title: 'Please acknowledge',
+      body: input.title.trim() || body.slice(0, 117),
+      url: '/feed',
+      tag: `post-${post.id}`,
+    });
+  }
+
   revalidatePath('/feed');
   return { ok: true };
 }

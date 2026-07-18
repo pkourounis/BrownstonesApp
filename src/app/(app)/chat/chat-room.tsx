@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Send, ArrowLeft, Users, Hash } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { notifyMessage } from './actions';
 
 type Msg = { id: string; author_id: string | null; body: string; created_at: string };
 type People = Record<string, { name: string; avatar: string | null }>;
@@ -62,6 +63,7 @@ export function ChatRoom({
     setInput('');
     const { error } = await supabase.from('chat_messages').insert({ channel_id: channelId, author_id: myId, body: text });
     if (error) setInput(text); // restore on failure
+    else notifyMessage(channelId, text).catch(() => {}); // fan out push (best-effort)
     setSending(false);
   };
 

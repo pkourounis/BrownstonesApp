@@ -4,6 +4,7 @@ import type { Availability } from '@/lib/database.types';
 import { ProfileForm } from './profile-form';
 import { AvailabilityEditor } from './availability-editor';
 import { PasswordChange } from './password-form';
+import { PushToggle } from '@/components/push-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export default async function ProfilePage() {
     <div className="space-y-5">
       <h1 className="font-display text-2xl font-bold text-brand-900">Your profile</h1>
       <ProfileForm profile={profile} primaryLocation={primaryLocation} />
+      <PushToggle />
       <AvailabilityEditor profileId={profile.id} initial={(availability ?? []) as Availability[]} />
       <PasswordChange />
     </div>

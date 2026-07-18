@@ -311,6 +311,16 @@ export type Notification = {
   created_at: string;
 }
 
+export type PushSubscription = {
+  id: string;
+  profile_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+}
+
 /** Hourly sales from Toast (per location per hour). */
 export type PosSales = {
   id: string;
@@ -591,6 +601,7 @@ export type Database = {
       resource_signoffs: Table<ResourceSignoff>;
       resource_attachments: Table<ResourceAttachment>;
       notifications: Table<Notification>;
+      push_subscriptions: Table<PushSubscription>;
     };
     Views: {
       location_hour_demand: { Row: LocationHourDemand; Relationships: [] };
