@@ -20,11 +20,23 @@ type Store = {
 const fmtTime = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : '';
 
-const DEPT: Record<string, { label: string; cls: string }> = {
-  foh: { label: 'FOH', cls: 'bg-gold-100 text-brand-700' },
-  boh: { label: 'BOH', cls: 'bg-brand-100 text-brand-700' },
-  management: { label: 'MGR', cls: 'bg-brick-500/15 text-brick-600' },
+const DEPT: Record<string, { label: string; cls: string; rank: number }> = {
+  management: { label: 'MGR', cls: 'bg-brick-500/15 text-brick-600', rank: 0 },
+  foh: { label: 'FOH', cls: 'bg-blue-100 text-blue-700', rank: 1 },
+  boh: { label: 'BOH', cls: 'bg-amber-100 text-amber-700', rank: 2 },
 };
+
+/** Managers first, then alphabetical by role, then name. */
+function sortCrew(a: OnPerson, b: OnPerson) {
+  const ar = a.dept ? DEPT[a.dept]?.rank ?? 3 : 3;
+  const br = b.dept ? DEPT[b.dept]?.rank ?? 3 : 3;
+  const aMgr = ar === 0 ? 0 : 1;
+  const bMgr = br === 0 ? 0 : 1;
+  if (aMgr !== bMgr) return aMgr - bMgr; // managers always on top
+  const rc = (a.role ?? '').localeCompare(b.role ?? '');
+  if (rc !== 0) return rc; // then alphabetical by role
+  return a.name.localeCompare(b.name);
+}
 
 export function StoreBoard({ stores }: { stores: Store[] }) {
   const [open, setOpen] = useState<string | null>(null);
@@ -63,7 +75,7 @@ export function StoreBoard({ stores }: { stores: Store[] }) {
 
             {isOpen && st.on.length > 0 && (
               <ul className="border-t border-brand-100 bg-brand-50 px-4 py-2">
-                {st.on.map((p, i) => {
+                {[...st.on].sort(sortCrew).map((p, i) => {
                   const d = p.dept ? DEPT[p.dept] : null;
                   return (
                     <li key={i} className="flex items-center gap-2 py-1 text-sm">
