@@ -177,12 +177,21 @@ function QuickAction({ href, icon, label, badge }: { href: string; icon: React.R
 async function EmployeeHome({ profileId }: { profileId: string }) {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
-  const [{ data: myShifts }, { data: avail }] = await Promise.all([
+  const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', profileId);
+  const myEmpIds = (myEmps ?? []).map((e) => e.id);
+  const [{ data: myShifts }, { data: avail }, { data: mtgData }] = await Promise.all([
     supabase.from('shifts').select('*').eq('employee_id', profileId).gte('ends_at', nowIso).order('starts_at').limit(3),
     supabase.from('availability').select('*').eq('profile_id', profileId),
+    myEmpIds.length
+      ? supabase.from('meetings').select('id, type, scheduled_at, location').in('employee_id', myEmpIds).eq('status', 'scheduled').order('scheduled_at').limit(3)
+      : Promise.resolve({ data: [] }),
   ]);
   const shifts = (myShifts as Shift[]) ?? [];
   const availability = (avail as Availability[]) ?? [];
+  const meetings = (mtgData as { id: string; type: string; scheduled_at: string | null; location: string | null }[]) ?? [];
+  const MTG_LABEL: Record<string, string> = { review: 'Employee review', disciplinary: 'Disciplinary meeting', training: 'Training', discussion: 'Discussion', other: 'Meeting' };
+  const mtgWhen = (iso: string | null) =>
+    iso ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : 'Time TBD';
   const availStatus = availability.length
     ? availability.some((a) => a.status === 'pending')
       ? { text: 'Pending approval', cls: 'bg-amber-100 text-amber-700' }
@@ -223,6 +232,26 @@ async function EmployeeHome({ profileId }: { profileId: string }) {
           <div className="card text-center text-sm text-brand-500">No upcoming shifts scheduled yet.</div>
         )}
       </section>
+
+      {/* Upcoming meetings */}
+      {meetings.length > 0 && (
+        <section>
+          <h2 className="mb-2 font-semibold text-brand-900">Upcoming meetings</h2>
+          <ul className="space-y-2">
+            {meetings.map((m) => (
+              <li key={m.id} className="card flex items-center gap-3 py-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+                  <CalendarDays size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-brand-900">{MTG_LABEL[m.type] ?? 'Meeting'}</p>
+                  <p className="text-xs text-brand-500">{mtgWhen(m.scheduled_at)}{m.location ? ` · ${m.location}` : ''}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Live feed */}
       <FeedPreview />

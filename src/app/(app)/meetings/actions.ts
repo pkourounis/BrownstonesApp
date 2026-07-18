@@ -6,6 +6,14 @@ import { notify } from '@/lib/notify';
 import { revalidatePath } from 'next/cache';
 import type { MeetingType } from '@/lib/database.types';
 
+const TYPE_LABEL: Record<MeetingType, string> = {
+  review: 'Employee review',
+  disciplinary: 'Disciplinary meeting',
+  training: 'Training',
+  discussion: 'Discussion',
+  other: 'Meeting',
+};
+
 /** Combine an ET wall date + time into a UTC ISO timestamp (DST-safe). */
 function etWallToUtc(dateStr: string, time: string): string | null {
   if (!dateStr) return null;
@@ -36,21 +44,31 @@ export async function requestMeeting(input: {
   if (!input.date) return { ok: false, error: 'Pick a date.' };
   const type = (TYPES as string[]).includes(input.type) ? (input.type as MeetingType) : 'review';
 
+  const scheduled_at = etWallToUtc(input.date, input.time);
   const { error } = await supabase.from('meetings').insert({
     employee_id: input.employee_id,
     requested_by: me.id,
     type,
-    scheduled_at: etWallToUtc(input.date, input.time),
+    scheduled_at,
     location: input.location.trim() || null,
     description: input.description.trim() || null,
     status: 'scheduled',
   });
   if (error) return { ok: false, error: error.message };
 
-  // Notify the employee if they have an app account.
+  // Notify the employee (in-app + push) if they have an app account.
   const { data: emp } = await supabase.from('employees').select('profile_id').eq('id', input.employee_id).maybeSingle();
   if (emp?.profile_id) {
-    await notify([emp.profile_id], { type: 'general', title: 'Meeting scheduled', body: 'A meeting has been scheduled with you — check with your manager.', link: '/dashboard', push: false });
+    const when = scheduled_at
+      ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(scheduled_at))
+      : 'a time TBD';
+    const where = input.location.trim() ? ` at ${input.location.trim()}` : '';
+    await notify([emp.profile_id], {
+      type: 'general',
+      title: `${TYPE_LABEL[type]} scheduled`,
+      body: `${when}${where}`,
+      link: '/dashboard',
+    });
   }
   revalidatePath('/meetings');
   return { ok: true };
