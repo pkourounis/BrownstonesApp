@@ -1,5 +1,5 @@
 import { requireProfile } from '@/lib/auth';
-import { AppHeader } from '@/components/app-header';
+import { AppShell } from '@/components/app-shell';
 
 export default async function AppLayout({
   children,
@@ -8,10 +8,5 @@ export default async function AppLayout({
 }) {
   const profile = await requireProfile();
 
-  return (
-    <div className="min-h-screen">
-      <AppHeader profile={profile} />
-      <main className="mx-auto max-w-2xl px-4 pb-10 pt-4">{children}</main>
-    </div>
-  );
+  return <AppShell profile={profile}>{children}</AppShell>;
 }
