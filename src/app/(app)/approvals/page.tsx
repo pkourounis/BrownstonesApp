@@ -1,7 +1,9 @@
 import { CalendarOff, CalendarClock, Repeat2, Inbox } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
+import type { Location } from '@/lib/database.types';
 import { Decide } from './decide';
+import { BlackoutManager, type Blackout } from './blackout-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,10 +19,11 @@ const hhmm = (t: string) => {
 const who = (p: { display_name: string | null; full_name: string | null } | null) => p?.display_name || p?.full_name || 'Someone';
 
 export default async function ApprovalsPage() {
-  await requireRole('super_admin', 'manager');
+  const me = await requireRole('super_admin', 'manager');
   const supabase = await createClient();
+  const isSuper = me.role === 'super_admin';
 
-  const [{ data: timeOff }, { data: avail }, { data: swaps }] = await Promise.all([
+  const [{ data: timeOff }, { data: avail }, { data: swaps }, { data: blackoutData }, { data: locData }] = await Promise.all([
     supabase
       .from('time_off_requests')
       .select('id, start_date, end_date, reason, created_at, profile:profiles!time_off_requests_profile_id_fkey(display_name, full_name)')
@@ -39,7 +42,14 @@ export default async function ApprovalsPage() {
         shift:shifts(starts_at, ends_at)`)
       .eq('status', 'pending')
       .order('created_at', { ascending: true }),
+    supabase.from('time_off_blackouts').select('id, location_id, start_date, end_date, reason').gte('end_date', new Date().toISOString().slice(0, 10)).order('start_date'),
+    supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
   ]);
+
+  const blackouts = (blackoutData as Blackout[]) ?? [];
+  const allLocs = (locData ?? []) as Pick<Location, 'id' | 'name'>[];
+  // Managers can only block their own store; super admins any store.
+  const manageableLocs = isSuper ? allLocs : allLocs.filter((l) => l.id === me.primary_location_id);
 
   type TO = { id: string; start_date: string; end_date: string; reason: string | null; profile: { display_name: string | null; full_name: string | null } | null };
   type AV = { id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean; profile: { display_name: string | null; full_name: string | null } | null };
@@ -120,6 +130,8 @@ export default async function ApprovalsPage() {
           </ul>
         </section>
       )}
+
+      <BlackoutManager blackouts={blackouts} locations={manageableLocs} />
     </div>
   );
 }

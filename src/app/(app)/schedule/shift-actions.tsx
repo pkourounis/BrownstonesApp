@@ -31,14 +31,14 @@ export function OfferShift({ shiftId, offerId }: { shiftId: string; offerId: str
   if (asking) {
     return (
       <div className="mt-2 w-full space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="input h-8 w-full text-xs" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason (required)" className="input h-8 w-full text-xs" required />
         <div className="flex gap-2">
           <button
             onClick={() => startTransition(async () => {
               const res = await offerShift(shiftId, note);
               if (res.ok) { setAsking(false); router.refresh(); } else setError(res.error ?? 'Failed');
             })}
-            disabled={pending}
+            disabled={pending || !note.trim()}
             className="btn-primary h-8 flex-1 justify-center text-xs"
           >
             {pending ? <Loader2 size={13} className="animate-spin" /> : <><Hand size={13} /> Put up for grabs</>}

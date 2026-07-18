@@ -50,10 +50,11 @@ export function TimeOffButton() {
               <div><label className="label">From</label><input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="input h-9 text-sm" /></div>
               <div><label className="label">To</label><input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input h-9 text-sm" /></div>
             </div>
-            <div><label className="label">Reason (optional)</label><input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Vacation, appointment…" className="input h-9 text-sm" /></div>
-            <button onClick={submit} disabled={pending || !start} className="btn-primary h-10 w-full justify-center text-sm">
+            <div><label className="label">Reason (required)</label><input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Vacation, appointment…" className="input h-9 text-sm" required /></div>
+            <button onClick={submit} disabled={pending || !start || !reason.trim()} className="btn-primary h-10 w-full justify-center text-sm">
               {pending ? <Loader2 size={16} className="animate-spin" /> : 'Submit request'}
             </button>
+            <p className="text-[11px] text-brand-400">Max 2 people off per day, per store. Blocked days can&apos;t be requested.</p>
             {error && <p className="text-xs text-brick-600">{error}</p>}
           </>
         )}

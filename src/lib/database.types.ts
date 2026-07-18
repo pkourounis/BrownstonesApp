@@ -667,6 +667,14 @@ export type Database = {
         Args: { p_other: string };
         Returns: string;
       };
+      request_time_off: {
+        Args: { p_start: string; p_end: string; p_reason: string };
+        Returns: string | null;
+      };
+      set_timeoff_status: {
+        Args: { p_id: string; p_approve: boolean };
+        Returns: string | null;
+      };
     };
     Enums: {
       app_role: AppRole;

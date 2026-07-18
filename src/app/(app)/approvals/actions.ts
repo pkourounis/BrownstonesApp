@@ -16,21 +16,22 @@ function refresh() {
 // --- Manager / super-admin decisions -----------------------------------------
 
 export async function decideTimeOff(id: string, approve: boolean): Promise<{ ok: boolean; error?: string }> {
-  const me = await requireRole('super_admin', 'manager');
+  await requireRole('super_admin', 'manager');
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('time_off_requests')
-    .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso() })
-    .eq('id', id)
-    .select('id, profile_id');
+  // Enforce the 2-per-day cap on approval (SECURITY DEFINER; returns an error string or null).
+  const { data: problem, error } = await supabase.rpc('set_timeoff_status', { p_id: id, p_approve: approve });
   if (error) return { ok: false, error: error.message };
-  if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
-  await sendPush([data[0].profile_id], {
-    title: `Time off ${approve ? 'approved' : 'declined'}`,
-    body: approve ? 'Your time-off request was approved.' : 'Your time-off request was declined — check with your manager.',
-    url: '/schedule',
-    tag: `timeoff-${id}`,
-  });
+  if (problem) return { ok: false, error: problem };
+
+  const { data: req } = await supabase.from('time_off_requests').select('profile_id').eq('id', id).single();
+  if (req) {
+    await sendPush([req.profile_id], {
+      title: `Time off ${approve ? 'approved' : 'declined'}`,
+      body: approve ? 'Your time-off request was approved.' : 'Your time-off request was declined — check with your manager.',
+      url: '/schedule',
+      tag: `timeoff-${id}`,
+    });
+  }
   refresh();
   return { ok: true };
 }
@@ -114,18 +115,19 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
 // --- Employee requests -------------------------------------------------------
 
 export async function requestTimeOff(input: { start_date: string; end_date: string; reason: string }): Promise<{ ok: boolean; error?: string }> {
-  const me = await requireProfile();
+  await requireProfile();
   const supabase = await createClient();
+  if (!input.reason.trim()) return { ok: false, error: 'Please add a reason for your time off.' };
   if (!input.start_date || !input.end_date) return { ok: false, error: 'Pick start and end dates.' };
   if (input.end_date < input.start_date) return { ok: false, error: 'End date is before the start date.' };
-  const { error } = await supabase.from('time_off_requests').insert({
-    profile_id: me.id,
-    start_date: input.start_date,
-    end_date: input.end_date,
-    reason: input.reason.trim() || null,
-    status: 'pending',
+  // Rules (reason required, blackout days, 2-per-day cap) enforced in the RPC.
+  const { data: problem, error } = await supabase.rpc('request_time_off', {
+    p_start: input.start_date,
+    p_end: input.end_date,
+    p_reason: input.reason.trim(),
   });
   if (error) return { ok: false, error: error.message };
+  if (problem) return { ok: false, error: problem };
   refresh();
   return { ok: true };
 }
@@ -139,10 +141,11 @@ export async function cancelTimeOff(id: string): Promise<{ ok: boolean; error?: 
   return { ok: true };
 }
 
-/** Put one of my shifts up for grabs (open drop). */
+/** Put one of my shifts up for grabs (open drop). A reason is required. */
 export async function offerShift(shiftId: string, note: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireProfile();
   const supabase = await createClient();
+  if (!note.trim()) return { ok: false, error: 'Please add a reason so a manager can approve it.' };
 
   // Confirm the shift is mine (assigned to my profile or my roster row).
   const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', me.id);
@@ -164,7 +167,7 @@ export async function offerShift(shiftId: string, note: string): Promise<{ ok: b
     shift_id: shiftId,
     requested_by: me.id,
     requested_to: null,
-    note: note.trim() || null,
+    note: note.trim(),
     status: 'pending',
   });
   if (error) return { ok: false, error: error.message };
@@ -195,5 +198,35 @@ export async function cancelOffer(swapId: string): Promise<{ ok: boolean; error?
   const { error } = await supabase.from('shift_swap_requests').delete().eq('id', swapId);
   if (error) return { ok: false, error: error.message };
   refresh();
+  return { ok: true };
+}
+
+// --- Blackout days (managers/super admins block dates from time off) ----------
+
+export async function addBlackout(input: { location_id: string; start_date: string; end_date: string; reason: string }): Promise<{ ok: boolean; error?: string }> {
+  const me = await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  if (!input.location_id) return { ok: false, error: 'Pick a store.' };
+  if (!input.start_date) return { ok: false, error: 'Pick a date.' };
+  const end = input.end_date || input.start_date;
+  if (end < input.start_date) return { ok: false, error: 'End date is before the start date.' };
+  const { error } = await supabase.from('time_off_blackouts').insert({
+    location_id: input.location_id,
+    start_date: input.start_date,
+    end_date: end,
+    reason: input.reason.trim() || null,
+    created_by: me.id,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/approvals');
+  return { ok: true };
+}
+
+export async function removeBlackout(id: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { error } = await supabase.from('time_off_blackouts').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/approvals');
   return { ok: true };
 }
