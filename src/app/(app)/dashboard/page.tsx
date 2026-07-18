@@ -57,17 +57,17 @@ export default async function DashboardPage() {
 
       <AckPrompt />
 
-      {manager ? <OpsHome primaryLocationId={profile.primary_location_id} /> : <EmployeeHome profileId={profile.id} />}
+      {manager ? <OpsHome isSuper={profile.role === 'super_admin'} primaryLocationId={profile.primary_location_id} /> : <EmployeeHome profileId={profile.id} />}
     </div>
   );
 }
 
-async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null }) {
+async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; primaryLocationId: string | null }) {
   const supabase = await createClient();
-  const [{ data }, pendingApprovals, lastWeekStrip] = await Promise.all([
+  const [{ data }, pendingApprovals, coverage] = await Promise.all([
     supabase.rpc('home_summary'),
     countPendingApprovals(supabase),
-    lastWeekCoverage(supabase, primaryLocationId),
+    lastWeekCoverage(supabase, isSuper, primaryLocationId),
   ]);
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
@@ -108,18 +108,23 @@ async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null
         </section>
       )}
 
-      {/* How last week's coverage went */}
-      {lastWeekStrip.days.some((d) => d.sched > 0 || d.reco > 0) && (
+      {/* How last week's coverage went — one strip per store */}
+      {coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0)) && (
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-brand-900">
-              Last week&apos;s coverage{lastWeekStrip.storeName ? ` · ${lastWeekStrip.storeName}` : ''}
-            </h2>
+            <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
             <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
               Schedule <ArrowRight size={14} />
             </Link>
           </div>
-          <WeekStrip days={lastWeekStrip.days} compact />
+          <div className="space-y-3">
+            {coverage.map((c) => (
+              <div key={c.id}>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-500">{c.name}</p>
+                <WeekStrip days={c.days} compact />
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
@@ -168,46 +173,50 @@ async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null
   );
 }
 
-async function lastWeekCoverage(supabase: Awaited<ReturnType<typeof createClient>>, locationId: string | null): Promise<{ storeName: string | null; days: StripDay[] }> {
-  // Fall back to the first active store when the user has no home store (super admins).
-  let loc = locationId ? { id: locationId, name: null as string | null } : null;
-  if (!loc) {
-    const { data } = await supabase.from('locations').select('id, name').eq('is_active', true).order('name').limit(1).maybeSingle();
-    if (data) loc = { id: data.id, name: data.name };
-  } else {
-    const { data } = await supabase.from('locations').select('name').eq('id', loc.id).maybeSingle();
-    loc.name = data?.name ?? null;
+type StoreCoverage = { id: string; name: string; days: StripDay[] };
+
+async function lastWeekCoverage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  isSuper: boolean,
+  primaryLocationId: string | null
+): Promise<StoreCoverage[]> {
+  const { data: locs } = await supabase.from('locations').select('id, name, labor_target_splh').eq('is_active', true).order('name');
+  let list = (locs ?? []) as { id: string; name: string; labor_target_splh: number }[];
+  if (!isSuper) {
+    const mine = list.filter((l) => l.id === primaryLocationId);
+    list = mine.length ? mine : list.slice(0, 1);
   }
-  if (!loc) return { storeName: null, days: [] };
-  const locId = loc.id;
+  if (!list.length) return [];
+
   const monday = startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 });
-  const [{ data: recoData }, { data: shiftData }] = await Promise.all([
-    supabase.rpc('staffing_reco', { p_location: locId, p_target: 130 }),
-    supabase
-      .from('shifts')
-      .select('starts_at, ends_at, break_minutes')
-      .eq('location_id', locId)
-      .gte('starts_at', monday.toISOString())
-      .lt('starts_at', addDays(monday, 7).toISOString()),
+  const ids = list.map((l) => l.id);
+  const [{ data: shiftData }, recos] = await Promise.all([
+    supabase.from('shifts').select('location_id, starts_at, ends_at, break_minutes').in('location_id', ids).gte('starts_at', monday.toISOString()).lt('starts_at', addDays(monday, 7).toISOString()),
+    Promise.all(list.map((l) => supabase.rpc('staffing_reco', { p_location: l.id, p_target: Number(l.labor_target_splh) || 130 }))),
   ]);
-  const grid = ((recoData as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
-  const recoByDow = new Map<number, number>();
-  for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
-  const byDay = new Map<string, { sched: number; count: number }>();
-  for (const s of (shiftData as { starts_at: string; ends_at: string; break_minutes: number }[]) ?? []) {
-    const key = format(new Date(s.starts_at), 'yyyy-MM-dd');
-    const cur = byDay.get(key) ?? { sched: 0, count: 0 };
-    cur.sched += shiftHours(s.starts_at, s.ends_at, s.break_minutes);
-    cur.count += 1;
-    byDay.set(key, cur);
-  }
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(monday, i);
-    const key = format(d, 'yyyy-MM-dd');
-    const cur = byDay.get(key) ?? { sched: 0, count: 0 };
-    return { key, abbr: format(d, 'EEE'), sched: cur.sched, reco: recoByDow.get(d.getDay()) ?? 0, count: cur.count };
+  const shifts = (shiftData as { location_id: string; starts_at: string; ends_at: string; break_minutes: number }[]) ?? [];
+
+  return list.map((l, idx) => {
+    const grid = ((recos[idx].data as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
+    const recoByDow = new Map<number, number>();
+    for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
+    const byDay = new Map<string, { sched: number; count: number }>();
+    for (const s of shifts) {
+      if (s.location_id !== l.id) continue;
+      const key = format(new Date(s.starts_at), 'yyyy-MM-dd');
+      const cur = byDay.get(key) ?? { sched: 0, count: 0 };
+      cur.sched += shiftHours(s.starts_at, s.ends_at, s.break_minutes);
+      cur.count += 1;
+      byDay.set(key, cur);
+    }
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(monday, i);
+      const key = format(d, 'yyyy-MM-dd');
+      const cur = byDay.get(key) ?? { sched: 0, count: 0 };
+      return { key, abbr: format(d, 'EEE'), sched: cur.sched, reco: recoByDow.get(d.getDay()) ?? 0, count: cur.count };
+    });
+    return { id: l.id, name: l.name, days };
   });
-  return { storeName: loc.name, days };
 }
 
 async function countPendingApprovals(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
