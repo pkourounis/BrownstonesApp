@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThumbsUp, Trash2, MessageCircle, Share2, Send, Check } from 'lucide-react';
+import { ThumbsUp, Trash2, MessageCircle, Share2, Send, Check, ShieldCheck } from 'lucide-react';
 import type { PostCategory } from '@/lib/database.types';
-import { toggleReaction, deletePost, addComment } from './actions';
+import { toggleReaction, deletePost, addComment, acknowledgePost } from './actions';
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
@@ -24,24 +24,36 @@ export function PostCard({
   avatar,
   scope,
   category,
+  title,
   body,
+  photos,
   createdAt,
   likeCount,
   likedByMe,
   canDelete,
   comments,
+  requiresAck,
+  ackedByMe,
+  ackCount,
+  isSuperAdmin,
 }: {
   id: string;
   author: string;
   avatar: string | null;
   scope: string;
   category: PostCategory;
+  title: string | null;
   body: string;
+  photos: string[];
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
   canDelete: boolean;
   comments: Comment[];
+  requiresAck: boolean;
+  ackedByMe: boolean;
+  ackCount: number;
+  isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -50,8 +62,17 @@ export function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState('');
   const [shared, setShared] = useState(false);
+  const [acked, setAcked] = useState(ackedByMe);
 
   const cat = CATEGORY[category] ?? CATEGORY.announcement;
+
+  const onAck = () => {
+    setAcked(true);
+    startTransition(async () => {
+      await acknowledgePost(id);
+      router.refresh();
+    });
+  };
 
   const onLike = () => {
     setLiked((v) => !v);
@@ -112,7 +133,37 @@ export function PostCard({
         )}
       </div>
 
-      <p className="whitespace-pre-wrap text-sm text-brand-800">{body}</p>
+      {title && <p className="mb-1 text-base font-bold text-brand-900">{title}</p>}
+      {body && <p className="whitespace-pre-wrap text-sm text-brand-800">{body}</p>}
+
+      {photos.length > 0 && (
+        <div className={`mt-3 grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          {photos.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={url} alt="" className="max-h-72 w-full rounded-lg object-cover" />
+          ))}
+        </div>
+      )}
+
+      {requiresAck && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-gold-100 px-3 py-2">
+          {acked ? (
+            <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+              <Check size={15} /> You acknowledged this
+            </span>
+          ) : (
+            <>
+              <span className="text-sm font-medium text-brand-800">Please acknowledge you&apos;ve seen this</span>
+              <button onClick={onAck} disabled={pending} className="btn-primary h-8 shrink-0 px-3 text-xs">
+                <ShieldCheck size={14} /> Acknowledge
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {requiresAck && isSuperAdmin && (
+        <p className="mt-1 text-xs text-brand-500">{ackCount} acknowledged</p>
+      )}
 
       <div className="mt-3 flex items-center gap-2 border-t border-brand-50 pt-2 text-xs font-semibold text-brand-500">
         <button onClick={onLike} disabled={pending} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${liked ? 'bg-brand-700 text-white' : 'bg-brand-100'}`}>

@@ -1,26 +1,66 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send } from 'lucide-react';
+import { Send, ImagePlus, X, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import type { Location } from '@/lib/database.types';
 import { createPost } from './actions';
 
-export function Composer({ locations, canPostAll }: { locations: Pick<Location, 'id' | 'name'>[]; canPostAll: boolean }) {
+type Attachment = { url: string; mime: string };
+
+export function Composer({ locations }: { locations: Pick<Location, 'id' | 'name'>[] }) {
   const router = useRouter();
+  const supabase = createClient();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
+
+  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [category, setCategory] = useState('announcement');
+  const [audience, setAudience] = useState('all');
+  const [requireAck, setRequireAck] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploading(true);
     setError(null);
-    if (!body.trim()) return;
-    const fd = new FormData(e.currentTarget);
+    for (const file of files) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `posts/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('feed').upload(path, file);
+      if (upErr) {
+        setError(upErr.message);
+        continue;
+      }
+      const { data } = supabase.storage.from('feed').getPublicUrl(path);
+      setAttachments((prev) => [...prev, { url: data.publicUrl, mime: file.type }]);
+    }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  const submit = () => {
+    setError(null);
+    if (!title.trim() && !body.trim()) return setError('Add a title or description.');
     startTransition(async () => {
-      const res = await createPost(fd);
+      const res = await createPost({
+        title,
+        body,
+        category,
+        location_id: audience === 'all' ? null : audience,
+        requires_ack: requireAck,
+        attachments,
+      });
       if (res.ok) {
+        setTitle('');
         setBody('');
+        setAttachments([]);
+        setRequireAck(false);
         router.refresh();
       } else {
         setError(res.error ?? 'Could not post.');
@@ -29,32 +69,58 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
   };
 
   return (
-    <form onSubmit={onSubmit} className="card space-y-3">
-      <textarea
-        name="body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Share an announcement with the team…"
-        className="input min-h-[70px] text-sm"
-      />
+    <div className="card space-y-3">
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="input font-semibold" />
+      <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write an announcement, new product, menu change…" className="input min-h-[80px] text-sm" />
+
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((a, i) => (
+            <div key={i} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={a.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              <button
+                onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 text-white"
+                aria-label="Remove"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
-        <select name="category" defaultValue="announcement" className="input h-9 text-sm">
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="input h-9 text-sm">
           <option value="announcement">Announcement</option>
           <option value="product">New product</option>
           <option value="seasonal">Seasonal</option>
           <option value="menu">Menu change</option>
         </select>
-        <select name="location_id" defaultValue={canPostAll ? 'all' : locations[0]?.id ?? ''} className="input h-9 text-sm">
-          {canPostAll && <option value="all">All locations</option>}
+        <select value={audience} onChange={(e) => setAudience(e.target.value)} className="input h-9 text-sm">
+          <option value="all">All stores &amp; employees</option>
           {locations.map((l) => (
             <option key={l.id} value={l.id}>{l.name}</option>
           ))}
         </select>
       </div>
-      <button type="submit" disabled={pending || !body.trim()} className="btn-primary h-9 w-full text-sm">
-        <Send size={15} /> Post to feed
-      </button>
+
+      <label className="flex items-center gap-2 text-sm text-brand-700">
+        <input type="checkbox" checked={requireAck} onChange={(e) => setRequireAck(e.target.checked)} className="h-4 w-4 accent-brand-700" />
+        Require acknowledgment from everyone it&apos;s sent to
+      </label>
+
+      <div className="flex items-center gap-2">
+        <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary h-9 px-3 text-sm">
+          {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />} Photo
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={onFiles} />
+        <button onClick={submit} disabled={pending || uploading} className="btn-primary h-9 flex-1 justify-center text-sm">
+          <Send size={15} /> Publish
+        </button>
+      </div>
       {error && <p className="text-xs text-brick-600">{error}</p>}
-    </form>
+    </div>
   );
 }

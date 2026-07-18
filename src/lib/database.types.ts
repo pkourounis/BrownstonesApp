@@ -324,8 +324,10 @@ export type Post = {
   id: string;
   author_id: string | null;
   location_id: string | null;
+  title: string | null;
   body: string;
   category: PostCategory;
+  requires_ack: boolean;
   pinned: boolean;
   created_at: string;
 }
@@ -336,6 +338,20 @@ export type PostComment = {
   author_id: string | null;
   body: string;
   created_at: string;
+}
+
+export type PostAttachment = {
+  id: string;
+  post_id: string;
+  url: string;
+  mime: string | null;
+  created_at: string;
+}
+
+export type PostAck = {
+  post_id: string;
+  profile_id: string;
+  acknowledged_at: string;
 }
 
 export type PostReaction = {
@@ -552,6 +568,8 @@ export type Database = {
       posts: Table<Post>;
       post_reactions: Table<PostReaction>;
       post_comments: Table<PostComment>;
+      post_attachments: Table<PostAttachment>;
+      post_acks: Table<PostAck>;
       chat_channels: Table<ChatChannel>;
       chat_messages: Table<ChatMessage>;
       chat_channel_members: Table<ChatChannelMember>;
