@@ -10,6 +10,7 @@ import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
 import { StoreSelect } from './store-select';
+import { PrintScheduleGrid, type PrintRow } from './print-schedule';
 import type { Location } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -151,6 +152,35 @@ export default async function SchedulePage({
     : [];
   const exportTitle = weekMode ? weekLabel : 'next 2 weeks';
 
+  // Print layout: a landscape employees × days grid for one week.
+  const printMonday = weekMode ? parseISO(weekMonday) : startOfWeek(new Date(), { weekStartsOn: 1 });
+  const printDays = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(printMonday, i);
+    return { key: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE M/d') };
+  });
+  const printLabel = `${format(printMonday, 'MMM d')} – ${format(addDays(printMonday, 6), 'MMM d')}`;
+  let printRows: PrintRow[] = [];
+  if (manager) {
+    let pq = supabase
+      .from('shifts')
+      .select('id, starts_at, ends_at, employee_id, roster_employee_id, employee:profiles!shifts_employee_id_fkey(full_name, display_name), roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title)')
+      .gte('starts_at', printMonday.toISOString())
+      .lt('starts_at', addDays(printMonday, 7).toISOString())
+      .order('starts_at', { ascending: true });
+    if (selectedStore) pq = pq.eq('location_id', selectedStore);
+    const { data: pShifts } = await pq;
+    type PS = { id: string; starts_at: string; ends_at: string; employee_id: string | null; roster_employee_id: string | null; employee: { full_name: string; display_name: string | null } | null; roster: { first_name: string; last_name: string | null; role_title: string | null } | null };
+    const map = new Map<string, PrintRow>();
+    for (const s of (pShifts as unknown as PS[]) ?? []) {
+      const nm = s.employee ? s.employee.display_name || s.employee.full_name : s.roster ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim() : 'Open shift';
+      const key = s.roster_employee_id ?? s.employee_id ?? nm;
+      if (!map.has(key)) map.set(key, { name: nm, role: s.roster?.role_title ?? null, cells: {} });
+      const dayKey = format(parseISO(s.starts_at), 'yyyy-MM-dd');
+      (map.get(key)!.cells[dayKey] ??= []).push(shiftTimeRange(s.starts_at, s.ends_at));
+    }
+    printRows = [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   const shiftCard = (s: ShiftRow) => {
     const mine = mineShift(s);
     const future = new Date(s.starts_at).getTime() > Date.now();
@@ -186,7 +216,9 @@ export default async function SchedulePage({
   };
 
   return (
-    <div className="space-y-5">
+    <>
+      {manager && <PrintScheduleGrid storeName={storeName} weekLabel={printLabel} days={printDays} rows={printRows} />}
+      <div className="space-y-5 print:hidden">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-900">Schedule</h1>
@@ -316,6 +348,7 @@ export default async function SchedulePage({
           })}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
