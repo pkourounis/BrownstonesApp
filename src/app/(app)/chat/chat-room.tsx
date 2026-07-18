@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import Link from 'next/link';
+import { Send, ArrowLeft, Users, Hash } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type Msg = { id: string; author_id: string | null; body: string; created_at: string };
@@ -15,11 +16,17 @@ export function ChatRoom({
   initial,
   people,
   myId,
+  title,
+  kind,
+  avatar,
 }: {
   channelId: string;
   initial: Msg[];
   people: People;
   myId: string;
+  title: string;
+  kind: 'store' | 'managers' | 'dm';
+  avatar: string | null;
 }) {
   const [supabase] = useState(() => createClient());
   const [messages, setMessages] = useState<Msg[]>(initial);
@@ -59,8 +66,29 @@ export function ChatRoom({
   };
 
   return (
-    <div className="flex h-[calc(100vh-13rem)] flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto py-2">
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b border-brand-100 px-3 py-2.5">
+        <Link href="/chat" className="text-brand-500 hover:text-brand-800 md:hidden" aria-label="Back">
+          <ArrowLeft size={20} />
+        </Link>
+        {kind === 'dm' ? (
+          avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-200 text-sm font-semibold text-brand-700">
+              {title.slice(0, 1).toUpperCase()}
+            </span>
+          )
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-white">
+            {kind === 'managers' ? <Users size={16} /> : <Hash size={16} />}
+          </span>
+        )}
+        <p className="truncate font-semibold text-brand-900">{title}</p>
+      </div>
+
+      <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3">
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-brand-400">No messages yet. Say hello 👋</p>
         ) : (
@@ -92,7 +120,7 @@ export function ChatRoom({
         <div ref={endRef} />
       </div>
 
-      <div className="flex items-center gap-2 border-t border-brand-100 pt-2">
+      <div className="flex items-center gap-2 border-t border-brand-100 px-3 py-2.5">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

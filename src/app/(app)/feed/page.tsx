@@ -128,7 +128,6 @@ export default async function FeedPage() {
               likeCount={likeCount.get(p.id) ?? 0}
               likedByMe={likedByMe.has(p.id)}
               canDelete={isSuper || p.author_id === profile.id}
-              canRepost={poster}
               pinned={!!p.pinned_until && new Date(p.pinned_until).getTime() > now}
               comments={commentsByPost.get(p.id) ?? []}
               requiresAck={p.requires_ack}

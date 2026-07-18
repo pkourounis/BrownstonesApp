@@ -16,6 +16,7 @@ import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
 import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
+import { FeedPreview } from './feed-preview';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,6 +133,9 @@ async function OpsHome() {
           <QuickAction href="/roster" icon={<UsersRound size={20} />} label="Roster" />
         </div>
       </section>
+
+      {/* Live feed */}
+      <FeedPreview />
     </>
   );
 }
@@ -194,6 +198,9 @@ async function EmployeeHome({ profileId }: { profileId: string }) {
           <div className="card text-center text-sm text-brand-500">No upcoming shifts scheduled yet.</div>
         )}
       </section>
+
+      {/* Live feed */}
+      <FeedPreview />
 
       <Link href="/profile" className="card flex items-center justify-between">
         <div>

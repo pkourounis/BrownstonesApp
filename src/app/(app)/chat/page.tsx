@@ -1,10 +1,8 @@
-import Link from 'next/link';
-import { Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile } from '@/lib/auth';
 import type { ChatChannel, ChatMessage } from '@/lib/database.types';
 import { ChatRoom } from './chat-room';
-import { NewDm } from './new-dm';
+import { ConversationList, type Convo } from './conversation-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,14 +17,18 @@ export default async function ChatPage({
 
   const { data: chans } = await supabase.from('chat_channels').select('*');
   const channels = (chans ?? []) as ChatChannel[];
+  const channelIds = channels.map((c) => c.id);
 
-  // Resolve display names for DM channels (the other member) + teammates for the picker.
+  // Resolve DM other-members, everyone's display info, and last message per channel.
   const dmIds = channels.filter((c) => c.kind === 'dm').map((c) => c.id);
-  const [{ data: members }, { data: profs }] = await Promise.all([
+  const [{ data: members }, { data: profs }, { data: recent }] = await Promise.all([
     dmIds.length
       ? supabase.from('chat_channel_members').select('channel_id, profile_id').in('channel_id', dmIds)
       : Promise.resolve({ data: [] as { channel_id: string; profile_id: string }[] }),
     supabase.from('profiles').select('id, display_name, full_name, avatar_url, primary_location_id, employment_status'),
+    channelIds.length
+      ? supabase.from('chat_messages').select('channel_id, body, created_at').in('channel_id', channelIds).order('created_at', { ascending: false }).limit(300)
+      : Promise.resolve({ data: [] as { channel_id: string; body: string; created_at: string }[] }),
   ]);
 
   const people: Record<string, { name: string; avatar: string | null }> = {};
@@ -35,14 +37,34 @@ export default async function ChatPage({
   const dmOther = new Map<string, string>();
   for (const m of members ?? []) if (m.profile_id !== profile.id) dmOther.set(m.channel_id, m.profile_id);
 
-  // Order: store channel(s), Managers, then DMs.
-  const order = (c: ChatChannel) => (c.kind === 'store' ? 0 : c.kind === 'managers' ? 1 : 2);
-  channels.sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
+  // Latest message per channel (recent is sorted newest-first, so first seen wins).
+  const last = new Map<string, { body: string; created_at: string }>();
+  for (const m of recent ?? []) if (!last.has(m.channel_id)) last.set(m.channel_id, { body: m.body, created_at: m.created_at });
 
-  const label = (c: ChatChannel) =>
-    c.kind === 'dm' ? people[dmOther.get(c.id) ?? '']?.name ?? 'Direct message' : c.kind === 'managers' ? 'Managers' : c.name;
+  const meta = (c: ChatChannel): { label: string; avatar: string | null } => {
+    if (c.kind === 'dm') {
+      const other = people[dmOther.get(c.id) ?? ''];
+      return { label: other?.name ?? 'Direct message', avatar: other?.avatar ?? null };
+    }
+    return { label: c.kind === 'managers' ? 'Managers' : c.name, avatar: null };
+  };
 
-  const active = channels.find((c) => c.id === sp.c) ?? channels[0];
+  const convos: Convo[] = channels
+    .map((c) => {
+      const m = meta(c);
+      const lm = last.get(c.id);
+      return { id: c.id, kind: c.kind, label: m.label, avatar: m.avatar, preview: lm?.body ?? '', time: lm?.created_at ?? null };
+    })
+    // Most-recently-active first; channels with no messages fall to the bottom by kind.
+    .sort((a, b) => {
+      if (a.time && b.time) return new Date(b.time).getTime() - new Date(a.time).getTime();
+      if (a.time) return -1;
+      if (b.time) return 1;
+      const order = (k: Convo['kind']) => (k === 'store' ? 0 : k === 'managers' ? 1 : 2);
+      return order(a.kind) - order(b.kind) || a.label.localeCompare(b.label);
+    });
+
+  const active = channels.find((c) => c.id === sp.c) ?? null;
 
   // Teammates you can DM: same store (or everyone for super-admin), excluding yourself.
   const teammates = (profs ?? [])
@@ -62,37 +84,38 @@ export default async function ChatPage({
     initial = (msgs as ChatMessage[]) ?? [];
   }
 
+  const activeMeta = active ? meta(active) : null;
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold text-brand-900">Chat</h1>
-        <div className="relative">
-          <NewDm teammates={teammates} />
+    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:mx-0 md:my-0 md:rounded-2xl md:border md:border-brand-100 md:bg-white">
+      {/* Conversation list — full width on mobile until a chat is open */}
+      <aside className={`w-full border-brand-100 bg-white md:w-80 md:shrink-0 md:border-r ${active ? 'hidden md:block' : 'block'}`}>
+        <div className="border-b border-brand-100 px-4 pb-3 pt-4">
+          <h1 className="font-display text-2xl font-bold text-brand-900">Chat</h1>
         </div>
-      </div>
-
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {channels.map((c) => (
-          <Link
-            key={c.id}
-            href={`/chat?c=${c.id}`}
-            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium ${
-              c.id === active?.id ? 'bg-brand-700 text-white' : 'bg-brand-100 text-brand-600'
-            }`}
-          >
-            {c.kind === 'managers' && <Users size={13} />}
-            {c.kind === 'store' ? `# ${label(c)}` : label(c)}
-          </Link>
-        ))}
-      </div>
-
-      {active ? (
-        <ChatRoom channelId={active.id} initial={initial} people={people} myId={profile.id} />
-      ) : (
-        <div className="card text-center text-sm text-brand-500">
-          No channels yet. Tap the compose button to message a teammate.
+        <div className="h-[calc(100%-4.75rem)] pt-3">
+          <ConversationList convos={convos} activeId={active?.id ?? null} teammates={teammates} />
         </div>
-      )}
+      </aside>
+
+      {/* Thread */}
+      <main className={`min-w-0 flex-1 bg-cream ${active ? 'block' : 'hidden md:block'}`}>
+        {active && activeMeta ? (
+          <ChatRoom
+            channelId={active.id}
+            initial={initial}
+            people={people}
+            myId={profile.id}
+            title={activeMeta.label}
+            kind={active.kind}
+            avatar={activeMeta.avatar}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-brand-400">
+            Select a conversation or start a new message.
+          </div>
+        )}
+      </main>
     </div>
   );
 }

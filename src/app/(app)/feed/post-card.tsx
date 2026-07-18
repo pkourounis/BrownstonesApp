@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThumbsUp, Trash2, MessageCircle, Repeat2, Send, Check, ShieldCheck, Pin } from 'lucide-react';
+import { ThumbsUp, Trash2, MessageCircle, Send, Check, ShieldCheck, Pin } from 'lucide-react';
 import type { PostCategory } from '@/lib/database.types';
-import { toggleReaction, deletePost, addComment, acknowledgePost, repost } from './actions';
+import { toggleReaction, deletePost, addComment, acknowledgePost } from './actions';
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
@@ -50,7 +50,6 @@ export function PostCard(props: {
   likeCount: number;
   likedByMe: boolean;
   canDelete: boolean;
-  canRepost: boolean;
   pinned: boolean;
   comments: Comment[];
   requiresAck: boolean;
@@ -61,7 +60,7 @@ export function PostCard(props: {
 }) {
   const {
     id, author, avatar, scope, category, title, body, photos, createdAt,
-    likeCount, likedByMe, canDelete, canRepost, pinned, comments,
+    likeCount, likedByMe, canDelete, pinned, comments,
     requiresAck, ackedByMe, ackCount, isSuperAdmin, original,
   } = props;
 
@@ -72,7 +71,6 @@ export function PostCard(props: {
   const [showComments, setShowComments] = useState(false);
   const [draft, setDraft] = useState('');
   const [acked, setAcked] = useState(ackedByMe);
-  const [reposted, setReposted] = useState(false);
 
   const onLike = () => {
     setLiked((v) => !v);
@@ -88,10 +86,6 @@ export function PostCard(props: {
   const onAck = () => {
     setAcked(true);
     startTransition(async () => { await acknowledgePost(id); router.refresh(); });
-  };
-  const onRepost = () => {
-    setReposted(true);
-    startTransition(async () => { await repost(id); router.refresh(); });
   };
 
   return (
@@ -162,11 +156,6 @@ export function PostCard(props: {
         <button onClick={() => setShowComments((v) => !v)} className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1">
           <MessageCircle size={13} /> {comments.length > 0 ? comments.length : ''} Comment
         </button>
-        {canRepost && (
-          <button onClick={onRepost} disabled={pending || reposted} className="inline-flex items-center gap-1.5 rounded-full bg-brand-100 px-2.5 py-1">
-            {reposted ? <Check size={13} /> : <Repeat2 size={13} />} {reposted ? 'Reposted' : 'Repost'}
-          </button>
-        )}
       </div>
 
       {showComments && (

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, ImagePlus, X, Loader2 } from 'lucide-react';
+import { Send, ImagePlus, X, Loader2, PenSquare } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Location } from '@/lib/database.types';
 import { createPost } from './actions';
@@ -24,6 +24,7 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -63,6 +64,8 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
         setBody('');
         setAttachments([]);
         setRequireAck(false);
+        setPin('');
+        setOpen(false);
         router.refresh();
       } else {
         setError(res.error ?? 'Could not post.');
@@ -70,8 +73,28 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
     });
   };
 
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-3 rounded-2xl border border-brand-100 bg-white px-4 py-3 text-left text-sm text-brand-400 shadow-sm transition hover:border-brand-200 hover:text-brand-500"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-white">
+          <PenSquare size={16} />
+        </span>
+        Share something with the team…
+      </button>
+    );
+  }
+
   return (
     <div className="card space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-brand-900">New post</h2>
+        <button onClick={() => setOpen(false)} className="text-brand-300 hover:text-brand-600" aria-label="Close">
+          <X size={18} />
+        </button>
+      </div>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="input font-semibold" />
       <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write an announcement, new product, menu change…" className="input min-h-[80px] text-sm" />
 
