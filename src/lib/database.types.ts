@@ -566,6 +566,10 @@ export type Database = {
         Args: { p_location: string; p_date: string | null };
         Returns: unknown;
       };
+      home_summary: {
+        Args: Record<string, never>;
+        Returns: unknown;
+      };
     };
     Enums: {
       app_role: AppRole;
