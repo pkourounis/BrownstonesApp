@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { UserPlus, RefreshCw, X } from 'lucide-react';
 import type { Location } from '@/lib/database.types';
 import { addEmployee, importFromToast } from './actions';
@@ -14,17 +14,9 @@ export function RosterControls({
   store: string | null;
 }) {
   const router = useRouter();
-  const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-
-  const setStore = (v: string) => {
-    const p = new URLSearchParams(params.toString());
-    if (!v || v === 'all') p.delete('store');
-    else p.set('store', v);
-    startTransition(() => router.push(`/roster?${p.toString()}`));
-  };
 
   const onImport = () => {
     setMsg(null);
@@ -51,24 +43,11 @@ export function RosterControls({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <select
-          value={store ?? 'all'}
-          onChange={(e) => setStore(e.target.value)}
-          className="input h-9 min-w-0 flex-1 text-sm"
-          aria-label="Store"
-        >
-          <option value="all">All stores</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <button onClick={onImport} disabled={pending} className="btn-secondary h-9 shrink-0 px-3 text-xs" title="Refresh roster from Toast">
-          <RefreshCw size={14} className={pending ? 'animate-spin' : ''} /> Toast
+        <button onClick={onImport} disabled={pending} className="btn-secondary h-9 flex-1 justify-center text-xs" title="Refresh roster from Toast">
+          <RefreshCw size={14} className={pending ? 'animate-spin' : ''} /> Import from Toast
         </button>
-        <button onClick={() => setOpen((v) => !v)} className="btn-primary h-9 shrink-0 px-3 text-xs">
-          {open ? <X size={14} /> : <UserPlus size={14} />} {open ? 'Close' : 'Add'}
+        <button onClick={() => setOpen((v) => !v)} className="btn-primary h-9 flex-1 justify-center text-xs">
+          {open ? <X size={14} /> : <UserPlus size={14} />} {open ? 'Close' : 'Add employee'}
         </button>
       </div>
 

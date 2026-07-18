@@ -1,0 +1,99 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import type { Location } from '@/lib/database.types';
+import { createLocation, updateLocation } from './actions';
+
+const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles'];
+
+export function LocationForm({ location }: { location: Location | null }) {
+  const router = useRouter();
+  const editing = !!location;
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const res = editing ? await updateLocation(location!.id, fd) : await createLocation(fd);
+      if (res.ok) {
+        router.push('/admin');
+        router.refresh();
+      } else {
+        setError(res.error ?? 'Could not save.');
+      }
+    });
+  };
+
+  const F = ({ label, name, defaultValue, type = 'text', placeholder }: { label: string; name: string; defaultValue?: string | number | null; type?: string; placeholder?: string }) => (
+    <div>
+      <label className="label">{label}</label>
+      <input name={name} type={type} defaultValue={defaultValue ?? ''} placeholder={placeholder} className="input" step={type === 'number' ? 'any' : undefined} min={type === 'number' ? '0' : undefined} />
+    </div>
+  );
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-brand-900">Basics</h2>
+        <F label="Location name" name="name" defaultValue={location?.name} placeholder="Amityville" />
+        <div className="grid grid-cols-2 gap-3">
+          <F label="Store number" name="location_number" defaultValue={location?.location_number} placeholder="001" />
+          <F label="URL slug" name="slug" defaultValue={location?.slug} placeholder="amityville" />
+        </div>
+      </div>
+
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-brand-900">Address & contact</h2>
+        <F label="Street address" name="address" defaultValue={location?.address} placeholder="123 Merrick Rd" />
+        <div className="grid grid-cols-2 gap-3">
+          <F label="City" name="city" defaultValue={location?.city} placeholder="Amityville" />
+          <F label="State" name="state" defaultValue={location?.state} placeholder="NY" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <F label="ZIP" name="postal_code" defaultValue={location?.postal_code} placeholder="11701" />
+          <F label="Phone" name="phone" type="tel" defaultValue={location?.phone} placeholder="(631) 555-0123" />
+        </div>
+      </div>
+
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-brand-900">Operations</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Time zone</label>
+            <select name="timezone" defaultValue={location?.timezone ?? 'America/New_York'} className="input">
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>{tz.replace('America/', '')}</option>
+              ))}
+            </select>
+          </div>
+          <F label="Opens at" name="opens_at" type="time" defaultValue={location?.opens_at?.slice(0, 5)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <F label="Seats" name="seats" type="number" defaultValue={location?.seats} />
+          <F label="Tables" name="tables" type="number" defaultValue={location?.tables} />
+        </div>
+        <F label="Revenue / hour target ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 500} />
+      </div>
+
+      <div className="card space-y-4">
+        <h2 className="font-semibold text-brand-900">Toast integration</h2>
+        <F label="Toast restaurant GUID" name="toast_guid" defaultValue={location?.toast_guid} placeholder="Optional — links sales & labor sync" />
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="is_active" defaultChecked={location ? location.is_active : true} className="h-4 w-4 accent-brand-700" />
+          <span className="text-sm font-medium text-brand-900">Active</span>
+        </label>
+      </div>
+
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <button type="submit" disabled={pending} className="btn-primary w-full">
+        {pending ? <Loader2 className="animate-spin" size={18} /> : editing ? 'Save location' : 'Add location'}
+      </button>
+    </form>
+  );
+}

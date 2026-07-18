@@ -44,7 +44,8 @@ half; the **Team & Social** half is largely still to build.
 | Labor % + sales/labor-hour + labor section | ✅ | |
 | Timesheets (punch in/out records) | ✅ | |
 | Staffing recommendations (sales/hr → headcount) | ✅ | |
-| Roster (Toast import + add in-app) | ✅ | |
+| Roster (Toast import + add in-app) | ✅ | Filters (name/location/role/department/status); full per-member edit, star rank, archive, delete |
+| Admin: add / edit locations | ✅ | All fields: name, number, address, hours, seats/tables, revenue target, Toast GUID |
 | Shift builder (create + publish the week) | ✅ | |
 | Scheduled vs actual | ✅ | |
 

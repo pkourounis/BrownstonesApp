@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { roleLabel } from '@/lib/roles';
+import { jobRoleOptions } from '@/lib/job-roles';
 import type { Profile } from '@/lib/database.types';
 import { Check, Loader2, Camera } from 'lucide-react';
 
@@ -184,19 +185,17 @@ export function ProfileForm({
         <Field label="Address">
           <input className="input" value={f.address} onChange={set('address')} placeholder="Street, City, NY" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Birthday">
-            <input type="date" className="input" value={f.birthday} onChange={set('birthday')} />
-          </Field>
-          <Field label="Marital status">
-            <select className="input" value={f.marital_status} onChange={set('marital_status')}>
-              <option value="">—</option>
-              <option value="single">Single</option>
-              <option value="married">Married</option>
-              <option value="other">Prefer not to say</option>
-            </select>
-          </Field>
-        </div>
+        <Field label="Birthday">
+          <input type="date" className="input" value={f.birthday} onChange={set('birthday')} />
+        </Field>
+        <Field label="Marital status">
+          <select className="input" value={f.marital_status} onChange={set('marital_status')}>
+            <option value="">—</option>
+            <option value="single">Single</option>
+            <option value="married">Married</option>
+            <option value="other">Prefer not to say</option>
+          </select>
+        </Field>
       </div>
 
       {/* Work */}
@@ -214,7 +213,12 @@ export function ProfileForm({
             </select>
           </Field>
           <Field label="Job role">
-            <input className="input" value={f.title} onChange={set('title')} placeholder="Barista, Shift Lead…" />
+            <select className="input" value={f.title} onChange={set('title')}>
+              <option value="">—</option>
+              {jobRoleOptions(profile.title).map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
           </Field>
         </div>
         <Field label="Time hired">

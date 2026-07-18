@@ -335,10 +335,12 @@ export type Employee = {
   phone: string | null;
   role_title: string | null;
   position_id: string | null;
+  department: Department | null;
   default_wage: number | null;
   source: 'toast' | 'manual';
   toast_employee_guid: string | null;
   active: boolean;
+  rating: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
