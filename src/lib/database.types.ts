@@ -652,6 +652,7 @@ export type Database = {
       app_settings: Table<AppSettings>;
     };
     Views: {
+      app_branding: { Row: { logo_url: string | null; splash_url: string | null; primary_color: string | null }; Relationships: [] };
       location_hour_demand: { Row: LocationHourDemand; Relationships: [] };
       location_peak_hours_derived: { Row: DerivedPeakHour; Relationships: [] };
       location_sales_forecast: { Row: LocationSalesForecast; Relationships: [] };
