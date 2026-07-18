@@ -183,8 +183,8 @@ async function lastWeekCoverage(
   const { data: locs } = await supabase.from('locations').select('id, name, labor_target_splh').eq('is_active', true).order('name');
   let list = (locs ?? []) as { id: string; name: string; labor_target_splh: number }[];
   if (!isSuper) {
-    const mine = list.filter((l) => l.id === primaryLocationId);
-    list = mine.length ? mine : list.slice(0, 1);
+    // Managers only ever see their own store (never someone else's).
+    list = list.filter((l) => l.id === primaryLocationId);
   }
   if (!list.length) return [];
 
