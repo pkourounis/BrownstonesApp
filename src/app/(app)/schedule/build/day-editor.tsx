@@ -27,6 +27,8 @@ const hhmmET = (iso: string) =>
 const shiftHours = (s: Shift) =>
   Math.max(0, (new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 3_600_000 - (s.break_minutes || 0) / 60);
 
+type Requirement = { role: string; need: number };
+
 export function DayEditor({
   date,
   weekday,
@@ -35,6 +37,7 @@ export function DayEditor({
   roster,
   shifts,
   recoHours,
+  requirements = [],
   weekDates,
 }: {
   date: string;
@@ -44,6 +47,7 @@ export function DayEditor({
   roster: RosterOpt[];
   shifts: Shift[];
   recoHours: number;
+  requirements?: Requirement[];
   weekDates: { date: string; label: string }[];
 }) {
   const router = useRouter();
@@ -93,6 +97,20 @@ export function DayEditor({
 
   const scheduled = shifts.reduce((s, x) => s + shiftHours(x), 0);
   const gap = recoHours - scheduled;
+
+  // Coverage by role: how many are scheduled vs required for this day.
+  const scheduledByRole = new Map<string, number>();
+  for (const s of shifts) {
+    if (!s.role) continue;
+    const k = s.role.trim().toLowerCase();
+    scheduledByRole.set(k, (scheduledByRole.get(k) ?? 0) + 1);
+  }
+  const coverage = requirements.map((req) => ({
+    role: req.role,
+    need: req.need,
+    have: scheduledByRole.get(req.role.trim().toLowerCase()) ?? 0,
+  }));
+  const shortfalls = coverage.filter((c) => c.have < c.need).length;
   const badge =
     recoHours <= 0
       ? 'bg-brand-100 text-brand-500'
@@ -133,6 +151,29 @@ export function DayEditor({
           {scheduled.toFixed(1)}h{recoHours > 0 ? ` / ${recoHours.toFixed(0)}h` : ''}
         </span>
       </div>
+
+      {coverage.length > 0 && (
+        <div className="mb-2 rounded-lg bg-brand-50 p-2">
+          <p className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-brand-400">
+            <span>Needed today</span>
+            {shortfalls > 0 && <span className="text-brick-600">{shortfalls} role{shortfalls > 1 ? 's' : ''} short</span>}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {coverage.map((c) => {
+              const met = c.have >= c.need;
+              return (
+                <span
+                  key={c.role}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${met ? 'bg-green-100 text-green-700' : 'bg-brick-500/15 text-brick-600'}`}
+                  title={`${c.have} of ${c.need} ${c.role} scheduled`}
+                >
+                  {c.role} {c.have}/{c.need}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {shifts.length > 0 && (
         <ul className="mb-2 divide-y divide-brand-50">

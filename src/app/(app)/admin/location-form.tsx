@@ -94,6 +94,11 @@ export function LocationForm({ location }: { location: Location | null }) {
           <li><span className="font-semibold text-brand-700">Weekly cap</span> — the most hours Auto-fill will give one person in a week (keeps people under overtime).</li>
           <li><span className="font-semibold text-brand-700">Shift length</span> — the default shift block Auto-fill lays down (a 30-min break is added at 6h+).</li>
         </ul>
+        <div>
+          <label className="label">Staffing notes</label>
+          <textarea name="staffing_notes" defaultValue={location?.staffing_notes ?? ''} rows={3} placeholder="e.g. 1 server opens at 7am every day. Manager off Tuesdays. Lead Server covers when manager is off." className="input" />
+          <p className="mt-1 text-xs text-brand-500">Rules that aren&apos;t a simple headcount (opener, manager days off, lead-server coverage). Shown to schedulers on the builder.</p>
+        </div>
       </div>
 
       <div className="card space-y-4">

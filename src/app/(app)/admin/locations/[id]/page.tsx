@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
-import type { Location } from '@/lib/database.types';
+import type { Location, StaffingRule } from '@/lib/database.types';
 import { LocationForm } from '../../location-form';
+import { StaffingRulesEditor } from '../../staffing-rules-editor';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,10 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
   await requireRole('super_admin');
   const { id } = await params;
   const supabase = await createClient();
-  const { data } = await supabase.from('locations').select('*').eq('id', id).single();
+  const [{ data }, { data: rules }] = await Promise.all([
+    supabase.from('locations').select('*').eq('id', id).single(),
+    supabase.from('staffing_rules').select('*').eq('location_id', id).order('sort_order'),
+  ]);
   if (!data) notFound();
 
   return (
@@ -22,6 +26,7 @@ export default async function EditLocationPage({ params }: { params: Promise<{ i
       </Link>
       <h1 className="font-display text-2xl font-bold text-brand-900">Edit location</h1>
       <LocationForm location={data as Location} />
+      <StaffingRulesEditor locationId={id} rules={(rules ?? []) as StaffingRule[]} />
     </div>
   );
 }

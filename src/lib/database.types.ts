@@ -79,7 +79,25 @@ export type Location = {
   labor_target_splh: number;
   weekly_hour_cap: number;
   shift_length: number;
+  staffing_notes: string | null;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Base headcount needed for a role at a location, by day of week. */
+export type StaffingRule = {
+  id: string;
+  location_id: string;
+  role: string;
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -624,6 +642,7 @@ export type Database = {
       employee_reviews: Table<EmployeeReview>;
       meetings: Table<Meeting>;
       staffing_requirements: Table<StaffingRequirement>;
+      staffing_rules: Table<StaffingRule>;
       location_peak_hours: Table<LocationPeakHours>;
       location_hours: Table<LocationHours>;
       scheduling_rules: Table<SchedulingRule>;

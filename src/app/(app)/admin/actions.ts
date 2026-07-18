@@ -34,6 +34,7 @@ function parse(formData: FormData) {
     labor_target_splh: num('labor_target_splh') ?? 130,
     weekly_hour_cap: num('weekly_hour_cap') ?? 40,
     shift_length: num('shift_length') ?? 6,
+    staffing_notes: str('staffing_notes'),
     toast_guid: str('toast_guid'),
     is_active: formData.get('is_active') === 'on',
   };
@@ -59,5 +60,51 @@ export async function updateLocation(id: string, formData: FormData): Promise<{ 
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
   revalidatePath(`/admin/locations/${id}`);
+  return { ok: true };
+}
+
+export type StaffingRuleInput = {
+  role: string;
+  mon: number; tue: number; wed: number; thu: number; fri: number; sat: number; sun: number;
+};
+
+export async function saveStaffingRules(
+  locationId: string,
+  rules: StaffingRuleInput[],
+): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+
+  const clean = rules
+    .map((r) => ({ ...r, role: r.role.trim() }))
+    .filter((r) => r.role.length > 0);
+
+  // De-dupe by role (last wins) so the unique (location, role) constraint holds.
+  const byRole = new Map<string, StaffingRuleInput>();
+  clean.forEach((r) => byRole.set(r.role, r));
+  const rows = [...byRole.values()].map((r, i) => ({
+    location_id: locationId,
+    role: r.role,
+    mon: Math.max(0, Math.round(r.mon) || 0),
+    tue: Math.max(0, Math.round(r.tue) || 0),
+    wed: Math.max(0, Math.round(r.wed) || 0),
+    thu: Math.max(0, Math.round(r.thu) || 0),
+    fri: Math.max(0, Math.round(r.fri) || 0),
+    sat: Math.max(0, Math.round(r.sat) || 0),
+    sun: Math.max(0, Math.round(r.sun) || 0),
+    sort_order: i,
+  }));
+
+  // Full replace for this location: clear existing rows, then insert the current set.
+  const { error: delErr } = await supabase.from('staffing_rules').delete().eq('location_id', locationId);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  if (rows.length) {
+    const { error } = await supabase.from('staffing_rules').insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/admin/locations/${locationId}`);
+  revalidatePath('/schedule/build');
   return { ok: true };
 }

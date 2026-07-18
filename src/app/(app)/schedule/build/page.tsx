@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { format, addDays, parseISO, startOfWeek } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
-import type { Location, Employee } from '@/lib/database.types';
+import type { Location, Employee, StaffingRule } from '@/lib/database.types';
 import { BuilderControls } from './builder-controls';
 import { DayEditor } from './day-editor';
 import { WeekStrip } from '../week-strip';
@@ -64,10 +64,12 @@ export default async function BuildSchedulePage({
 
   const laborTarget = Number(locations.find((l) => l.id === store)?.labor_target_splh) || 130;
 
-  const [{ data: emps }, { data: weekData }, { data: recoData }] = await Promise.all([
+  const [{ data: emps }, { data: weekData }, { data: recoData }, { data: ruleData }, { data: locRow }] = await Promise.all([
     supabase.from('employees').select('*').eq('active', true).eq('location_id', store).order('first_name'),
     supabase.rpc('week_shifts', { p_location: store, p_monday: monday }),
     supabase.rpc('staffing_reco', { p_location: store, p_target: laborTarget }),
+    supabase.from('staffing_rules').select('*').eq('location_id', store).order('sort_order'),
+    supabase.from('locations').select('staffing_notes').eq('id', store).maybeSingle(),
   ]);
 
   const roster = ((emps ?? []) as Employee[]).map((e) => ({
@@ -82,6 +84,15 @@ export default async function BuildSchedulePage({
   // Recommended labor hours per day-of-week = sum of hourly recommended staff.
   const recoByDow = new Map<number, number>();
   for (const g of reco.grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
+
+  // Base headcount rules → required roles per day-of-week (0=Sun … 6=Sat, matching getDay()).
+  const rules = (ruleData ?? []) as StaffingRule[];
+  const dowKey: (keyof StaffingRule)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const requirementsFor = (dow: number) =>
+    rules
+      .map((r) => ({ role: r.role, need: Number(r[dowKey[dow]]) || 0 }))
+      .filter((r) => r.need > 0);
+  const staffingNotes = (locRow?.staffing_notes as string | null) ?? null;
 
   const draftCount = shifts.filter((s) => s.status === 'draft').length;
 
@@ -124,6 +135,13 @@ export default async function BuildSchedulePage({
 
       <WeekStrip days={overview} title="Week at a glance" linkBase="#day-" />
 
+      {staffingNotes && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">Staffing rules for this store</p>
+          <p className="whitespace-pre-line">{staffingNotes}</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {days.map((d) => (
           <DayEditor
@@ -135,6 +153,7 @@ export default async function BuildSchedulePage({
             roster={roster}
             shifts={d.shifts}
             recoHours={recoByDow.get(d.dow) ?? 0}
+            requirements={requirementsFor(d.dow)}
             weekDates={weekDates}
           />
         ))}
