@@ -232,7 +232,7 @@ export async function autoFillWeek(
   const { data: loc } = await supabase.from('locations').select('labor_target_splh, weekly_hour_cap, shift_length').eq('id', location_id).maybeSingle();
   const shiftLen = Math.min(10, Math.max(4, opts?.shiftLen ?? loc?.shift_length ?? 6));
   const maxWeekly = Math.min(60, Math.max(10, opts?.maxWeeklyHours ?? loc?.weekly_hour_cap ?? 40));
-  const target = Number(loc?.labor_target_splh) || 75;
+  const target = Number(loc?.labor_target_splh) || 130;
 
   const [{ data: recoData }, { data: emps }] = await Promise.all([
     supabase.rpc('staffing_reco', { p_location: location_id, p_target: target }),

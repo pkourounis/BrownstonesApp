@@ -31,7 +31,7 @@ function parse(formData: FormData) {
     seats: num('seats'),
     tables: num('tables'),
     revenue_per_hour_target: num('revenue_per_hour_target') ?? 1300,
-    labor_target_splh: num('labor_target_splh') ?? 75,
+    labor_target_splh: num('labor_target_splh') ?? 130,
     weekly_hour_cap: num('weekly_hour_cap') ?? 40,
     shift_length: num('shift_length') ?? 6,
     toast_guid: str('toast_guid'),

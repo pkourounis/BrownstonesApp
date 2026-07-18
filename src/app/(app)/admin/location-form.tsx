@@ -85,7 +85,7 @@ export function LocationForm({ location }: { location: Location | null }) {
         <h2 className="font-semibold text-brand-900">Scheduling</h2>
         <p className="-mt-2 text-xs text-brand-500">Used by Auto-fill and the staffing guide for this store.</p>
         <div className="grid grid-cols-3 gap-3">
-          <F label="Sales / labor-hr ($)" name="labor_target_splh" type="number" defaultValue={location?.labor_target_splh ?? 75} />
+          <F label="Sales / labor-hr ($)" name="labor_target_splh" type="number" defaultValue={location?.labor_target_splh ?? 130} />
           <F label="Weekly cap (h)" name="weekly_hour_cap" type="number" defaultValue={location?.weekly_hour_cap ?? 40} />
           <F label="Shift length (h)" name="shift_length" type="number" defaultValue={location?.shift_length ?? 6} />
         </div>

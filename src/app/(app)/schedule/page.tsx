@@ -186,7 +186,7 @@ export default async function SchedulePage({
   // Coverage strip for the displayed week (managers, week/weekend views).
   let weekStrip: StripDay[] = [];
   if (weekMode && manager && selectedStore) {
-    const target = Number(allLocs.find((l) => l.id === selectedStore)?.labor_target_splh) || 75;
+    const target = Number(allLocs.find((l) => l.id === selectedStore)?.labor_target_splh) || 130;
     const { data: recoData } = await supabase.rpc('staffing_reco', { p_location: selectedStore, p_target: target });
     const grid = ((recoData as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
     const recoByDow = new Map<number, number>();
