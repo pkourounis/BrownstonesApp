@@ -1,6 +1,7 @@
 import { requireProfile } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { getAppSettings } from '@/lib/settings';
+import { brandScaleCss } from '@/lib/theme';
 import { AppShell } from '@/components/app-shell';
 
 export default async function AppLayout({
@@ -15,11 +16,11 @@ export default async function AppLayout({
     getAppSettings(),
   ]);
 
+  const themeCss = brandScaleCss(settings.primary_color);
+
   return (
     <>
-      {settings.primary_color && (
-        <style>{`.btn-primary,.btn-primary:hover{background-color:${settings.primary_color} !important}.btn-primary:hover{filter:brightness(0.93)}`}</style>
-      )}
+      {themeCss && <style>{themeCss}</style>}
       <AppShell profile={profile} unread={count ?? 0} logoUrl={settings.logo_url}>
         {children}
       </AppShell>

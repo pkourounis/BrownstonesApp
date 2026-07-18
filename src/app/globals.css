@@ -4,6 +4,20 @@
 
 :root {
   color-scheme: light;
+
+  /* Default brand ramp (logo bronze) as "r g b" triplets. App Settings can
+     override these at runtime to recolor the whole app. */
+  --brand-50: 248 244 234;
+  --brand-100: 239 230 207;
+  --brand-200: 221 201 155;
+  --brand-300: 201 168 102;
+  --brand-400: 180 140 63;
+  --brand-500: 151 112 48;
+  --brand-600: 124 92 40;
+  --brand-700: 102 76 36;
+  --brand-800: 82 61 32;
+  --brand-900: 67 51 29;
+  --brand-950: 36 26 13;
 }
 
 body {

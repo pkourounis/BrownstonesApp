@@ -82,7 +82,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 rounded border border-brand-200" />
             <input value={color} onChange={(e) => setColor(e.target.value)} className="input h-9 w-32 text-sm" />
           </div>
-          <p className="mt-1 text-xs text-brand-500">Applied to primary buttons. Full app recoloring is a larger change.</p>
+          <p className="mt-1 text-xs text-brand-500">Recolors the whole app — a full shade range is derived from this one color. Save, then refresh to see it.</p>
         </div>
       </div>
 

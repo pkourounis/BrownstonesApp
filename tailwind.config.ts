@@ -10,18 +10,20 @@ const config: Config = {
       colors: {
         // Brownstones brand palette — sampled from the logo wordmark: a warm
         // bronze-brown. Primary buttons/wordmark sit around 600–700.
+        // Themeable at runtime via CSS variables (see globals.css defaults and
+        // App Settings). Default ramp is the logo bronze.
         brand: {
-          50: '#f8f4ea',
-          100: '#efe6cf',
-          200: '#ddc99b',
-          300: '#c9a866',
-          400: '#b48c3f',
-          500: '#977030',
-          600: '#7c5c28', // wordmark bronze
-          700: '#664c24',
-          800: '#523d20',
-          900: '#43331d',
-          950: '#241a0d',
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          400: 'rgb(var(--brand-400) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
+          900: 'rgb(var(--brand-900) / <alpha-value>)',
+          950: 'rgb(var(--brand-950) / <alpha-value>)',
         },
         // Tan / gold from the emblem windows — accents and highlights.
         gold: {
