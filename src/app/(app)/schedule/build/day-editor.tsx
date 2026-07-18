@@ -159,20 +159,19 @@ export function DayEditor({
                       ))}
                     </select>
                   )}
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
                       <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Start</label>
                       <input name="start" type="time" defaultValue={hhmmET(s.starts_at)} required className="input h-9 w-full text-sm" aria-label="Start" />
                     </div>
-                    <span className="pb-2 text-brand-400">–</span>
-                    <div className="flex-1">
+                    <div>
                       <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">End</label>
                       <input name="end" type="time" defaultValue={hhmmET(s.ends_at)} required className="input h-9 w-full text-sm" aria-label="End" />
                     </div>
-                    <div className="w-16">
-                      <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Break</label>
-                      <input name="break" type="number" min="0" step="15" defaultValue={s.break_minutes} className="input h-9 w-full text-sm" aria-label="Break minutes" title="Unpaid break in minutes" />
-                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Break (minutes)</label>
+                    <input name="break" type="number" min="0" step="15" defaultValue={s.break_minutes} className="input h-9 w-24 text-sm" aria-label="Break minutes" title="Unpaid break in minutes" />
                   </div>
                   <div className="flex gap-2">
                     <button type="submit" disabled={pending} className="btn-primary h-9 flex-1 text-sm">{pending ? 'Saving…' : 'Save shift'}</button>
@@ -270,20 +269,19 @@ export function DayEditor({
               ))}
             </select>
           )}
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
               <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Start</label>
               <input name="start" type="time" defaultValue="08:00" required className="input h-9 w-full text-sm" aria-label="Start" />
             </div>
-            <span className="pb-2 text-brand-400">–</span>
-            <div className="flex-1">
+            <div>
               <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">End</label>
               <input name="end" type="time" defaultValue="16:00" required className="input h-9 w-full text-sm" aria-label="End" />
             </div>
-            <div className="w-16">
-              <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Break</label>
-              <input name="break" type="number" min="0" step="15" defaultValue="0" className="input h-9 w-full text-sm" aria-label="Break minutes" title="Unpaid break in minutes" />
-            </div>
+          </div>
+          <div>
+            <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wide text-brand-400">Break (minutes)</label>
+            <input name="break" type="number" min="0" step="15" defaultValue="0" className="input h-9 w-24 text-sm" aria-label="Break minutes" title="Unpaid break in minutes" />
           </div>
           <div className="flex gap-2">
             <button type="submit" disabled={pending} className="btn-primary h-9 flex-1 text-sm">

@@ -109,15 +109,17 @@ async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null
       )}
 
       {/* How last week's coverage went */}
-      {lastWeekStrip.some((d) => d.sched > 0 || d.reco > 0) && (
+      {lastWeekStrip.days.some((d) => d.sched > 0 || d.reco > 0) && (
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
+            <h2 className="font-semibold text-brand-900">
+              Last week&apos;s coverage{lastWeekStrip.storeName ? ` · ${lastWeekStrip.storeName}` : ''}
+            </h2>
             <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
               Schedule <ArrowRight size={14} />
             </Link>
           </div>
-          <WeekStrip days={lastWeekStrip} compact />
+          <WeekStrip days={lastWeekStrip.days} compact />
         </section>
       )}
 
@@ -166,20 +168,28 @@ async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null
   );
 }
 
-async function lastWeekCoverage(supabase: Awaited<ReturnType<typeof createClient>>, locationId: string | null): Promise<StripDay[]> {
-  if (!locationId) return [];
+async function lastWeekCoverage(supabase: Awaited<ReturnType<typeof createClient>>, locationId: string | null): Promise<{ storeName: string | null; days: StripDay[] }> {
+  // Fall back to the first active store when the user has no home store (super admins).
+  let loc = locationId ? { id: locationId, name: null as string | null } : null;
+  if (!loc) {
+    const { data } = await supabase.from('locations').select('id, name').eq('is_active', true).order('name').limit(1).maybeSingle();
+    if (data) loc = { id: data.id, name: data.name };
+  } else {
+    const { data } = await supabase.from('locations').select('name').eq('id', loc.id).maybeSingle();
+    loc.name = data?.name ?? null;
+  }
+  if (!loc) return { storeName: null, days: [] };
+  const locId = loc.id;
   const monday = startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 });
-  const [{ data: loc }, { data: recoData }, { data: shiftData }] = await Promise.all([
-    supabase.from('locations').select('labor_target_splh').eq('id', locationId).maybeSingle(),
-    supabase.rpc('staffing_reco', { p_location: locationId, p_target: 75 }),
+  const [{ data: recoData }, { data: shiftData }] = await Promise.all([
+    supabase.rpc('staffing_reco', { p_location: locId, p_target: 130 }),
     supabase
       .from('shifts')
       .select('starts_at, ends_at, break_minutes')
-      .eq('location_id', locationId)
+      .eq('location_id', locId)
       .gte('starts_at', monday.toISOString())
       .lt('starts_at', addDays(monday, 7).toISOString()),
   ]);
-  void loc;
   const grid = ((recoData as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
   const recoByDow = new Map<number, number>();
   for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
@@ -191,12 +201,13 @@ async function lastWeekCoverage(supabase: Awaited<ReturnType<typeof createClient
     cur.count += 1;
     byDay.set(key, cur);
   }
-  return Array.from({ length: 7 }, (_, i) => {
+  const days = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(monday, i);
     const key = format(d, 'yyyy-MM-dd');
     const cur = byDay.get(key) ?? { sched: 0, count: 0 };
     return { key, abbr: format(d, 'EEE'), sched: cur.sched, reco: recoByDow.get(d.getDay()) ?? 0, count: cur.count };
   });
+  return { storeName: loc.name, days };
 }
 
 async function countPendingApprovals(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
