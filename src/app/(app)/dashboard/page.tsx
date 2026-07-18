@@ -15,10 +15,11 @@ import { money, money2, monthAbbr, shiftDay, shiftTimeRange } from '@/lib/format
 import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
 import { BarChart, type Bar } from '../insights/chart';
+import { StoreBoard } from './store-board';
 
 export const dynamic = 'force-dynamic';
 
-type Store = { id: string; name: string; net: number; prev: number; on_now: number; names: string[] };
+type Store = { id: string; name: string; net: number; prev: number; on_now: number; on: { name: string; in_at: string | null }[] };
 type Summary = {
   today: { date: string; net: number; checks: number; labor_pct: number; on_now: number };
   prev: { date: string; net: number; checks: number };
@@ -89,7 +90,7 @@ async function OpsHome() {
         <p className="mt-2 text-[11px] text-gold-200/80">As of {fmtTime(s.synced_at)} · live from Toast</p>
       </div>
 
-      {/* By store — exact numbers + who's on now */}
+      {/* By store — exact numbers + tap to see who's on now */}
       {s.stores.length > 1 && (
         <section>
           <div className="mb-2 flex items-center justify-between">
@@ -98,31 +99,7 @@ async function OpsHome() {
               Insights <ArrowRight size={14} />
             </Link>
           </div>
-          <ul className="space-y-2">
-            {s.stores.map((st) => (
-              <li key={st.id} className="card py-3">
-                <div className="flex items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-brand-900">{st.name}</p>
-                    <p className="truncate text-xs text-brand-500">
-                      {st.on_now > 0 ? (
-                        <>
-                          <CircleDot size={11} className="mr-0.5 inline text-green-500" />
-                          {st.on_now} on{st.names.length > 0 ? ` · ${st.names.slice(0, 4).join(', ')}${st.names.length > 4 ? '…' : ''}` : ''}
-                        </>
-                      ) : (
-                        'none clocked in'
-                      )}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="font-bold tabular-nums text-brand-900">{money2(st.net)}</p>
-                    <p className="text-[11px] tabular-nums text-brand-400">yest {money2(st.prev)}</p>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <StoreBoard stores={s.stores} />
         </section>
       )}
 
