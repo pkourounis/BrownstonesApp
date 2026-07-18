@@ -17,6 +17,7 @@ import { SyncButton } from '../insights/sync-button';
 import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
 import { FeedPreview } from './feed-preview';
+import { AckPrompt } from './ack-prompt';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,8 @@ export default async function DashboardPage() {
         </div>
         {manager && <SyncButton />}
       </div>
+
+      <AckPrompt />
 
       {manager ? <OpsHome /> : <EmployeeHome profileId={profile.id} />}
     </div>

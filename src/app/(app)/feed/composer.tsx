@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, ImagePlus, X, Loader2, PenSquare } from 'lucide-react';
+import { Send, ImagePlus, X, Loader2, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Location } from '@/lib/database.types';
 import { createPost } from './actions';
@@ -32,9 +32,14 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
     setUploading(true);
     setError(null);
     for (const file of files) {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      // Guard very large videos so uploads don't hang (Supabase default cap is 50MB).
+      if (file.size > 50 * 1024 * 1024) {
+        setError(`${file.name} is too large (max 50 MB).`);
+        continue;
+      }
+      const ext = (file.name.split('.').pop() || (file.type.startsWith('video') ? 'mp4' : 'jpg')).toLowerCase();
       const path = `posts/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('feed').upload(path, file);
+      const { error: upErr } = await supabase.storage.from('feed').upload(path, file, { contentType: file.type || undefined });
       if (upErr) {
         setError(upErr.message);
         continue;
@@ -73,22 +78,25 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
     });
   };
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 rounded-2xl border border-brand-100 bg-white px-4 py-3 text-left text-sm text-brand-400 shadow-sm transition hover:border-brand-200 hover:text-brand-500"
-      >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-white">
-          <PenSquare size={16} />
-        </span>
-        Share something with the team…
-      </button>
-    );
-  }
+  // Floating "+" button — always shown; opens the post modal.
+  const Fab = (
+    <button
+      onClick={() => setOpen(true)}
+      className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-brand-700 text-white shadow-lg shadow-brand-900/25 transition hover:bg-brand-800 active:scale-95"
+      aria-label="New post"
+    >
+      <Plus size={26} />
+    </button>
+  );
+
+  if (!open) return Fab;
 
   return (
-    <div className="card space-y-3">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => !pending && !uploading && setOpen(false)}>
+      <div
+        className="max-h-[92vh] w-full space-y-3 overflow-y-auto rounded-t-3xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-brand-900">New post</h2>
         <button onClick={() => setOpen(false)} className="text-brand-300 hover:text-brand-600" aria-label="Close">
@@ -102,8 +110,12 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
         <div className="flex flex-wrap gap-2">
           {attachments.map((a, i) => (
             <div key={i} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              {a.mime.startsWith('video') ? (
+                <video src={a.url} className="h-16 w-16 rounded-lg object-cover" muted />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={a.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              )}
               <button
                 onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
                 className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-900 text-white"
@@ -149,14 +161,15 @@ export function Composer({ locations, canPostAll }: { locations: Pick<Location, 
 
       <div className="flex items-center gap-2">
         <button onClick={() => fileRef.current?.click()} disabled={uploading} className="btn-secondary h-9 px-3 text-sm">
-          {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />} Photo
+          {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />} Photo / video
         </button>
-        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={onFiles} />
+        <input ref={fileRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={onFiles} />
         <button onClick={submit} disabled={pending || uploading} className="btn-primary h-9 flex-1 justify-center text-sm">
           <Send size={15} /> Publish
         </button>
       </div>
       {error && <p className="text-xs text-brick-600">{error}</p>}
+      </div>
     </div>
   );
 }

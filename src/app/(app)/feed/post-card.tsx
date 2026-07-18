@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThumbsUp, Trash2, MessageCircle, Send, Check, ShieldCheck, Pin } from 'lucide-react';
+import { ThumbsUp, Trash2, MessageCircle, Send, Check, ShieldCheck, Pin, ChevronDown, Loader2 } from 'lucide-react';
 import type { PostCategory } from '@/lib/database.types';
-import { toggleReaction, deletePost, addComment, acknowledgePost } from './actions';
+import { toggleReaction, deletePost, addComment, acknowledgePost, getAckStatus } from './actions';
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
@@ -16,17 +16,30 @@ const CATEGORY: Partial<Record<PostCategory, { label: string; cls: string }>> = 
   menu: { label: 'Menu change', cls: 'bg-blue-100 text-blue-700' },
 };
 
-export type Comment = { id: string; author: string; body: string; createdAt: string };
-export type Original = { author: string; title: string | null; body: string; category: PostCategory; photos: string[] };
+// Left-edge accent so each category stands out in the stream.
+const ACCENT: Partial<Record<PostCategory, string>> = {
+  announcement: 'border-l-4 border-l-brand-600',
+  product: 'border-l-4 border-l-green-500',
+  seasonal: 'border-l-4 border-l-amber-500',
+  menu: 'border-l-4 border-l-blue-500',
+};
 
-function Photos({ urls }: { urls: string[] }) {
+export type Media = { url: string; mime: string };
+export type Comment = { id: string; author: string; body: string; createdAt: string };
+export type Original = { author: string; title: string | null; body: string; category: PostCategory; photos: Media[] };
+
+function Photos({ urls }: { urls: Media[] }) {
   if (urls.length === 0) return null;
   return (
     <div className={`mt-3 grid gap-2 ${urls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-      {urls.map((url, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img key={i} src={url} alt="" className="max-h-72 w-full rounded-lg object-cover" />
-      ))}
+      {urls.map((m, i) =>
+        m.mime.startsWith('video') ? (
+          <video key={i} src={m.url} controls playsInline className="max-h-80 w-full rounded-lg bg-black object-contain" />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={i} src={m.url} alt="" className="max-h-72 w-full rounded-lg object-cover" />
+        )
+      )}
     </div>
   );
 }
@@ -37,6 +50,56 @@ function CatBadge({ category }: { category: PostCategory }) {
   return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.cls}`}>{c.label}</span>;
 }
 
+function AckTracker({ postId, ackCount }: { postId: string; ackCount: number }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{ acked: string[]; pending: string[] } | null>(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !data) {
+      setLoading(true);
+      const res = await getAckStatus(postId);
+      if (res.ok) setData({ acked: res.acked ?? [], pending: res.pending ?? [] });
+      setLoading(false);
+    }
+  };
+
+  const total = data ? data.acked.length + data.pending.length : null;
+
+  return (
+    <div className="mt-2 rounded-lg bg-brand-50 px-3 py-2">
+      <button onClick={toggle} className="flex w-full items-center justify-between text-left text-xs font-semibold text-brand-700">
+        <span>
+          {data ? `${data.acked.length} of ${total} acknowledged` : `${ackCount} acknowledged`}
+        </span>
+        <ChevronDown size={15} className={`transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2 text-xs">
+          {loading ? (
+            <p className="flex items-center gap-1.5 text-brand-400"><Loader2 size={13} className="animate-spin" /> Loading…</p>
+          ) : data ? (
+            <>
+              {data.pending.length > 0 && (
+                <div>
+                  <p className="mb-0.5 font-semibold text-brick-600">Hasn&apos;t acknowledged ({data.pending.length})</p>
+                  <p className="text-brand-600">{data.pending.join(', ')}</p>
+                </div>
+              )}
+              <div>
+                <p className="mb-0.5 font-semibold text-green-700">Acknowledged ({data.acked.length})</p>
+                <p className="text-brand-600">{data.acked.length ? data.acked.join(', ') : 'No one yet.'}</p>
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PostCard(props: {
   id: string;
   author: string;
@@ -45,7 +108,7 @@ export function PostCard(props: {
   category: PostCategory;
   title: string | null;
   body: string;
-  photos: string[];
+  photos: Media[];
   createdAt: string;
   likeCount: number;
   likedByMe: boolean;
@@ -55,13 +118,13 @@ export function PostCard(props: {
   requiresAck: boolean;
   ackedByMe: boolean;
   ackCount: number;
-  isSuperAdmin: boolean;
+  canTrackAcks: boolean;
   original: Original | null;
 }) {
   const {
     id, author, avatar, scope, category, title, body, photos, createdAt,
     likeCount, likedByMe, canDelete, pinned, comments,
-    requiresAck, ackedByMe, ackCount, isSuperAdmin, original,
+    requiresAck, ackedByMe, ackCount, canTrackAcks, original,
   } = props;
 
   const router = useRouter();
@@ -89,7 +152,7 @@ export function PostCard(props: {
   };
 
   return (
-    <div className="card">
+    <div className={`card ${!original ? ACCENT[category] ?? '' : ''}`}>
       <div className="mb-2 flex items-center gap-2">
         {avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -147,7 +210,7 @@ export function PostCard(props: {
           )}
         </div>
       )}
-      {requiresAck && isSuperAdmin && <p className="mt-1 text-xs text-brand-500">{ackCount} acknowledged</p>}
+      {requiresAck && canTrackAcks && <AckTracker postId={id} ackCount={ackCount} />}
 
       <div className="mt-3 flex items-center gap-2 border-t border-brand-50 pt-2 text-xs font-semibold text-brand-500">
         <button onClick={onLike} disabled={pending} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${liked ? 'bg-brand-700 text-white' : 'bg-brand-100'}`}>

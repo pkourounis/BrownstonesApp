@@ -8,6 +8,9 @@ import { StaffingControls } from './staffing-controls';
 
 export const dynamic = 'force-dynamic';
 
+// Store-level sales goal per operating hour. Cells at/above this are "on target".
+const HOURLY_SALES_GOAL = 1300;
+
 type Reco = {
   target: number;
   stores: { id: string; reco_hours: number; actual_hours: number; gap: number }[];
@@ -38,6 +41,13 @@ export default async function BuildSchedulePage({
   const cell = new Map(reco.grid.map((g) => [`${g.dow}-${g.hour}`, g]));
   const maxReco = Math.max(1, ...reco.grid.map((g) => g.reco));
   const peakStaff = reco.grid.reduce((m, g) => Math.max(m, g.reco), 0);
+
+  // The combined "all stores" grid sums revenue across stores, so scale the
+  // per-store $1,300/hr goal by the store count when no single store is picked.
+  const storeCount = Math.max(1, locations.length);
+  const hourlyGoal = HOURLY_SALES_GOAL * (store ? 1 : storeCount);
+  const onTarget = reco.grid.filter((g) => g.rev >= hourlyGoal).length;
+  const openHours = reco.grid.length;
 
   return (
     <div className="space-y-5">
@@ -99,6 +109,15 @@ export default async function BuildSchedulePage({
             <h2 className="font-semibold text-brand-900">Recommended coverage</h2>
             <span className="text-xs text-brand-400">{store ? nameById.get(store) : 'all stores'} · staff/hr</span>
           </div>
+          <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-brand-500">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3.5 w-3.5 rounded" style={{ boxShadow: 'inset 0 0 0 2px #16a34a', backgroundColor: 'rgba(122,84,40,0.4)' }} />
+              At/above ${hourlyGoal.toLocaleString()}/hr goal
+            </span>
+            <span className="font-semibold text-brand-700">
+              {onTarget} of {openHours} hours hit goal
+            </span>
+          </p>
           <div className="-mx-1 overflow-x-auto px-1">
             <table className="border-separate" style={{ borderSpacing: '2px' }}>
               <thead>
@@ -121,14 +140,20 @@ export default async function BuildSchedulePage({
                       const g = cell.get(`${dow}-${h}`);
                       const n = g?.reco ?? 0;
                       const a = n > 0 ? 0.15 + 0.7 * (n / maxReco) : 0;
+                      const hit = !!g && g.rev >= hourlyGoal;
                       return (
                         <td
                           key={h}
-                          title={g ? `${DAY_NAMES[dow]} ${hourLabel(h)} — ${n} staff (~$${Math.round(g.rev)}/hr)` : ''}
+                          title={
+                            g
+                              ? `${DAY_NAMES[dow]} ${hourLabel(h)} — ${n} staff · ~$${Math.round(g.rev).toLocaleString()}/hr (${hit ? 'on' : 'under'} $${hourlyGoal.toLocaleString()} goal)`
+                              : ''
+                          }
                           className="h-7 w-7 rounded text-center text-[10px] font-bold tabular-nums"
                           style={{
                             backgroundColor: n > 0 ? `rgba(122, 84, 40, ${a})` : '#f4efe6',
                             color: a > 0.5 ? 'white' : '#5b4a34',
+                            boxShadow: hit ? 'inset 0 0 0 2px #16a34a' : undefined,
                           }}
                         >
                           {n || ''}
@@ -141,8 +166,9 @@ export default async function BuildSchedulePage({
             </table>
           </div>
           <p className="mt-3 text-xs text-brand-500">
-            Darker = busier. Peak demand needs about <span className="font-semibold text-brand-700">{peakStaff} on the floor</span>.
-            Pick a store above for its own pattern.
+            Darker = busier. Green outline = the hour averages at/above the ${hourlyGoal.toLocaleString()}/hr sales goal. Peak demand needs
+            about <span className="font-semibold text-brand-700">{peakStaff} on the floor</span>. Pick a store above for its own pattern
+            {store ? '' : ' and a per-store goal'}.
           </p>
         </section>
       )}

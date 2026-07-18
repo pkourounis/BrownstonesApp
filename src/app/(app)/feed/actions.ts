@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { requireProfile, requireRole } from '@/lib/auth';
+import { requireProfile, requireRole, canManage } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 const CATEGORIES = ['post', 'announcement', 'product', 'seasonal', 'menu'] as const;
@@ -88,6 +88,35 @@ export async function acknowledgePost(postId: string): Promise<{ ok: boolean; er
   if (error && !error.message.includes('duplicate')) return { ok: false, error: error.message };
   revalidatePath('/feed');
   return { ok: true };
+}
+
+/** Who has / hasn't acknowledged a post (managers + super-admins). */
+export async function getAckStatus(
+  postId: string
+): Promise<{ ok: boolean; acked?: string[]; pending?: string[]; error?: string }> {
+  const profile = await requireProfile();
+  if (!canManage(profile.role)) return { ok: false, error: 'Not allowed.' };
+  const supabase = await createClient();
+
+  const { data: post } = await supabase.from('posts').select('location_id').eq('id', postId).single();
+  if (!post) return { ok: false, error: 'Post not found.' };
+
+  // Intended recipients: everyone active, scoped to the post's store when set.
+  let recips = supabase.from('profiles').select('id, display_name, full_name').neq('employment_status', 'inactive');
+  if (post.location_id) recips = recips.eq('primary_location_id', post.location_id);
+  const [{ data: people }, { data: acks }] = await Promise.all([
+    recips,
+    supabase.from('post_acks').select('profile_id').eq('post_id', postId),
+  ]);
+
+  const ackedIds = new Set((acks ?? []).map((a) => a.profile_id));
+  const name = (p: { display_name: string | null; full_name: string | null }) => p.display_name || p.full_name || 'Team';
+  const acked: string[] = [];
+  const pending: string[] = [];
+  for (const p of people ?? []) (ackedIds.has(p.id) ? acked : pending).push(name(p));
+  acked.sort((a, b) => a.localeCompare(b));
+  pending.sort((a, b) => a.localeCompare(b));
+  return { ok: true, acked, pending };
 }
 
 /** Add a comment to a post. */
