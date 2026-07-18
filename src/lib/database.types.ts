@@ -338,7 +338,13 @@ export type ChatChannel = {
   id: string;
   name: string;
   location_id: string | null;
+  kind: 'store' | 'managers' | 'dm';
   created_at: string;
+}
+
+export type ChatChannelMember = {
+  channel_id: string;
+  profile_id: string;
 }
 
 export type ChatMessage = {
@@ -536,6 +542,7 @@ export type Database = {
       post_reactions: Table<PostReaction>;
       chat_channels: Table<ChatChannel>;
       chat_messages: Table<ChatMessage>;
+      chat_channel_members: Table<ChatChannelMember>;
       quizzes: Table<Quiz>;
       quiz_questions: Table<QuizQuestion>;
       quiz_attempts: Table<QuizAttempt>;
@@ -605,6 +612,10 @@ export type Database = {
       home_summary: {
         Args: Record<string, never>;
         Returns: unknown;
+      };
+      open_dm: {
+        Args: { p_other: string };
+        Returns: string;
       };
     };
     Enums: {
