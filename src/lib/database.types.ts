@@ -317,6 +317,38 @@ export type PosSales = {
   synced_at: string;
 }
 
+/** Feed announcement post. */
+export type Post = {
+  id: string;
+  author_id: string | null;
+  location_id: string | null;
+  body: string;
+  pinned: boolean;
+  created_at: string;
+}
+
+export type PostReaction = {
+  post_id: string;
+  profile_id: string;
+  emoji: string;
+  created_at: string;
+}
+
+export type ChatChannel = {
+  id: string;
+  name: string;
+  location_id: string | null;
+  created_at: string;
+}
+
+export type ChatMessage = {
+  id: string;
+  channel_id: string;
+  author_id: string | null;
+  body: string;
+  created_at: string;
+}
+
 /** Manager-only star ranking (0–5) for a team member. */
 export type StaffRating = {
   profile_id: string;
@@ -500,6 +532,10 @@ export type Database = {
       toast_time_entries: Table<ToastTimeEntry>;
       employees: Table<Employee>;
       staff_ratings: Table<StaffRating>;
+      posts: Table<Post>;
+      post_reactions: Table<PostReaction>;
+      chat_channels: Table<ChatChannel>;
+      chat_messages: Table<ChatMessage>;
       quizzes: Table<Quiz>;
       quiz_questions: Table<QuizQuestion>;
       quiz_attempts: Table<QuizAttempt>;

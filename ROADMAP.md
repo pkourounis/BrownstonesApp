@@ -66,8 +66,8 @@ half; the **Team & Social** half is largely still to build.
 | Shift swapping | 🗄️ → ⬜ | `shift_swap_requests` table exists; no UI |
 | Time-off requests | 🗄️ → ⬜ | `time_off_requests` table exists; no UI |
 | Manager approvals hub (availability + time-off + swaps) | ⬜ | Central queue for everything needing a manager's yes/no |
-| Chat (team / store messaging) | ⬜ | No table, no UI |
-| Feed / announcements | ⬜ | No table, no UI |
+| Chat (team / store messaging) | ✅ | Channels (company + per-store), realtime messages |
+| Feed / announcements | ✅ | Manager posts, scope by store, likes |
 | **Push notifications** | 🟡 → ⬜ | Notifications are **push** (web-push service worker already present). Fire on schedule publish, approvals, swaps, etc. In-app notification center is secondary. |
 
 ## Training & Resources (from schema, unbuilt UI)
