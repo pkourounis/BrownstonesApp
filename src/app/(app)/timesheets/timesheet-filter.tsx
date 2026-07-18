@@ -34,11 +34,11 @@ export function TimesheetFilter({
   };
 
   return (
-    <div className={`flex items-center gap-2 ${pending ? 'opacity-60' : ''}`}>
+    <div className={`flex flex-col gap-2 sm:flex-row sm:items-center ${pending ? 'opacity-60' : ''}`}>
       <select
         value={store}
         onChange={(e) => go({ store: e.target.value })}
-        className="input h-9 min-w-0 flex-1 text-sm"
+        className="input h-9 w-full min-w-0 text-sm sm:flex-1"
         aria-label="Store"
       >
         <option value="all">All stores</option>
@@ -48,19 +48,21 @@ export function TimesheetFilter({
           </option>
         ))}
       </select>
-      <button onClick={() => shiftDay(-1)} className="btn-secondary h-9 shrink-0 px-2" aria-label="Previous day">
-        <ChevronLeft size={16} />
-      </button>
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => e.target.value && go({ date: e.target.value })}
-        className="input h-9 shrink-0 text-sm"
-        aria-label="Date"
-      />
-      <button onClick={() => shiftDay(1)} className="btn-secondary h-9 shrink-0 px-2" aria-label="Next day">
-        <ChevronRight size={16} />
-      </button>
+      <div className="flex items-center gap-2">
+        <button onClick={() => shiftDay(-1)} className="btn-secondary h-9 shrink-0 px-2" aria-label="Previous day">
+          <ChevronLeft size={16} />
+        </button>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => e.target.value && go({ date: e.target.value })}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-brand-200 bg-white px-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 sm:w-40 sm:flex-none"
+          aria-label="Date"
+        />
+        <button onClick={() => shiftDay(1)} className="btn-secondary h-9 shrink-0 px-2" aria-label="Next day">
+          <ChevronRight size={16} />
+        </button>
+      </div>
     </div>
   );
 }

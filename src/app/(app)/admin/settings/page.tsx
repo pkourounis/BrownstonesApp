@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { getAppSettings } from '@/lib/settings';
 import { SettingsForm } from './settings-form';
+import { AgentApiInfo } from './agent-api-info';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ export default async function AppSettingsPage() {
         <p className="text-sm text-brand-600">Branding and scheduling defaults.</p>
       </div>
       <SettingsForm settings={settings} />
+      <AgentApiInfo />
     </div>
   );
 }

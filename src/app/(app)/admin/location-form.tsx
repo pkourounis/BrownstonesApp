@@ -4,15 +4,18 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type { Location } from '@/lib/database.types';
-import { createLocation, updateLocation } from './actions';
+import { createLocation, updateLocation, saveStaffingRules } from './actions';
+import { StaffingGrid, defaultRows, rowsToInput, type StaffingRow, type CopySource } from './staffing-grid';
 
 const TIMEZONES = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles'];
 
-export function LocationForm({ location }: { location: Location | null }) {
+export function LocationForm({ location, staffingSources }: { location: Location | null; staffingSources?: CopySource[] }) {
   const router = useRouter();
   const editing = !!location;
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // New locations fill their staffing chart inline (all roles default to 0).
+  const [staffRows, setStaffRows] = useState<StaffingRow[]>(() => defaultRows());
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,6 +24,10 @@ export function LocationForm({ location }: { location: Location | null }) {
     startTransition(async () => {
       const res = editing ? await updateLocation(location!.id, fd) : await createLocation(fd);
       if (res.ok) {
+        const newId = (res as { id?: string }).id;
+        if (!editing && newId) {
+          await saveStaffingRules(newId, rowsToInput(staffRows));
+        }
         router.push('/admin');
         router.refresh();
       } else {
@@ -102,6 +109,16 @@ export function LocationForm({ location }: { location: Location | null }) {
           <p className="mt-1 text-xs text-brand-500">Rules that aren&apos;t a simple headcount (opener, manager days off, lead-server coverage). Shown to schedulers on the builder.</p>
         </div>
       </div>
+
+      {!editing && (
+        <div className="card space-y-3">
+          <div>
+            <h2 className="font-semibold text-brand-900">Staffing rules</h2>
+            <p className="text-xs text-brand-500">How many of each role this store needs each day. All start at 0 — fill in what applies, or copy another store&apos;s chart as a starting point.</p>
+          </div>
+          <StaffingGrid rows={staffRows} setRows={setStaffRows} sources={staffingSources} />
+        </div>
+      )}
 
       <div className="card space-y-4">
         <h2 className="font-semibold text-brand-900">Toast integration</h2>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Bell, MessageSquare, Megaphone, CalendarClock, Repeat2, CalendarDays } from 'lucide-react';
+import { Bell, MessageSquare, Megaphone, CalendarClock, Repeat2, CalendarDays, Cake } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile } from '@/lib/auth';
 import type { Notification, NotificationType } from '@/lib/database.types';
@@ -13,6 +13,7 @@ const ICON: Record<NotificationType, React.ComponentType<{ size?: number }>> = {
   time_off_reviewed: CalendarClock,
   swap_request: Repeat2,
   announcement: Megaphone,
+  birthday: Cake,
   general: MessageSquare,
 };
 

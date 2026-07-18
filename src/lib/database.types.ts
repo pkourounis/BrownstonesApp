@@ -58,6 +58,7 @@ export type NotificationType =
   | 'time_off_reviewed'
   | 'swap_request'
   | 'announcement'
+  | 'birthday'
   | 'general';
 
 export type Location = {
