@@ -298,7 +298,7 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
 
       {/* ---------- Main ---------- */}
       <div className={`transition-[padding] duration-200 print:pl-0 ${collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-60'}`}>
-        <main className={`mx-auto px-4 pb-10 pt-4 ${isActive(pathname, '/chat') ? 'max-w-5xl' : isActive(pathname, '/dashboard') ? 'max-w-7xl' : 'max-w-2xl'}`}>{children}</main>
+        <main className={`mx-auto px-4 pb-10 pt-4 ${isActive(pathname, '/chat') ? 'max-w-5xl' : isActive(pathname, '/dashboard') || isActive(pathname, '/schedule') ? 'max-w-7xl' : 'max-w-2xl'}`}>{children}</main>
       </div>
     </div>
   );

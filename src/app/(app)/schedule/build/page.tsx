@@ -38,8 +38,8 @@ export default async function BuildSchedulePage({
       : format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
 
   const supabase = await createClient();
-  const { data: locs } = await supabase.from('locations').select('id, name').eq('is_active', true);
-  const locations = (locs ?? []) as Pick<Location, 'id' | 'name'>[];
+  const { data: locs } = await supabase.from('locations').select('id, name, labor_target_splh').eq('is_active', true);
+  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'labor_target_splh'>[];
 
   const weekStart = parseISO(monday);
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
@@ -62,10 +62,12 @@ export default async function BuildSchedulePage({
     );
   }
 
+  const laborTarget = Number(locations.find((l) => l.id === store)?.labor_target_splh) || 130;
+
   const [{ data: emps }, { data: weekData }, { data: recoData }] = await Promise.all([
     supabase.from('employees').select('*').eq('active', true).eq('location_id', store).order('first_name'),
     supabase.rpc('week_shifts', { p_location: store, p_monday: monday }),
-    supabase.rpc('staffing_reco', { p_location: store, p_target: 75 }),
+    supabase.rpc('staffing_reco', { p_location: store, p_target: laborTarget }),
   ]);
 
   const roster = ((emps ?? []) as Employee[]).map((e) => ({
@@ -122,19 +124,21 @@ export default async function BuildSchedulePage({
 
       <WeekStrip days={overview} title="Week at a glance" linkBase="#day-" />
 
-      {days.map((d) => (
-        <DayEditor
-          key={d.date}
-          date={d.date}
-          weekday={d.weekday}
-          dayLabel={d.dayLabel}
-          store={store}
-          roster={roster}
-          shifts={d.shifts}
-          recoHours={recoByDow.get(d.dow) ?? 0}
-          weekDates={weekDates}
-        />
-      ))}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {days.map((d) => (
+          <DayEditor
+            key={d.date}
+            date={d.date}
+            weekday={d.weekday}
+            dayLabel={d.dayLabel}
+            store={store}
+            roster={roster}
+            shifts={d.shifts}
+            recoHours={recoByDow.get(d.dow) ?? 0}
+            weekDates={weekDates}
+          />
+        ))}
+      </div>
     </div>
   );
 }
