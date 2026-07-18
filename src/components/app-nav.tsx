@@ -10,6 +10,7 @@ import {
   UserCircle,
   Settings,
   BarChart3,
+  Clock,
   Menu,
   X,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ const ITEMS: Item[] = [
   { href: '/schedule', label: 'Schedule', icon: CalendarDays, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/team', label: 'Team', icon: Users, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/insights', label: 'Insights', icon: BarChart3, roles: ['super_admin', 'manager'] },
+  { href: '/timesheets', label: 'Timesheets', icon: Clock, roles: ['super_admin', 'manager'] },
   { href: '/admin', label: 'Admin', icon: Settings, roles: ['super_admin'] },
   { href: '/profile', label: 'Profile', icon: UserCircle, roles: ['super_admin', 'manager', 'employee'] },
 ];

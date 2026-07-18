@@ -308,6 +308,25 @@ export type PosSales = {
   synced_at: string;
 }
 
+/** Punch in/out record synced from the Toast Labor API. */
+export type ToastTimeEntry = {
+  location_id: string;
+  guid: string;
+  employee_guid: string | null;
+  job_guid: string | null;
+  business_date: string;
+  in_at: string | null;
+  out_at: string | null;
+  regular_hours: number;
+  overtime_hours: number;
+  hourly_wage: number;
+  non_cash_tips: number;
+  cash_tips: number | null;
+  deleted: boolean;
+  labor_cost: number;
+  synced_at: string;
+}
+
 /** View: avg hourly revenue by (location, day-of-week, hour), trailing 8 weeks. */
 export type LocationHourDemand = {
   location_id: string;
@@ -440,6 +459,7 @@ export type Database = {
       location_hours: Table<LocationHours>;
       scheduling_rules: Table<SchedulingRule>;
       pos_sales: Table<PosSales>;
+      toast_time_entries: Table<ToastTimeEntry>;
       quizzes: Table<Quiz>;
       quiz_questions: Table<QuizQuestion>;
       quiz_attempts: Table<QuizAttempt>;
@@ -469,6 +489,10 @@ export type Database = {
       };
       sync_toast_now: {
         Args: Record<string, never>;
+        Returns: unknown;
+      };
+      timesheet: {
+        Args: { p_date: string | null; p_location: string | null };
         Returns: unknown;
       };
     };
