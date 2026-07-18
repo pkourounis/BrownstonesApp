@@ -38,7 +38,7 @@ export default async function AdminPage() {
         </span>
         <div className="flex-1">
           <p className="font-semibold text-brand-900">App settings</p>
-          <p className="text-sm text-brand-500">Logo, splash, colors &amp; scheduling defaults</p>
+          <p className="text-sm text-brand-500">Logo, splash &amp; colors</p>
         </div>
         <ChevronRight size={18} className="text-brand-300" />
       </Link>

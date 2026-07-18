@@ -58,6 +58,9 @@ export type Location = {
   seats: number | null;
   tables: number | null;
   revenue_per_hour_target: number;
+  labor_target_splh: number;
+  weekly_hour_cap: number;
+  shift_length: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;

@@ -25,11 +25,12 @@ export default async function BuildSchedulePage({
   const target = Math.min(150, Math.max(40, Number(sp.target) || 75));
 
   const supabase = await createClient();
-  const [{ data: locs }, { data: recoData }] = await Promise.all([
-    supabase.from('locations').select('id, name, revenue_per_hour_target').eq('is_active', true),
-    supabase.rpc('staffing_reco', { p_location: store, p_target: target }),
-  ]);
-  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'revenue_per_hour_target'>[];
+  const { data: locs } = await supabase.from('locations').select('id, name, revenue_per_hour_target, labor_target_splh').eq('is_active', true);
+  const locations = (locs ?? []) as Pick<Location, 'id' | 'name' | 'revenue_per_hour_target' | 'labor_target_splh'>[];
+  // Default the labor target from the selected store's setting when not overridden.
+  const storeDefault = store ? Number(locations.find((l) => l.id === store)?.labor_target_splh) : 0;
+  const effectiveTarget = sp.target ? target : Math.min(150, Math.max(40, storeDefault || 75));
+  const { data: recoData } = await supabase.rpc('staffing_reco', { p_location: store, p_target: effectiveTarget });
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
   const reco = (recoData ?? { target, stores: [], grid: [] }) as Reco;
 
@@ -60,7 +61,7 @@ export default async function BuildSchedulePage({
       </div>
 
       <div className="card">
-        <StaffingControls locations={locations} target={target} />
+        <StaffingControls locations={locations} target={effectiveTarget} />
       </div>
 
       {/* Which stores need staff */}

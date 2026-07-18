@@ -54,17 +54,11 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
   const [logo, setLogo] = useState(settings.logo_url);
   const [splash, setSplash] = useState(settings.splash_url);
   const [color, setColor] = useState(settings.primary_color ?? '#7a5428');
-  const [target, setTarget] = useState(String(settings.labor_target_splh));
-  const [cap, setCap] = useState(String(settings.weekly_hour_cap));
-  const [len, setLen] = useState(String(settings.shift_length));
 
   const save = () => {
     setMsg(null);
     startTransition(async () => {
-      const res = await updateAppSettings({
-        logo_url: logo, splash_url: splash, primary_color: color,
-        labor_target_splh: Number(target), weekly_hour_cap: Number(cap), shift_length: Number(len),
-      });
+      const res = await updateAppSettings({ logo_url: logo, splash_url: splash, primary_color: color });
       setMsg(res.ok ? 'Saved.' : res.error ?? 'Error');
       if (res.ok) router.refresh();
     });
@@ -86,15 +80,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
         </div>
       </div>
 
-      <div className="card space-y-4">
-        <h2 className="font-semibold text-brand-900">Scheduling defaults</h2>
-        <div className="grid grid-cols-3 gap-3">
-          <div><label className="label">Sales / labor-hr</label><input type="number" min="20" max="150" value={target} onChange={(e) => setTarget(e.target.value)} className="input h-9 text-sm" /></div>
-          <div><label className="label">Weekly cap (h)</label><input type="number" min="10" max="60" value={cap} onChange={(e) => setCap(e.target.value)} className="input h-9 text-sm" /></div>
-          <div><label className="label">Shift length (h)</label><input type="number" min="4" max="10" value={len} onChange={(e) => setLen(e.target.value)} className="input h-9 text-sm" /></div>
-        </div>
-        <p className="text-xs text-brand-500">Used by Auto-fill and the staffing guide.</p>
-      </div>
+      <p className="text-xs text-brand-500">Scheduling defaults (sales/labor-hr, weekly cap, shift length) are set per store in <span className="font-medium text-brand-700">Admin → each location</span>.</p>
 
       <button onClick={save} disabled={pending} className="btn-primary w-full justify-center">
         {pending ? <Loader2 size={18} className="animate-spin" /> : 'Save settings'}
