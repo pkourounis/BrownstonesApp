@@ -79,6 +79,8 @@ export function LocationForm({ location }: { location: Location | null }) {
         </div>
         <F label="Sales / hour per server ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
         <p className="-mt-2 text-xs text-brand-500">How much in sales one server handles per hour (default $1,300). The staffing rules below are the floor; when a day&apos;s projected peak-hour sales exceed this per server, the builder flags that extra staff are needed for the rush.</p>
+        <F label="Daily sales goal ($)" name="daily_sales_goal" type="number" defaultValue={location?.daily_sales_goal} placeholder="e.g. 12000" />
+        <p className="-mt-2 text-xs text-brand-500">When this store&apos;s net sales for the day reach this goal, it&apos;s celebrated on the home screen for managers and super admins. Leave blank for no goal.</p>
       </div>
 
       <div className="card space-y-4">

@@ -61,17 +61,40 @@ export default async function DashboardPage() {
 
 async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; primaryLocationId: string | null }) {
   const supabase = await createClient();
-  const [{ data }, pendingApprovals, coverage] = await Promise.all([
+  const [{ data }, pendingApprovals, coverage, { data: goalRows }] = await Promise.all([
     supabase.rpc('home_summary'),
     countPendingApprovals(supabase),
     lastWeekCoverage(supabase, isSuper, primaryLocationId),
+    supabase.from('locations').select('id, daily_sales_goal').eq('is_active', true),
   ]);
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
 
   const hasCoverage = coverage.some((c) => c.days.some((d) => d.sched > 0 || d.reco > 0));
 
+  // Daily sales goals reached today — celebrate on the home screen.
+  const goalById = new Map(((goalRows ?? []) as { id: string; daily_sales_goal: number | null }[]).map((g) => [g.id, Number(g.daily_sales_goal) || 0]));
+  const goalsHit = s.stores
+    .filter((st) => (goalById.get(st.id) ?? 0) > 0 && st.net >= (goalById.get(st.id) ?? 0))
+    .map((st) => ({ name: st.name, net: st.net, goal: goalById.get(st.id) ?? 0 }));
+
   return (
+    <div className="space-y-4">
+    {goalsHit.length > 0 && (
+      <div className="rounded-2xl border border-gold-300 bg-gradient-to-r from-gold-100 to-cream px-4 py-3 shadow-sm">
+        <p className="flex items-center gap-1.5 text-sm font-bold text-brand-900">
+          <span className="text-lg">🎉</span>
+          {goalsHit.length === 1 ? `${goalsHit[0].name} hit its daily sales goal!` : `${goalsHit.length} stores hit their daily sales goal!`}
+        </p>
+        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-brand-700">
+          {goalsHit.map((g) => (
+            <span key={g.name} className="tabular-nums">
+              <span className="font-semibold">{g.name}</span> · {money2(g.net)} of {money2(g.goal)}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
     <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:items-start">
       {/* ---- Left column: live numbers ---- */}
       <div className="space-y-4">
@@ -171,6 +194,7 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
         {/* Live feed */}
         <FeedPreview />
       </div>
+    </div>
     </div>
   );
 }
