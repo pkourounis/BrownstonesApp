@@ -11,6 +11,7 @@ import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
 import { StoreSelect } from './store-select';
 import { PrintScheduleGrid, type PrintRow } from './print-schedule';
+import { WeekStrip, type StripDay } from './week-strip';
 import type { Location } from '@/lib/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -59,9 +60,9 @@ export default async function SchedulePage({
   // Which store's schedule are we viewing? Super admins pick any store; managers
   // see their own; employees aren't store-filtered (they see their own shifts).
   const { data: locData } = manager
-    ? await supabase.from('locations').select('id, name').eq('is_active', true).order('name')
+    ? await supabase.from('locations').select('id, name, labor_target_splh').eq('is_active', true).order('name')
     : { data: [] };
-  const allLocs = (locData ?? []) as Pick<Location, 'id' | 'name'>[];
+  const allLocs = (locData ?? []) as Pick<Location, 'id' | 'name' | 'labor_target_splh'>[];
   const selectable = isSuper ? allLocs : allLocs.filter((l) => l.id === profile.primary_location_id);
   const selectedStore = manager
     ? (sp.store && selectable.some((l) => l.id === sp.store) ? sp.store : selectable[0]?.id ?? profile.primary_location_id ?? null)
@@ -182,6 +183,27 @@ export default async function SchedulePage({
     printRows = [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  // Coverage strip for the displayed week (managers, week/weekend views).
+  let weekStrip: StripDay[] = [];
+  if (weekMode && manager && selectedStore) {
+    const target = Number(allLocs.find((l) => l.id === selectedStore)?.labor_target_splh) || 75;
+    const { data: recoData } = await supabase.rpc('staffing_reco', { p_location: selectedStore, p_target: target });
+    const grid = ((recoData as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
+    const recoByDow = new Map<number, number>();
+    for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
+    weekStrip = weekDayList.map((d) => {
+      const key = format(d, 'yyyy-MM-dd');
+      const list = byDay.get(key) ?? [];
+      return {
+        key,
+        abbr: format(d, 'EEE'),
+        sched: list.reduce((n, s) => n + shiftHours(s.starts_at, s.ends_at, s.break_minutes), 0),
+        reco: recoByDow.get(d.getDay()) ?? 0,
+        count: list.length,
+      };
+    });
+  }
+
   const shiftCard = (s: ShiftRow) => {
     const mine = mineShift(s);
     const future = new Date(s.starts_at).getTime() > Date.now();
@@ -288,6 +310,8 @@ export default async function SchedulePage({
       )}
 
       {error && <div className="card text-sm text-red-700">Couldn&apos;t load shifts: {error.message}</div>}
+
+      {weekStrip.length > 0 && <WeekStrip days={weekStrip} title="Coverage this week" />}
 
       {weekMode && manager && (() => {
         const weekShifts = weekDayList.flatMap((d) => byDay.get(format(d, 'yyyy-MM-dd')) ?? []);

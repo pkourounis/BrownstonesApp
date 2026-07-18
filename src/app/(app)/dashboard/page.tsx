@@ -11,15 +11,17 @@ import {
   ClipboardCheck,
   CalendarClock,
 } from 'lucide-react';
+import { format, startOfWeek, addDays } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { money, money2, shiftDay, shiftTimeRange } from '@/lib/format';
+import { money, money2, shiftDay, shiftTimeRange, shiftHours } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
 import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
 import { FeedPreview } from './feed-preview';
 import { AckPrompt } from './ack-prompt';
+import { WeekStrip, type StripDay } from '../schedule/week-strip';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,16 +57,17 @@ export default async function DashboardPage() {
 
       <AckPrompt />
 
-      {manager ? <OpsHome /> : <EmployeeHome profileId={profile.id} />}
+      {manager ? <OpsHome primaryLocationId={profile.primary_location_id} /> : <EmployeeHome profileId={profile.id} />}
     </div>
   );
 }
 
-async function OpsHome() {
+async function OpsHome({ primaryLocationId }: { primaryLocationId: string | null }) {
   const supabase = await createClient();
-  const [{ data }, pendingApprovals] = await Promise.all([
+  const [{ data }, pendingApprovals, lastWeekStrip] = await Promise.all([
     supabase.rpc('home_summary'),
     countPendingApprovals(supabase),
+    lastWeekCoverage(supabase, primaryLocationId),
   ]);
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
@@ -102,6 +105,19 @@ async function OpsHome() {
             </Link>
           </div>
           <StoreBoard stores={s.stores} />
+        </section>
+      )}
+
+      {/* How last week's coverage went */}
+      {lastWeekStrip.some((d) => d.sched > 0 || d.reco > 0) && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-brand-900">Last week&apos;s coverage</h2>
+            <Link href="/schedule?view=week" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+              Schedule <ArrowRight size={14} />
+            </Link>
+          </div>
+          <WeekStrip days={lastWeekStrip} compact />
         </section>
       )}
 
@@ -148,6 +164,39 @@ async function OpsHome() {
       <FeedPreview />
     </>
   );
+}
+
+async function lastWeekCoverage(supabase: Awaited<ReturnType<typeof createClient>>, locationId: string | null): Promise<StripDay[]> {
+  if (!locationId) return [];
+  const monday = startOfWeek(addDays(new Date(), -7), { weekStartsOn: 1 });
+  const [{ data: loc }, { data: recoData }, { data: shiftData }] = await Promise.all([
+    supabase.from('locations').select('labor_target_splh').eq('id', locationId).maybeSingle(),
+    supabase.rpc('staffing_reco', { p_location: locationId, p_target: 75 }),
+    supabase
+      .from('shifts')
+      .select('starts_at, ends_at, break_minutes')
+      .eq('location_id', locationId)
+      .gte('starts_at', monday.toISOString())
+      .lt('starts_at', addDays(monday, 7).toISOString()),
+  ]);
+  void loc;
+  const grid = ((recoData as { grid?: { dow: number; reco: number }[] })?.grid ?? []);
+  const recoByDow = new Map<number, number>();
+  for (const g of grid) recoByDow.set(g.dow, (recoByDow.get(g.dow) ?? 0) + g.reco);
+  const byDay = new Map<string, { sched: number; count: number }>();
+  for (const s of (shiftData as { starts_at: string; ends_at: string; break_minutes: number }[]) ?? []) {
+    const key = format(new Date(s.starts_at), 'yyyy-MM-dd');
+    const cur = byDay.get(key) ?? { sched: 0, count: 0 };
+    cur.sched += shiftHours(s.starts_at, s.ends_at, s.break_minutes);
+    cur.count += 1;
+    byDay.set(key, cur);
+  }
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(monday, i);
+    const key = format(d, 'yyyy-MM-dd');
+    const cur = byDay.get(key) ?? { sched: 0, count: 0 };
+    return { key, abbr: format(d, 'EEE'), sched: cur.sched, reco: recoByDow.get(d.getDay()) ?? 0, count: cur.count };
+  });
 }
 
 async function countPendingApprovals(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
