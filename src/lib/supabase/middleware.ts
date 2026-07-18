@@ -37,6 +37,7 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/api') || // agent API / MCP — guarded by its own bearer token
     pathname === '/manifest.json' ||
     pathname === '/sw.js';
 
