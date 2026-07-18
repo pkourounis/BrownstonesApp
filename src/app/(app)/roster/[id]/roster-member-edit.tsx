@@ -64,18 +64,27 @@ export function RosterMemberEdit({
     location_id: member.location_id,
     default_wage: member.default_wage != null ? String(member.default_wage) : '',
   });
+  const [roleTitles, setRoleTitles] = useState<string[]>(member.role_titles ?? []);
   const [active, setActive] = useState(member.active);
-  const roles = member.role_title && !JOB_ROLES.includes(member.role_title) ? [...JOB_ROLES, member.role_title] : JOB_ROLES;
+  const extras = (member.role_titles ?? []).filter((r) => !JOB_ROLES.includes(r));
+  const roles = [...JOB_ROLES, ...(member.role_title && !JOB_ROLES.includes(member.role_title) ? [member.role_title] : []), ...extras.filter((r) => r !== member.role_title)];
+  const allRoles = [...new Set(roles)];
+
+  const toggleRole = (r: string) =>
+    setRoleTitles((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
 
   const onSave = () => {
     setMsg(null);
     startTransition(async () => {
+      // Keep the primary role in the multi-role set.
+      const titles = [...new Set([...(f.role_title ? [f.role_title] : []), ...roleTitles])];
       const res = await updateEmployee(member.id, {
         first_name: f.first_name,
         last_name: f.last_name || null,
         email: f.email || null,
         phone: f.phone || null,
         role_title: f.role_title || null,
+        role_titles: titles,
         department: (f.department || null) as Department | null,
         location_id: f.location_id,
         default_wage: f.default_wage ? Number(f.default_wage) : null,
@@ -152,15 +161,36 @@ export function RosterMemberEdit({
             </select>
           </div>
           <div>
-            <label className="label">Job role</label>
+            <label className="label">Primary role</label>
             <select className="input" value={f.role_title} onChange={(e) => setF({ ...f, role_title: e.target.value })}>
               <option value="">—</option>
-              {roles.map((r) => (
+              {allRoles.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
           </div>
         </div>
+
+        <div>
+          <label className="label">Roles they can work</label>
+          <div className="flex flex-wrap gap-1.5">
+            {allRoles.map((r) => {
+              const on = r === f.role_title || roleTitles.includes(r);
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => r !== f.role_title && toggleRole(r)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium ${on ? 'bg-brand-700 text-white' : 'bg-white text-brand-600 ring-1 ring-brand-200'} ${r === f.role_title ? 'opacity-90' : ''}`}
+                >
+                  {r}{r === f.role_title ? ' ★' : ''}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-xs text-brand-500">Tap every role this person can work (e.g. server + host). ★ is their primary. Used when scheduling so they can be a server one day and a host another.</p>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Location</label>

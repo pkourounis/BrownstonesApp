@@ -71,6 +71,7 @@ export default async function BuildSchedulePage({
     id: e.id,
     label: `${e.first_name} ${e.last_name ?? ''}`.trim(),
     role: e.role_title,
+    roles: e.role_titles?.length ? e.role_titles : e.role_title ? [e.role_title] : [],
   }));
   const shifts = (weekData ?? []) as WeekShift[];
   const reco = (recoData ?? { grid: [] }) as Grid;

@@ -22,6 +22,7 @@ type ShiftRow = {
   break_minutes: number;
   status: 'draft' | 'published';
   notes: string | null;
+  role_title: string | null;
   employee_id: string | null;
   roster_employee_id: string | null;
   position: { name: string; color: string } | null;
@@ -92,7 +93,7 @@ export default async function SchedulePage({
   let shiftQuery = supabase
     .from('shifts')
     .select(
-      `id, starts_at, ends_at, break_minutes, status, notes, employee_id, roster_employee_id,
+      `id, starts_at, ends_at, break_minutes, status, notes, role_title, employee_id, roster_employee_id,
        position:positions(name, color),
        employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
        roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, default_wage)`
@@ -202,7 +203,7 @@ export default async function SchedulePage({
                   ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim()
                   : 'Open shift'}
               {mine && <span className="text-brand-400">· you</span>}
-              {(s.position?.name || s.roster?.role_title) && <span className="text-brand-400">· {s.position?.name ?? s.roster?.role_title}</span>}
+              {(s.role_title || s.position?.name || s.roster?.role_title) && <span className="text-brand-400">· {s.role_title ?? s.position?.name ?? s.roster?.role_title}</span>}
             </p>
           </div>
           {s.status === 'draft' ? (

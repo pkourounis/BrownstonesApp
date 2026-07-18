@@ -50,10 +50,11 @@ export async function createShift(formData: FormData): Promise<{ ok: boolean; er
   const p_end = String(formData.get('end') ?? '');
   const p_employee = String(formData.get('employee_id') ?? '') || null;
   const p_break = Number(formData.get('break') ?? 0) || 0;
+  const p_role = String(formData.get('role') ?? '') || null;
 
   if (!p_location || !p_date || !p_start || !p_end) return { ok: false, error: 'Missing fields.' };
 
-  const { error } = await supabase.rpc('create_shift', { p_location, p_date, p_start, p_end, p_break, p_employee });
+  const { error } = await supabase.rpc('create_shift', { p_location, p_date, p_start, p_end, p_break, p_employee, p_role });
   if (error) return { ok: false, error: error.message };
   revalidatePath('/schedule/build');
   return { ok: true };
@@ -70,6 +71,7 @@ export async function updateShift(formData: FormData): Promise<{ ok: boolean; er
   const end = String(formData.get('end') ?? '');
   const employee = String(formData.get('employee_id') ?? '') || null;
   const brk = Number(formData.get('break') ?? 0) || 0;
+  const role = String(formData.get('role') ?? '').trim() || null;
   if (!id || !date || !start || !end) return { ok: false, error: 'Missing fields.' };
 
   const starts_at = etWallToUtc(date, start);
@@ -77,7 +79,7 @@ export async function updateShift(formData: FormData): Promise<{ ok: boolean; er
 
   const { data, error } = await supabase
     .from('shifts')
-    .update({ roster_employee_id: employee, starts_at, ends_at, break_minutes: Math.max(0, brk) })
+    .update({ roster_employee_id: employee, starts_at, ends_at, break_minutes: Math.max(0, brk), role_title: role })
     .eq('id', id)
     .select('id');
   if (error) return { ok: false, error: error.message };

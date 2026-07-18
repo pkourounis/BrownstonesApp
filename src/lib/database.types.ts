@@ -203,6 +203,7 @@ export type Shift = {
   break_minutes: number;
   status: ShiftStatus;
   notes: string | null;
+  role_title: string | null;
   created_by: string | null;
   published_at: string | null;
   created_at: string;
@@ -450,6 +451,7 @@ export type Employee = {
   email: string | null;
   phone: string | null;
   role_title: string | null;
+  role_titles: string[];
   position_id: string | null;
   department: Department | null;
   default_wage: number | null;
@@ -679,6 +681,7 @@ export type Database = {
           p_end: string;
           p_break: number;
           p_employee: string | null;
+          p_role?: string | null;
         };
         Returns: string;
       };

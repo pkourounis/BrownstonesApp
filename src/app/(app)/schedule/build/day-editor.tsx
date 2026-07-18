@@ -15,7 +15,7 @@ type Shift = {
   break_minutes: number;
   status: string;
 };
-type RosterOpt = { id: string; label: string; role: string | null };
+type RosterOpt = { id: string; label: string; role: string | null; roles: string[] };
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
@@ -54,6 +54,9 @@ export function DayEditor({
   const [copyDays, setCopyDays] = useState<Set<string>>(new Set());
   const [copyEmps, setCopyEmps] = useState<Set<string>>(new Set());
   const [editId, setEditId] = useState<string | null>(null);
+  const [addEmp, setAddEmp] = useState('');
+  const [editEmp, setEditEmp] = useState('');
+  const rolesFor = (empId: string) => roster.find((r) => r.id === empId)?.roles ?? [];
 
   const onEdit = (formData: FormData) => {
     setErr(null);
@@ -105,6 +108,7 @@ export function DayEditor({
       const res = await createShift(formData);
       if (res.ok) {
         setAdding(false);
+        setAddEmp('');
         router.refresh();
       } else {
         setErr(res.error ?? 'Could not add shift.');
@@ -138,7 +142,7 @@ export function DayEditor({
                 <form action={onEdit} className="space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
                   <input type="hidden" name="id" value={s.id} />
                   <input type="hidden" name="date" value={date} />
-                  <select name="employee_id" defaultValue={s.roster_employee_id ?? ''} className="input h-9 w-full text-sm">
+                  <select name="employee_id" value={editEmp} onChange={(e) => setEditEmp(e.target.value)} className="input h-9 w-full text-sm">
                     <option value="">Unassigned (open shift)</option>
                     {roster.map((r) => (
                       <option key={r.id} value={r.id}>
@@ -147,6 +151,14 @@ export function DayEditor({
                       </option>
                     ))}
                   </select>
+                  {rolesFor(editEmp).length > 0 && (
+                    <select name="role" defaultValue={s.role ?? ''} className="input h-9 w-full text-sm" aria-label="Role for this shift">
+                      <option value="">Role for this shift…</option>
+                      {rolesFor(editEmp).map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  )}
                   <div className="flex items-center gap-2">
                     <input name="start" type="time" defaultValue={hhmmET(s.starts_at)} required className="input h-9 flex-1 text-sm" aria-label="Start" />
                     <span className="text-brand-400">–</span>
@@ -170,7 +182,7 @@ export function DayEditor({
                     {fmt(s.starts_at)}–{fmt(s.ends_at)} · {shiftHours(s).toFixed(1)}h{s.role ? ` · ${s.role}` : ''}
                   </p>
                 </div>
-                <button onClick={() => { setEditId(s.id); setCopyId(null); }} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Edit shift">
+                <button onClick={() => { setEditId(s.id); setEditEmp(s.roster_employee_id ?? ''); setCopyId(null); }} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Edit shift">
                   <Pencil size={15} />
                 </button>
                 <button onClick={() => (copyId === s.id ? setCopyId(null) : openCopy(s.id))} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Copy shift">
@@ -232,7 +244,7 @@ export function DayEditor({
         <form action={onAdd} className="space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
           <input type="hidden" name="location_id" value={store} />
           <input type="hidden" name="date" value={date} />
-          <select name="employee_id" required className="input h-9 w-full text-sm">
+          <select name="employee_id" required value={addEmp} onChange={(e) => setAddEmp(e.target.value)} className="input h-9 w-full text-sm">
             <option value="">Employee…</option>
             {roster.map((r) => (
               <option key={r.id} value={r.id}>
@@ -241,6 +253,14 @@ export function DayEditor({
               </option>
             ))}
           </select>
+          {rolesFor(addEmp).length > 0 && (
+            <select name="role" defaultValue={roster.find((r) => r.id === addEmp)?.role ?? ''} key={addEmp} className="input h-9 w-full text-sm" aria-label="Role for this shift">
+              <option value="">Role for this shift…</option>
+              {rolesFor(addEmp).map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          )}
           <div className="flex items-center gap-2">
             <input name="start" type="time" defaultValue="08:00" required className="input h-9 flex-1 text-sm" aria-label="Start" />
             <span className="text-brand-400">–</span>
@@ -251,14 +271,14 @@ export function DayEditor({
             <button type="submit" disabled={pending} className="btn-primary h-9 flex-1 text-sm">
               {pending ? 'Adding…' : 'Add shift'}
             </button>
-            <button type="button" onClick={() => setAdding(false)} className="btn-secondary h-9 px-3 text-sm">
+            <button type="button" onClick={() => { setAdding(false); setAddEmp(''); }} className="btn-secondary h-9 px-3 text-sm">
               Cancel
             </button>
           </div>
           {err && <p className="text-xs text-brick-600">{err}</p>}
         </form>
       ) : (
-        <button onClick={() => setAdding(true)} className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-brand-200 py-2 text-xs font-medium text-brand-500 hover:border-brand-400 hover:text-brand-700">
+        <button onClick={() => { setAdding(true); setAddEmp(''); }} className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-brand-200 py-2 text-xs font-medium text-brand-500 hover:border-brand-400 hover:text-brand-700">
           <Plus size={14} /> Add shift
         </button>
       )}

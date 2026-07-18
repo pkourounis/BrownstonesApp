@@ -164,6 +164,7 @@ export async function updateEmployee(
     email?: string | null;
     phone?: string | null;
     role_title?: string | null;
+    role_titles?: string[];
     department?: Department | null;
     location_id?: string;
     default_wage?: number | null;
@@ -181,6 +182,7 @@ export async function updateEmployee(
     department: patch.department ?? null,
     default_wage: patch.default_wage ?? null,
   };
+  if (patch.role_titles) update.role_titles = patch.role_titles;
   if (patch.location_id) update.location_id = patch.location_id;
   if (typeof patch.active === 'boolean') update.active = patch.active;
 
