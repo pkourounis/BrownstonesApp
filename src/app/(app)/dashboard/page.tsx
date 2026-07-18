@@ -11,22 +11,23 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { money, money2, monthAbbr, shiftDay, shiftTimeRange } from '@/lib/format';
+import { money, money2, shiftDay, shiftTimeRange } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
 import { SyncButton } from '../insights/sync-button';
-import { BarChart, type Bar } from '../insights/chart';
 import { StoreBoard } from './store-board';
+import { YtdChart } from './ytd-chart';
 
 export const dynamic = 'force-dynamic';
 
-type Store = { id: string; name: string; net: number; prev: number; on_now: number; on: { name: string; in_at: string | null }[] };
+type OnPerson = { name: string; in_at: string | null; role: string | null; dept: string | null };
+type Store = { id: string; name: string; net: number; prev: number; on_now: number; on_foh: number; on_boh: number; on_mgmt: number; on: OnPerson[] };
 type Summary = {
   today: { date: string; net: number; checks: number; labor_pct: number; on_now: number };
   prev: { date: string; net: number; checks: number };
   clocked_total: number;
   stores: Store[];
-  ytd: { net: number; checks: number; avg: number; monthly: { ym: string; net: number }[] };
-  labor: { pct: number };
+  ytd: { net: number; checks: number; avg: number; monthly: { ym: string; net: number; checks: number }[] };
+  labor: { pct: number; weekly: { wk: string; pct: number }[] };
   synced_at: string | null;
 };
 
@@ -58,14 +59,6 @@ async function OpsHome() {
   const { data } = await supabase.rpc('home_summary');
   const s = (data ?? null) as Summary | null;
   if (!s) return <div className="card text-center text-sm text-brand-500">No data yet.</div>;
-
-  const ytdBars: Bar[] = s.ytd.monthly.map((m, i) => ({
-    label: monthAbbr(m.ym),
-    full: `${monthAbbr(m.ym)} ${m.ym.slice(0, 4)}`,
-    value: Number(m.net),
-    peak: i === s.ytd.monthly.length - 1,
-  }));
-  const ytdMax = Math.max(1, ...ytdBars.map((b) => b.value));
 
   return (
     <>
@@ -123,12 +116,9 @@ async function OpsHome() {
             <p className="mt-0.5 text-xs text-brand-500">labor · 8 wk</p>
           </div>
         </div>
-        {ytdBars.length > 1 && (
-          <div className="mt-4">
-            <p className="mb-1 text-xs text-brand-400">Monthly sales</p>
-            <BarChart bars={ytdBars} max={ytdMax} />
-          </div>
-        )}
+        <div className="mt-4">
+          <YtdChart monthly={s.ytd.monthly} weekly={s.labor.weekly} />
+        </div>
         </div>
       </section>
 
