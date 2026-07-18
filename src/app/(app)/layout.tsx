@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getAppSettings } from '@/lib/settings';
 import { brandScaleCss } from '@/lib/theme';
 import { AppShell } from '@/components/app-shell';
+import { SplashScreen } from '@/components/splash-screen';
 
 export default async function AppLayout({
   children,
@@ -21,6 +22,7 @@ export default async function AppLayout({
   return (
     <>
       {themeCss && <style>{themeCss}</style>}
+      <SplashScreen url={settings.splash_url} />
       <AppShell profile={profile} unread={count ?? 0} logoUrl={settings.logo_url}>
         {children}
       </AppShell>
