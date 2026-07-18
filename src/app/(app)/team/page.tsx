@@ -1,8 +1,15 @@
 import Link from 'next/link';
-import { Star, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, roleLabel, canManage } from '@/lib/auth';
-import type { Profile } from '@/lib/database.types';
+import type { Location, Profile } from '@/lib/database.types';
+import { AddPerson } from './add-person';
+
+const ROLE_BADGE: Record<string, string> = {
+  super_admin: 'bg-brand-700 text-white',
+  manager: 'bg-gold-200 text-brand-800',
+  employee: 'bg-brand-100 text-brand-600',
+};
 
 function initials(p: Pick<Profile, 'full_name' | 'display_name'>): string {
   const name = p.display_name || p.full_name || '?';
@@ -20,18 +27,21 @@ export const dynamic = 'force-dynamic';
 export default async function TeamPage() {
   const profile = await requireProfile();
   const manager = canManage(profile.role);
+  const isSuper = profile.role === 'super_admin';
   const supabase = await createClient();
 
-  const [{ data }, { data: ratings }] = await Promise.all([
+  const [{ data }, { data: ratings }, { data: locs }] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, full_name, display_name, avatar_url, role, title, employment_status')
       .order('full_name', { ascending: true }),
     manager ? supabase.from('staff_ratings').select('profile_id, rating') : Promise.resolve({ data: [] }),
+    isSuper ? supabase.from('locations').select('id, name').eq('is_active', true).order('name') : Promise.resolve({ data: [] }),
   ]);
 
   const team = (data as Profile[]) ?? [];
   const ratingBy = new Map((ratings ?? []).map((r) => [r.profile_id, r.rating]));
+  const locations = (locs ?? []) as Pick<Location, 'id' | 'name'>[];
 
   const Row = ({ p }: { p: Profile }) => {
     const archived = p.employment_status === 'inactive';
@@ -53,6 +63,7 @@ export default async function TeamPage() {
           </p>
           <p className="text-sm text-brand-500">{p.title || roleLabel(p.role)}</p>
         </div>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${ROLE_BADGE[p.role]}`}>{roleLabel(p.role)}</span>
         {manager && rating > 0 && (
           <span className="flex items-center gap-0.5 text-sm font-semibold tabular-nums text-brand-700">
             <Star size={14} className="fill-gold-400 text-gold-500" /> {rating}
@@ -70,9 +81,17 @@ export default async function TeamPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-brand-900">Team</h1>
-        <p className="text-sm text-brand-600">{team.length} people</p>
+      {isSuper && (
+        <Link href="/admin" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+          <ArrowLeft size={16} /> Back to admin
+        </Link>
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-brand-900">People &amp; roles</h1>
+          <p className="text-sm text-brand-600">{team.length} with app access · manage roles &amp; access</p>
+        </div>
+        {isSuper && <AddPerson locations={locations} />}
       </div>
 
       <ul className="space-y-2">

@@ -72,9 +72,13 @@ export type LocationHours = {
   is_closed: boolean;
 }
 
+export type ResourceKind = 'doc' | 'video' | 'link';
+
 export type Resource = {
   id: string;
   type: ResourceType;
+  kind: ResourceKind;
+  category: string;
   title: string;
   description: string | null;
   url: string | null;
@@ -88,8 +92,10 @@ export type Resource = {
 export type ResourceAssignment = {
   id: string;
   resource_id: string;
-  location_id: string | null; // null = all locations
-  profile_id: string | null;  // null = all employees
+  location_id: string | null;   // null = all locations
+  profile_id: string | null;    // null = all employees
+  department: Department | null; // null = all departments
+  managers_only: boolean;
   created_at: string;
 }
 

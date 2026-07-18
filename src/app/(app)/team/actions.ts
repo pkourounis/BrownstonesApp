@@ -6,6 +6,50 @@ import { requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import type { AppRole, Department, EmploymentStatus, Profile } from '@/lib/database.types';
 
+/** Create a brand-new app user with a chosen role (super-admin only). Returns a temp password. */
+export async function createAppUser(input: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: AppRole;
+  primary_location_id: string | null;
+}): Promise<{ ok: boolean; error?: string; tempPassword?: string }> {
+  await requireRole('super_admin');
+  const email = input.email.trim().toLowerCase();
+  const first = input.first_name.trim();
+  const last = input.last_name.trim();
+  if (!first) return { ok: false, error: 'First name is required.' };
+  if (!email || !email.includes('@')) return { ok: false, error: 'A valid email is required.' };
+
+  const svc = createServiceClient();
+  const temp = `Coffee-${randomBytes(4).toString('hex')}`;
+  const fullName = `${first} ${last}`.trim();
+  const { data, error } = await svc.auth.admin.createUser({
+    email,
+    password: temp,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+  if (error || !data?.user) return { ok: false, error: error?.message ?? 'Could not create the account.' };
+
+  const { error: pErr } = await svc
+    .from('profiles')
+    .update({
+      first_name: first,
+      last_name: last || null,
+      full_name: fullName,
+      role: input.role,
+      primary_location_id: input.primary_location_id,
+      employment_status: 'active',
+      must_change_password: true,
+    })
+    .eq('id', data.user.id);
+  if (pErr) return { ok: false, error: pErr.message };
+
+  revalidatePath('/team');
+  return { ok: true, tempPassword: temp };
+}
+
 /** Set (or clear) a team member's star ranking. rating 0 clears it. */
 export async function setRating(profileId: string, rating: number): Promise<{ ok: boolean; error?: string }> {
   await requireRole('super_admin', 'manager');
