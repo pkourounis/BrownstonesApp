@@ -59,6 +59,33 @@ export async function createShift(formData: FormData): Promise<{ ok: boolean; er
   return { ok: true };
 }
 
+/** Edit a shift's assignee, times (ET wall-clock), and break. */
+export async function updateShift(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+
+  const id = String(formData.get('id') ?? '');
+  const date = String(formData.get('date') ?? '');
+  const start = String(formData.get('start') ?? '');
+  const end = String(formData.get('end') ?? '');
+  const employee = String(formData.get('employee_id') ?? '') || null;
+  const brk = Number(formData.get('break') ?? 0) || 0;
+  if (!id || !date || !start || !end) return { ok: false, error: 'Missing fields.' };
+
+  const starts_at = etWallToUtc(date, start);
+  const ends_at = etWallToUtc(end <= start ? addDaysStr(date, 1) : date, end);
+
+  const { data, error } = await supabase
+    .from('shifts')
+    .update({ roster_employee_id: employee, starts_at, ends_at, break_minutes: Math.max(0, brk) })
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Not authorized for this shift.' };
+  revalidatePath('/schedule/build');
+  return { ok: true };
+}
+
 /** Delete a draft/published shift. */
 export async function deleteShift(id: string): Promise<{ ok: boolean; error?: string }> {
   await requireRole('super_admin', 'manager');

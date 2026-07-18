@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 
 type WeekShift = {
   id: string;
+  roster_employee_id: string | null;
   employee: string | null;
   role: string | null;
   wage: number | null;

@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X, Copy, Check } from 'lucide-react';
-import { createShift, deleteShift, duplicateShift } from './actions';
+import { Plus, X, Copy, Check, Pencil } from 'lucide-react';
+import { createShift, deleteShift, duplicateShift, updateShift } from './actions';
 
 type Shift = {
   id: string;
+  roster_employee_id: string | null;
   employee: string | null;
   role: string | null;
   starts_at: string;
@@ -18,6 +19,10 @@ type RosterOpt = { id: string; label: string; role: string | null };
 
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+
+// 24-hour HH:MM in ET for prefilling <input type="time">.
+const hhmmET = (iso: string) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
 const shiftHours = (s: Shift) =>
   Math.max(0, (new Date(s.ends_at).getTime() - new Date(s.starts_at).getTime()) / 3_600_000 - (s.break_minutes || 0) / 60);
@@ -48,6 +53,18 @@ export function DayEditor({
   const [copyId, setCopyId] = useState<string | null>(null);
   const [copyDays, setCopyDays] = useState<Set<string>>(new Set());
   const [copyEmps, setCopyEmps] = useState<Set<string>>(new Set());
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const onEdit = (formData: FormData) => {
+    setErr(null);
+    startTransition(async () => {
+      const res = await updateShift(formData);
+      if (res.ok) {
+        setEditId(null);
+        router.refresh();
+      } else setErr(res.error ?? 'Could not save shift.');
+    });
+  };
 
   const openCopy = (id: string) => {
     setCopyId(id);
@@ -117,6 +134,32 @@ export function DayEditor({
         <ul className="mb-2 divide-y divide-brand-50">
           {shifts.map((s) => (
             <li key={s.id} className="py-1.5">
+              {editId === s.id ? (
+                <form action={onEdit} className="space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
+                  <input type="hidden" name="id" value={s.id} />
+                  <input type="hidden" name="date" value={date} />
+                  <select name="employee_id" defaultValue={s.roster_employee_id ?? ''} className="input h-9 w-full text-sm">
+                    <option value="">Unassigned (open shift)</option>
+                    {roster.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                        {r.role ? ` · ${r.role}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <input name="start" type="time" defaultValue={hhmmET(s.starts_at)} required className="input h-9 flex-1 text-sm" aria-label="Start" />
+                    <span className="text-brand-400">–</span>
+                    <input name="end" type="time" defaultValue={hhmmET(s.ends_at)} required className="input h-9 flex-1 text-sm" aria-label="End" />
+                    <input name="break" type="number" min="0" step="15" defaultValue={s.break_minutes} className="input h-9 w-16 text-sm" aria-label="Break minutes" title="Break (min)" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={pending} className="btn-primary h-9 flex-1 text-sm">{pending ? 'Saving…' : 'Save shift'}</button>
+                    <button type="button" onClick={() => setEditId(null)} className="btn-secondary h-9 px-3 text-sm">Cancel</button>
+                  </div>
+                  {err && <p className="text-xs text-brick-600">{err}</p>}
+                </form>
+              ) : (
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-brand-900">
@@ -127,6 +170,9 @@ export function DayEditor({
                     {fmt(s.starts_at)}–{fmt(s.ends_at)} · {shiftHours(s).toFixed(1)}h{s.role ? ` · ${s.role}` : ''}
                   </p>
                 </div>
+                <button onClick={() => { setEditId(s.id); setCopyId(null); }} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Edit shift">
+                  <Pencil size={15} />
+                </button>
                 <button onClick={() => (copyId === s.id ? setCopyId(null) : openCopy(s.id))} disabled={pending} className="shrink-0 text-brand-300 hover:text-brand-700" aria-label="Copy shift">
                   <Copy size={15} />
                 </button>
@@ -134,6 +180,7 @@ export function DayEditor({
                   <X size={16} />
                 </button>
               </div>
+              )}
 
               {copyId === s.id && (
                 <div className="mt-2 space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
