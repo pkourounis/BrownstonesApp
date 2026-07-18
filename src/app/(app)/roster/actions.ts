@@ -73,7 +73,13 @@ export async function grantAccess(employeeId: string): Promise<{ ok: boolean; er
   const supabase = await createClient();
   const { data: emp, error } = await supabase.from('employees').select('*').eq('id', employeeId).single();
   if (error || !emp) return { ok: false, error: 'Not authorized for this member.' };
-  const res = await provision(createServiceClient(), supabase, emp as Employee);
+  let svc: ReturnType<typeof createServiceClient>;
+  try {
+    svc = createServiceClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Service key not configured.' };
+  }
+  const res = await provision(svc, supabase, emp as Employee);
   revalidatePath(`/roster/${employeeId}`);
   revalidatePath('/roster');
   return res;
@@ -83,7 +89,12 @@ export async function grantAccess(employeeId: string): Promise<{ ok: boolean; er
 export async function grantAccessBatch(limit = 12): Promise<{ ok: boolean; done: number; remaining: number; error?: string }> {
   await requireRole('super_admin', 'manager');
   const supabase = await createClient();
-  const svc = createServiceClient();
+  let svc: ReturnType<typeof createServiceClient>;
+  try {
+    svc = createServiceClient();
+  } catch (e) {
+    return { ok: false, done: 0, remaining: 0, error: e instanceof Error ? e.message : 'Service key not configured.' };
+  }
   const { data: batch, error } = await supabase.from('employees').select('*').eq('active', true).is('profile_id', null).limit(limit);
   if (error) return { ok: false, done: 0, remaining: 0, error: error.message };
   let done = 0;

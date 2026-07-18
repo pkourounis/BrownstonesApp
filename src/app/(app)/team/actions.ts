@@ -21,7 +21,12 @@ export async function createAppUser(input: {
   if (!first) return { ok: false, error: 'First name is required.' };
   if (!email || !email.includes('@')) return { ok: false, error: 'A valid email is required.' };
 
-  const svc = createServiceClient();
+  let svc: ReturnType<typeof createServiceClient>;
+  try {
+    svc = createServiceClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Service key not configured.' };
+  }
   const temp = `Coffee-${randomBytes(4).toString('hex')}`;
   const fullName = `${first} ${last}`.trim();
   const { data, error } = await svc.auth.admin.createUser({
@@ -133,7 +138,12 @@ export async function resetPassword(profileId: string): Promise<{ ok: boolean; e
   if (!data?.length) return { ok: false, error: 'Not authorized for this member.' };
 
   const temp = `Coffee-${randomBytes(4).toString('hex')}`;
-  const svc = createServiceClient();
+  let svc: ReturnType<typeof createServiceClient>;
+  try {
+    svc = createServiceClient();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Service key not configured.' };
+  }
   const { error: pwErr } = await svc.auth.admin.updateUserById(profileId, { password: temp });
   if (pwErr) return { ok: false, error: pwErr.message };
 

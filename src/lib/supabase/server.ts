@@ -37,10 +37,15 @@ export async function createClient() {
  * sending notifications). NEVER import this into client code.
  */
 export function createServiceClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    // Surfaced as a friendly message by callers instead of a server crash.
+    throw new Error('App access isn’t fully set up yet: the Supabase service key is missing on the server. Add SUPABASE_SERVICE_ROLE_KEY in Netlify.');
+  }
   const { createClient: createSbClient } = require('@supabase/supabase-js');
   return createSbClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    key,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
