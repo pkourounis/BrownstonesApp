@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, requireRole } from '@/lib/auth';
+import { sendPush } from '@/lib/push';
 import { revalidatePath } from 'next/cache';
 
 const nowIso = () => new Date().toISOString();
@@ -21,9 +22,15 @@ export async function decideTimeOff(id: string, approve: boolean): Promise<{ ok:
     .from('time_off_requests')
     .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso() })
     .eq('id', id)
-    .select('id');
+    .select('id, profile_id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
+  await sendPush([data[0].profile_id], {
+    title: `Time off ${approve ? 'approved' : 'declined'}`,
+    body: approve ? 'Your time-off request was approved.' : 'Your time-off request was declined — check with your manager.',
+    url: '/schedule',
+    tag: `timeoff-${id}`,
+  });
   refresh();
   return { ok: true };
 }
@@ -35,9 +42,15 @@ export async function decideAvailability(id: string, approve: boolean): Promise<
     .from('availability')
     .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso() })
     .eq('id', id)
-    .select('id');
+    .select('id, profile_id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
+  await sendPush([data[0].profile_id], {
+    title: `Availability ${approve ? 'approved' : 'declined'}`,
+    body: approve ? 'Your availability change was approved.' : 'Your availability change was declined.',
+    url: '/profile',
+    tag: `avail-${id}`,
+  });
   refresh();
   return { ok: true };
 }
@@ -53,7 +66,7 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
 
   const { data: swap, error: readErr } = await supabase
     .from('shift_swap_requests')
-    .select('id, shift_id, requested_to')
+    .select('id, shift_id, requested_by, requested_to')
     .eq('id', id)
     .single();
   if (readErr || !swap) return { ok: false, error: 'Request not found.' };
@@ -84,6 +97,16 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
+
+  const targets = [swap.requested_by, swap.requested_to].filter(Boolean) as string[];
+  await sendPush(targets, {
+    title: `Shift ${approve ? 'approved' : 'declined'}`,
+    body: approve
+      ? swap.requested_to ? 'The shift is yours — check your schedule.' : 'Your shift was released and is now open.'
+      : 'Your shift request was declined.',
+    url: '/schedule',
+    tag: `swap-${id}`,
+  });
   refresh();
   return { ok: true };
 }
