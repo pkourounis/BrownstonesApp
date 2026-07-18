@@ -22,6 +22,7 @@ type InsightsData = {
   monthly: { ym: string; net: number }[];
   daypart: { breakfast: number; lunch: number };
   leaderboard: { id: string; net: number }[];
+  top_sellers: { name: string; units: number; net: number }[];
   forecast: { id: string; proj: number; days: { dow: number; net: number }[] }[];
 };
 
@@ -185,6 +186,9 @@ async function InsightsContent({
   const boardMax = Math.max(1, ...board.map((b) => b.net));
   const multi = board.length > 1 && !store;
 
+  const topSellers = (d?.top_sellers ?? []).map((t) => ({ name: t.name, units: Number(t.units), net: Number(t.net) }));
+  const topMax = Math.max(1, ...topSellers.map((t) => t.net));
+
   const forecast = d?.forecast ?? [];
   const projTotal = forecast.reduce((s, f) => s + Number(f.proj), 0);
 
@@ -193,6 +197,7 @@ async function InsightsContent({
   if (peakDow.dow >= 0 && peakDow.net > 0) actions.push(`${DAY_NAMES[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
   if (peakHour.hour >= 0) actions.push(`Demand peaks at ${hourLabel(peakHour.hour)} — schedule your highest-rated team then.`);
   if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
+  if (topSellers.length) actions.push(`${topSellers[0].name} is your top seller (${money(topSellers[0].net)}) — never 86 it.`);
   if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
 
   if (!hasData) {
@@ -261,11 +266,30 @@ async function InsightsContent({
             </Section>
           )}
 
-          <Section title="Top sellers" meta="coming soon">
-            <p className="text-sm text-brand-500">
-              Item-level sales connect with the Toast <span className="font-medium">menu sync</span> — then this ranks your best
-              items by revenue for the selected store &amp; time.
-            </p>
+          <Section title="Top sellers" meta={RANGE_LABEL[range]}>
+            {topSellers.length === 0 ? (
+              <p className="text-sm text-brand-500">
+                Item-level sales are still syncing from Toast for this selection — check back shortly.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {topSellers.map((t, i) => (
+                  <li key={t.name} className="flex items-center gap-3">
+                    <span className="w-4 text-sm font-bold text-brand-400">{i + 1}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-brand-900">{t.name}</span>
+                      <span className="mt-1 block h-2 overflow-hidden rounded-full bg-brand-100">
+                        <span className="block h-full rounded-full bg-gradient-to-r from-gold-300 to-brand-600" style={{ width: `${(t.net / topMax) * 100}%` }} />
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-bold tabular-nums text-brand-900">{moneyShort(t.net)}</span>
+                      <span className="block text-xs tabular-nums text-brand-400">{t.units.toLocaleString()} sold</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
 
           {actions.length > 0 && (
@@ -320,7 +344,7 @@ async function InsightsContent({
           )}
 
           <p className="px-1 text-center text-xs text-brand-400">
-            Live from Toast. Labor %, sales-per-labor-hour, and top sellers connect as the schedule, pay, and menu sync come online.
+            Live from Toast. Labor % and sales-per-labor-hour connect as the schedule and pay data come online.
           </p>
     </div>
   );
