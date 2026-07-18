@@ -7,6 +7,7 @@ import { DEPARTMENT_LABELS } from '@/lib/database.types';
 import type { Location, Employee, Department } from '@/lib/database.types';
 import { RosterControls } from './roster-controls';
 import { RosterFilters } from './roster-filters';
+import { GrantAll } from './grant-all';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,12 @@ export default async function RosterPage({
   const { data: emps } = await query;
   const employees = (emps ?? []) as Employee[];
 
+  const { count: pendingAccess } = await supabase
+    .from('employees')
+    .select('*', { count: 'exact', head: true })
+    .eq('active', true)
+    .is('profile_id', null);
+
   return (
     <div className="space-y-4">
       <div>
@@ -46,6 +53,7 @@ export default async function RosterPage({
 
       <RosterFilters locations={locations} />
       <RosterControls locations={locations} store={store} />
+      <GrantAll pendingCount={pendingAccess ?? 0} />
 
       {employees.length === 0 ? (
         <div className="card text-center text-sm text-brand-500">No employees match these filters.</div>

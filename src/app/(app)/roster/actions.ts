@@ -1,9 +1,100 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { randomBytes } from 'crypto';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import type { Employee, Department } from '@/lib/database.types';
+
+/**
+ * Provision (or link) an app login for a roster employee. Returns the temp
+ * password when a new account is created. Idempotent: no-ops if already linked,
+ * links to an existing profile with the same email, and falls back to a
+ * synthetic email when the real one is already taken.
+ */
+async function provision(
+  svc: ReturnType<typeof createServiceClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  emp: Employee
+): Promise<{ ok: boolean; error?: string; tempPassword?: string; email?: string; linked?: boolean }> {
+  if (emp.profile_id) return { ok: true, linked: true };
+
+  const fullName = `${emp.first_name ?? ''} ${emp.last_name ?? ''}`.trim() || 'Employee';
+
+  // Link to an existing app user with the same email, if any.
+  if (emp.email) {
+    const { data: existing } = await supabase.from('profiles').select('id').ilike('email', emp.email).maybeSingle();
+    if (existing) {
+      await svc.from('employees').update({ profile_id: existing.id }).eq('id', emp.id);
+      return { ok: true, linked: true, email: emp.email };
+    }
+  }
+
+  const temp = `Coffee-${randomBytes(4).toString('hex')}`;
+  const primary = emp.email && emp.email.includes('@') ? emp.email : `staff-${emp.id.slice(0, 8)}@brownstones.app`;
+
+  let userId: string | null = null;
+  for (const email of [primary, `staff-${emp.id.slice(0, 8)}@brownstones.app`]) {
+    const { data, error } = await svc.auth.admin.createUser({
+      email,
+      password: temp,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+    if (!error && data?.user) {
+      userId = data.user.id;
+      break;
+    }
+    if (error && !/registered|exists|duplicate/i.test(error.message)) return { ok: false, error: error.message };
+  }
+  if (!userId) return { ok: false, error: 'Could not create the account.' };
+
+  await svc
+    .from('profiles')
+    .update({
+      first_name: emp.first_name,
+      last_name: emp.last_name,
+      full_name: fullName,
+      role: 'employee',
+      primary_location_id: emp.location_id,
+      department: emp.department,
+      title: emp.role_title,
+      phone: emp.phone,
+      must_change_password: true,
+    })
+    .eq('id', userId);
+  await svc.from('employees').update({ profile_id: userId }).eq('id', emp.id);
+  return { ok: true, tempPassword: temp, email: primary };
+}
+
+/** Grant app access to one roster member. */
+export async function grantAccess(employeeId: string): Promise<{ ok: boolean; error?: string; tempPassword?: string; email?: string; linked?: boolean }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data: emp, error } = await supabase.from('employees').select('*').eq('id', employeeId).single();
+  if (error || !emp) return { ok: false, error: 'Not authorized for this member.' };
+  const res = await provision(createServiceClient(), supabase, emp as Employee);
+  revalidatePath(`/roster/${employeeId}`);
+  revalidatePath('/roster');
+  return res;
+}
+
+/** Provision the next batch of roster members without app access. */
+export async function grantAccessBatch(limit = 12): Promise<{ ok: boolean; done: number; remaining: number; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const svc = createServiceClient();
+  const { data: batch, error } = await supabase.from('employees').select('*').eq('active', true).is('profile_id', null).limit(limit);
+  if (error) return { ok: false, done: 0, remaining: 0, error: error.message };
+  let done = 0;
+  for (const emp of (batch ?? []) as Employee[]) {
+    const r = await provision(svc, supabase, emp);
+    if (r.ok) done++;
+  }
+  const { count } = await supabase.from('employees').select('*', { count: 'exact', head: true }).eq('active', true).is('profile_id', null);
+  revalidatePath('/roster');
+  return { ok: true, done, remaining: count ?? 0 };
+}
 
 /** Add a new employee to the roster by hand (source = manual). */
 export async function addEmployee(formData: FormData): Promise<{ ok: boolean; error?: string }> {

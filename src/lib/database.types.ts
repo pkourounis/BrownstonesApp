@@ -408,6 +408,7 @@ export type Employee = {
   toast_employee_guid: string | null;
   active: boolean;
   rating: number | null;
+  profile_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

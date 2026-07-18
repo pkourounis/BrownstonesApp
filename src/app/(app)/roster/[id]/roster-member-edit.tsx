@@ -3,10 +3,10 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Star, Trash2, Archive, ArchiveRestore, KeyRound, Loader2, Check } from 'lucide-react';
+import { Star, Trash2, Archive, ArchiveRestore, KeyRound, Loader2, Check, Copy, UserCheck } from 'lucide-react';
 import type { Employee, Location, Department } from '@/lib/database.types';
 import { JOB_ROLES } from '@/lib/job-roles';
-import { updateEmployee, setEmployeeRating, deleteEmployee } from '../actions';
+import { updateEmployee, setEmployeeRating, deleteEmployee, grantAccess } from '../actions';
 
 const DEPARTMENTS: [Department, string][] = [
   ['foh', 'Front of House'],
@@ -31,16 +31,28 @@ function Stars({ value, onSet, busy }: { value: number; onSet: (n: number) => vo
 export function RosterMemberEdit({
   member,
   locations,
-  linkedProfileId,
 }: {
   member: Employee;
   locations: Pick<Location, 'id' | 'name'>[];
-  linkedProfileId: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [temp, setTemp] = useState<string | null>(null);
+  const [accessMsg, setAccessMsg] = useState<string | null>(null);
+
+  const onGrant = () => {
+    setAccessMsg(null);
+    setTemp(null);
+    startTransition(async () => {
+      const res = await grantAccess(member.id);
+      if (!res.ok) return setAccessMsg(res.error ?? 'Could not grant access.');
+      if (res.linked) setAccessMsg('Linked to their existing app account.');
+      else if (res.tempPassword) setTemp(res.tempPassword);
+      router.refresh();
+    });
+  };
 
   const [f, setF] = useState({
     first_name: member.first_name ?? '',
@@ -171,16 +183,29 @@ export function RosterMemberEdit({
       {/* Access + lifecycle */}
       <div className="card space-y-3">
         <h2 className="font-semibold text-brand-900">Access &amp; status</h2>
-        {linkedProfileId ? (
-          <Link href={`/team/${linkedProfileId}`} className="btn-secondary w-full justify-center">
+        {member.profile_id ? (
+          <Link href={`/team/${member.profile_id}`} className="btn-secondary w-full justify-center">
             <KeyRound size={16} /> Manage app access
           </Link>
+        ) : temp ? (
+          <div className="rounded-lg border border-gold-400 bg-gold-100 p-3">
+            <p className="text-sm font-medium text-brand-900">App access granted</p>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 rounded bg-white px-2 py-1 font-mono text-sm text-brand-900">{temp}</code>
+              <button type="button" onClick={() => navigator.clipboard?.writeText(temp)} className="btn-secondary h-8 px-2 text-xs">
+                <Copy size={14} /> Copy
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-brand-600">
+              Give them this temporary password, or they can sign in with the &ldquo;email me a link&rdquo; option using {member.email || 'their email'}.
+            </p>
+          </div>
         ) : (
-          <p className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-500">
-            No app login linked. This person is on the roster (scheduling &amp; labor) but can&apos;t sign in. Invite them from the
-            Team page to give access.
-          </p>
+          <button onClick={onGrant} disabled={pending} className="btn-secondary w-full justify-center">
+            <UserCheck size={16} /> Give app access
+          </button>
         )}
+        {accessMsg && <p className="text-xs text-brand-600">{accessMsg}</p>}
 
         <button
           onClick={onArchive}

@@ -22,13 +22,6 @@ export default async function RosterMemberPage({ params }: { params: Promise<{ i
   const member = emp as Employee;
   const locations = (locs ?? []) as Pick<Location, 'id' | 'name'>[];
 
-  // Link to an app-user profile if this person has one (matched by email).
-  let linkedProfileId: string | null = null;
-  if (member.email) {
-    const { data: prof } = await supabase.from('profiles').select('id').eq('email', member.email).maybeSingle();
-    linkedProfileId = prof?.id ?? null;
-  }
-
   const name = `${member.first_name} ${member.last_name ?? ''}`.trim();
 
   return (
@@ -42,7 +35,7 @@ export default async function RosterMemberPage({ params }: { params: Promise<{ i
           {member.role_title ?? 'Staff'} · {member.source === 'toast' ? 'from Toast' : 'added in-app'}
         </p>
       </div>
-      <RosterMemberEdit member={member} locations={locations} linkedProfileId={linkedProfileId} />
+      <RosterMemberEdit member={member} locations={locations} />
     </div>
   );
 }
