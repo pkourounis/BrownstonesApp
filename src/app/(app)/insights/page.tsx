@@ -5,7 +5,7 @@ import { money, money2, moneyShort, hourLabel, monthAbbr, shiftDay, DOW_ABBR, DA
 import type { Location } from '@/lib/database.types';
 import { InsightsFilter } from './insights-filter';
 import { SyncButton } from './sync-button';
-import { BarChart, Sparkline, type Bar } from './chart';
+import { BarChart, type Bar } from './chart';
 
 export const dynamic = 'force-dynamic';
 
@@ -383,42 +383,36 @@ async function InsightsContent({
           )}
 
           {/* Forecast — per-location day-of-week breakdown */}
-          {forecast.length > 0 && (
-            <Section title="Forecast · next week" meta={`${money(projTotal)} projected`}>
-              {store ? (
-                (() => {
-                  const f = forecast[0];
-                  if (!f) return null;
-                  const { bars, max, peak } = toDowBars(f.days);
-                  return (
-                    <>
-                      <p className="mb-2 text-xs text-brand-500">
-                        Busiest day projected: <span className="font-semibold text-brand-800">{DAY_NAMES[peak]}</span>
-                      </p>
-                      <BarChart bars={bars} max={max} />
-                    </>
-                  );
-                })()
-              ) : (
-                <ul className="space-y-4">
-                  {forecast.map((f) => {
-                    const { bars, max, peak } = toDowBars(f.days);
-                    return (
-                      <li key={f.id}>
-                        <div className="mb-1.5 flex items-baseline justify-between">
-                          <span className="text-sm font-medium text-brand-900">{nameById.get(f.id) ?? '—'}</span>
-                          <span className="text-xs text-brand-500">
-                            {moneyShort(f.proj)}/wk · busiest <span className="font-semibold text-brand-700">{DOW_ABBR[peak]}</span>
+          {forecast.length > 0 && (() => {
+            // Aggregate projected sales by day-of-week across the selected scope.
+            const agg = new Map<number, number>();
+            for (const f of forecast) for (const d of f.days) agg.set(d.dow, (agg.get(d.dow) ?? 0) + Number(d.net));
+            const aggDays = Array.from({ length: 7 }, (_, dow) => ({ dow, net: agg.get(dow) ?? 0 }));
+            const { bars, max, peak } = toDowBars(aggDays);
+            return (
+              <Section title="Forecast · next week" meta={`${money(projTotal)} projected`}>
+                <p className="mb-2 text-xs text-brand-500">
+                  Busiest day projected: <span className="font-semibold text-brand-800">{DAY_NAMES[peak]}</span> · tap a day for its projection
+                </p>
+                <BarChart bars={bars} max={max} />
+                {!store && forecast.length > 1 && (
+                  <ul className="mt-4 space-y-2 border-t border-brand-100 pt-3">
+                    {forecast.map((f) => {
+                      const busiest = f.days.reduce((a, d) => (Number(d.net) > Number(a.net) ? d : a), { dow: 0, net: 0 });
+                      return (
+                        <li key={f.id} className="flex items-baseline justify-between text-sm">
+                          <span className="text-brand-800">{nameById.get(f.id) ?? '—'}</span>
+                          <span className="text-brand-500">
+                            {money(f.proj)}/wk · busiest <span className="font-semibold text-brand-700">{DAY_NAMES[busiest.dow]}</span>
                           </span>
-                        </div>
-                        <Sparkline bars={bars} max={max} />
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </Section>
-          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </Section>
+            );
+          })()}
 
           <p className="px-1 text-center text-xs text-brand-400">
             Live from Toast. Labor % and sales-per-labor-hour connect as the schedule and pay data come online.

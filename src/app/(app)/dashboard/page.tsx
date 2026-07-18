@@ -104,8 +104,9 @@ async function OpsHome() {
       )}
 
       {/* Year to date */}
-      <section className="card">
-        <h2 className="mb-3 font-semibold text-brand-900">Year to date</h2>
+      <section>
+        <h2 className="mb-2 font-semibold text-brand-900">Year to date</h2>
+        <div className="card">
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-lg font-bold tabular-nums text-brand-900">{money(s.ytd.net)}</p>
@@ -128,6 +129,7 @@ async function OpsHome() {
             <BarChart bars={ytdBars} max={ytdMax} />
           </div>
         )}
+        </div>
       </section>
 
       {/* Quick actions */}
