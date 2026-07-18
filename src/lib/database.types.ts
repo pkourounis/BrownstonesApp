@@ -495,6 +495,10 @@ export type Database = {
         Args: { p_date: string | null; p_location: string | null };
         Returns: unknown;
       };
+      staffing_reco: {
+        Args: { p_location: string | null; p_target: number };
+        Returns: unknown;
+      };
     };
     Enums: {
       app_role: AppRole;
