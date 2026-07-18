@@ -31,6 +31,8 @@ function Inner({ logoUrl }: { logoUrl: string | null }) {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setError(error.message); setLoading(false); return; }
+    // Show the splash again on this fresh sign-in (it's otherwise once-per-tab).
+    try { sessionStorage.removeItem('bc-splash'); } catch {}
     // Keep the spinner going — the page is navigating now.
     router.replace(next);
     router.refresh();
