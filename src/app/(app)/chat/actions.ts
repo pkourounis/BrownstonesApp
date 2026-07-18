@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile } from '@/lib/auth';
-import { sendPush } from '@/lib/push';
+import { notify } from '@/lib/notify';
 
 /** Open (or create) a 1:1 DM with a teammate in the same store. */
 export async function openDm(otherId: string): Promise<{ ok: boolean; channelId?: string; error?: string }> {
@@ -24,11 +24,11 @@ export async function notifyMessage(channelId: string, body: string): Promise<{ 
   const others = (members ?? []).map((m) => m.profile_id).filter((id) => id !== me.id);
   if (!others.length) return { ok: true };
   const name = me.display_name || me.full_name || 'New message';
-  await sendPush(others, {
+  await notify(others, {
+    type: 'general',
     title: name,
     body: body.length > 120 ? body.slice(0, 117) + '…' : body,
-    url: `/chat?c=${channelId}`,
-    tag: `chat-${channelId}`,
+    link: `/chat?c=${channelId}`,
   });
   return { ok: true };
 }

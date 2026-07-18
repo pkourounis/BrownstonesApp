@@ -11,6 +11,7 @@ import {
   Settings,
   BarChart3,
   BookOpen,
+  Bell,
   ClipboardCheck,
   Clock,
   MessageSquare,
@@ -35,6 +36,7 @@ const ITEMS: Item[] = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/feed', label: 'Feed', icon: Megaphone, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/chat', label: 'Chat', icon: MessageSquare, roles: ['super_admin', 'manager', 'employee'] },
+  { href: '/notifications', label: 'Notifications', icon: Bell, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/resources', label: 'Resources', icon: BookOpen, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['super_admin', 'manager'] },
@@ -52,17 +54,20 @@ function NavLinks({
   items,
   pathname,
   collapsed,
+  unread,
   onNavigate,
 }: {
   items: Item[];
   pathname: string;
   collapsed: boolean;
+  unread: number;
   onNavigate?: () => void;
 }) {
   return (
     <nav className="flex-1 space-y-1 overflow-y-auto p-3">
       {items.map(({ href, label, icon: Icon }) => {
         const active = isActive(pathname, href);
+        const badge = href === '/notifications' && unread > 0 ? unread : 0;
         return (
           <Link
             key={href}
@@ -73,8 +78,18 @@ function NavLinks({
               collapsed ? 'justify-center' : ''
             } ${active ? 'bg-brand-700 text-white' : 'text-brand-700 hover:bg-brand-100'}`}
           >
-            <Icon size={20} />
-            {!collapsed && <span className="truncate">{label}</span>}
+            <span className="relative">
+              <Icon size={20} />
+              {badge > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-brick-600 px-1 text-[10px] font-bold text-white">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </span>
+            {!collapsed && <span className="flex-1 truncate">{label}</span>}
+            {!collapsed && badge > 0 && (
+              <span className="rounded-full bg-brick-600 px-1.5 text-[10px] font-bold text-white">{badge > 99 ? '99+' : badge}</span>
+            )}
           </Link>
         );
       })}
@@ -128,7 +143,7 @@ function SignOutButton({ collapsed }: { collapsed?: boolean }) {
   );
 }
 
-export function AppShell({ profile, children }: { profile: Profile; children: React.ReactNode }) {
+export function AppShell({ profile, children, unread = 0 }: { profile: Profile; children: React.ReactNode; unread?: number }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -186,7 +201,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
           </Link>
         </div>
 
-        <NavLinks items={items} pathname={pathname} collapsed={collapsed} />
+        <NavLinks items={items} pathname={pathname} collapsed={collapsed} unread={unread} />
 
         <div className="border-t border-brand-100 p-3">
           {collapsed ? (
@@ -232,9 +247,19 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <img src="/brownstones-logo.png" alt="Brownstones Coffee" className="h-9 w-auto" />
           </Link>
         </div>
-        <Link href="/profile" aria-label="Your profile">
-          <Avatar url={profile.avatar_url} initials={initials} size={36} />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link href="/notifications" aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-800">
+            <Bell size={20} />
+            {unread > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brick-600 px-1 text-[9px] font-bold text-white">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </Link>
+          <Link href="/profile" aria-label="Your profile">
+            <Avatar url={profile.avatar_url} initials={initials} size={36} />
+          </Link>
+        </div>
       </header>
 
       {/* ---------- Mobile drawer ---------- */}
@@ -264,7 +289,7 @@ export function AppShell({ profile, children }: { profile: Profile; children: Re
             <X size={20} />
           </button>
         </div>
-        <NavLinks items={items} pathname={pathname} collapsed={false} onNavigate={() => setMobileOpen(false)} />
+        <NavLinks items={items} pathname={pathname} collapsed={false} unread={unread} onNavigate={() => setMobileOpen(false)} />
         <div className="border-t border-brand-100 p-3">
           <SignOutButton />
         </div>

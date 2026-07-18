@@ -25,7 +25,12 @@ export async function sendPush(profileIds: string[], payload: PushPayload): Prom
   const ids = [...new Set(profileIds.filter(Boolean))];
   if (!configured || ids.length === 0) return;
 
-  const svc = createServiceClient();
+  let svc: ReturnType<typeof createServiceClient>;
+  try {
+    svc = createServiceClient();
+  } catch {
+    return; // service key not configured yet — in-app notifications still work
+  }
   const { data: subs } = await svc.from('push_subscriptions').select('id, endpoint, p256dh, auth').in('profile_id', ids);
   if (!subs?.length) return;
 

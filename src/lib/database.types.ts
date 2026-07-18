@@ -675,6 +675,14 @@ export type Database = {
         Args: { p_id: string; p_approve: boolean };
         Returns: string | null;
       };
+      notify_users: {
+        Args: { p_targets: string[]; p_type: string; p_title: string; p_body: string | null; p_link: string | null };
+        Returns: undefined;
+      };
+      location_managers: {
+        Args: { p_location: string };
+        Returns: string[];
+      };
     };
     Enums: {
       app_role: AppRole;

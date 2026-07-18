@@ -2,8 +2,15 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, requireRole } from '@/lib/auth';
-import { sendPush } from '@/lib/push';
+import { notify } from '@/lib/notify';
 import { revalidatePath } from 'next/cache';
+
+/** Alert the managers/super admins responsible for a location. */
+async function alertManagers(supabase: Awaited<ReturnType<typeof createClient>>, locationId: string | null, opts: { title: string; body: string; link: string }) {
+  if (!locationId) return;
+  const { data } = await supabase.rpc('location_managers', { p_location: locationId });
+  await notify((data as string[]) ?? [], { type: 'general', ...opts });
+}
 
 const nowIso = () => new Date().toISOString();
 
@@ -25,11 +32,11 @@ export async function decideTimeOff(id: string, approve: boolean): Promise<{ ok:
 
   const { data: req } = await supabase.from('time_off_requests').select('profile_id').eq('id', id).single();
   if (req) {
-    await sendPush([req.profile_id], {
+    await notify([req.profile_id], {
+      type: 'time_off_reviewed',
       title: `Time off ${approve ? 'approved' : 'declined'}`,
       body: approve ? 'Your time-off request was approved.' : 'Your time-off request was declined — check with your manager.',
-      url: '/schedule',
-      tag: `timeoff-${id}`,
+      link: '/schedule',
     });
   }
   refresh();
@@ -46,11 +53,11 @@ export async function decideAvailability(id: string, approve: boolean): Promise<
     .select('id, profile_id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
-  await sendPush([data[0].profile_id], {
+  await notify([data[0].profile_id], {
+    type: 'general',
     title: `Availability ${approve ? 'approved' : 'declined'}`,
     body: approve ? 'Your availability change was approved.' : 'Your availability change was declined.',
-    url: '/profile',
-    tag: `avail-${id}`,
+    link: '/profile',
   });
   refresh();
   return { ok: true };
@@ -100,13 +107,13 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
 
   const targets = [swap.requested_by, swap.requested_to].filter(Boolean) as string[];
-  await sendPush(targets, {
+  await notify(targets, {
+    type: 'swap_request',
     title: `Shift ${approve ? 'approved' : 'declined'}`,
     body: approve
       ? swap.requested_to ? 'The shift is yours — check your schedule.' : 'Your shift was released and is now open.'
       : 'Your shift request was declined.',
-    url: '/schedule',
-    tag: `swap-${id}`,
+    link: '/schedule',
   });
   refresh();
   return { ok: true };
@@ -115,7 +122,7 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
 // --- Employee requests -------------------------------------------------------
 
 export async function requestTimeOff(input: { start_date: string; end_date: string; reason: string }): Promise<{ ok: boolean; error?: string }> {
-  await requireProfile();
+  const me = await requireProfile();
   const supabase = await createClient();
   if (!input.reason.trim()) return { ok: false, error: 'Please add a reason for your time off.' };
   if (!input.start_date || !input.end_date) return { ok: false, error: 'Pick start and end dates.' };
@@ -128,6 +135,12 @@ export async function requestTimeOff(input: { start_date: string; end_date: stri
   });
   if (error) return { ok: false, error: error.message };
   if (problem) return { ok: false, error: problem };
+  const name = me.display_name || me.full_name || 'A team member';
+  await alertManagers(supabase, me.primary_location_id, {
+    title: 'Time-off request',
+    body: `${name} requested time off — review it in Approvals.`,
+    link: '/approvals',
+  });
   refresh();
   return { ok: true };
 }
@@ -150,7 +163,7 @@ export async function offerShift(shiftId: string, note: string): Promise<{ ok: b
   // Confirm the shift is mine (assigned to my profile or my roster row).
   const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', me.id);
   const myEmpIds = (myEmps ?? []).map((e) => e.id);
-  const { data: shift } = await supabase.from('shifts').select('id, employee_id, roster_employee_id').eq('id', shiftId).single();
+  const { data: shift } = await supabase.from('shifts').select('id, employee_id, roster_employee_id, location_id').eq('id', shiftId).single();
   const mine = shift && (shift.employee_id === me.id || (shift.roster_employee_id && myEmpIds.includes(shift.roster_employee_id)));
   if (!mine) return { ok: false, error: 'That shift isn’t assigned to you.' };
 
@@ -171,6 +184,12 @@ export async function offerShift(shiftId: string, note: string): Promise<{ ok: b
     status: 'pending',
   });
   if (error) return { ok: false, error: error.message };
+  const name = me.display_name || me.full_name || 'A team member';
+  await alertManagers(supabase, shift?.location_id ?? null, {
+    title: 'Shift up for grabs',
+    body: `${name} put a shift up for grabs — review it in Approvals.`,
+    link: '/approvals',
+  });
   refresh();
   return { ok: true };
 }
@@ -184,9 +203,16 @@ export async function claimShift(swapId: string): Promise<{ ok: boolean; error?:
     .update({ requested_to: me.id })
     .eq('id', swapId)
     .is('requested_to', null)
-    .select('id');
+    .select('id, shift_id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'This shift was already claimed.' };
+  const { data: shift } = await supabase.from('shifts').select('location_id').eq('id', data[0].shift_id).single();
+  const name = me.display_name || me.full_name || 'A team member';
+  await alertManagers(supabase, shift?.location_id ?? null, {
+    title: 'Shift claimed',
+    body: `${name} wants to pick up an open shift — approve it in Approvals.`,
+    link: '/approvals',
+  });
   refresh();
   return { ok: true };
 }
