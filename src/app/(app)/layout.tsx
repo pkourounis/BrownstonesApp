@@ -4,6 +4,7 @@ import { getAppSettings } from '@/lib/settings';
 import { brandScaleCss } from '@/lib/theme';
 import { AppShell } from '@/components/app-shell';
 import { SplashScreen } from '@/components/splash-screen';
+import { VersionWatcher } from '@/components/version-watcher';
 
 export default async function AppLayout({
   children,
@@ -22,6 +23,7 @@ export default async function AppLayout({
   return (
     <>
       {themeCss && <style>{themeCss}</style>}
+      <VersionWatcher />
       <SplashScreen url={settings.splash_url} />
       <AppShell profile={profile} unread={count ?? 0} logoUrl={settings.logo_url}>
         {children}

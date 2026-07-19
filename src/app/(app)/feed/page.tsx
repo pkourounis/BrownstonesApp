@@ -81,7 +81,7 @@ export default async function FeedPage({
   const [{ data: reactions }, { data: commentData }, { data: attachData }, { data: ackData }] = await Promise.all([
     ids.length ? supabase.from('post_reactions').select('post_id, profile_id').in('post_id', ids) : Promise.resolve({ data: [] }),
     ids.length
-      ? supabase.from('post_comments').select('id, post_id, body, created_at, author:profiles!post_comments_author_id_fkey(display_name, full_name)').in('post_id', ids).order('created_at', { ascending: true })
+      ? supabase.from('post_comments').select('id, post_id, body, created_at, author_id, author:profiles!post_comments_author_id_fkey(display_name, full_name, avatar_url)').in('post_id', ids).order('created_at', { ascending: true })
       : Promise.resolve({ data: [] }),
     ids.length ? supabase.from('post_attachments').select('post_id, url, mime').in('post_id', ids) : Promise.resolve({ data: [] }),
     ids.length ? supabase.from('post_acks').select('post_id, profile_id').in('post_id', ids) : Promise.resolve({ data: [] }),
@@ -94,9 +94,9 @@ export default async function FeedPage({
     if (r.profile_id === profile.id) likedByMe.add(r.post_id);
   }
   const commentsByPost = new Map<string, Comment[]>();
-  for (const c of (commentData as unknown as { id: string; post_id: string; body: string; created_at: string; author: { display_name: string | null; full_name: string | null } | null }[]) ?? []) {
+  for (const c of (commentData as unknown as { id: string; post_id: string; body: string; created_at: string; author_id: string | null; author: { display_name: string | null; full_name: string | null; avatar_url: string | null } | null }[]) ?? []) {
     const list = commentsByPost.get(c.post_id) ?? [];
-    list.push({ id: c.id, author: authorName(c.author), body: c.body, createdAt: c.created_at });
+    list.push({ id: c.id, author: authorName(c.author), authorId: c.author_id, avatar: c.author?.avatar_url ?? null, body: c.body, createdAt: c.created_at });
     commentsByPost.set(c.post_id, list);
   }
   const photosByPost = new Map<string, Media[]>();

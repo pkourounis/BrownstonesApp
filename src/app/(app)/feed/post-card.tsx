@@ -26,7 +26,7 @@ const ACCENT: Partial<Record<PostCategory, string>> = {
 };
 
 export type Media = { url: string; mime: string };
-export type Comment = { id: string; author: string; body: string; createdAt: string };
+export type Comment = { id: string; author: string; authorId: string | null; avatar: string | null; body: string; createdAt: string };
 export type Original = { author: string; title: string | null; body: string; category: PostCategory; photos: Media[] };
 
 function Photos({ urls }: { urls: Media[] }) {
@@ -228,13 +228,26 @@ export function PostCard(props: {
 
       {showComments && (
         <div className="mt-3 space-y-2 border-t border-brand-50 pt-2">
-          {comments.map((c) => (
-            <div key={c.id} className="text-sm">
-              <span className="font-semibold text-brand-800">{c.author}</span>{' '}
-              <span className="text-brand-700">{c.body}</span>
-              <span className="ml-1 text-[10px] text-brand-300">{fmt(c.createdAt)}</span>
-            </div>
-          ))}
+          {comments.map((c) => {
+            const av = c.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.avatar} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-200 text-[10px] font-semibold text-brand-700">{c.author.slice(0, 1)}</span>
+            );
+            return (
+              <div key={c.id} className="flex items-start gap-2 text-sm">
+                {c.authorId ? <Link href={`/directory/${c.authorId}`} className="mt-0.5">{av}</Link> : <span className="mt-0.5">{av}</span>}
+                <div className="min-w-0">
+                  {c.authorId
+                    ? <Link href={`/directory/${c.authorId}`} className="font-semibold text-brand-800 hover:underline">{c.author}</Link>
+                    : <span className="font-semibold text-brand-800">{c.author}</span>}{' '}
+                  <span className="text-brand-700">{c.body}</span>
+                  <span className="ml-1 text-[10px] text-brand-300">{fmt(c.createdAt)}</span>
+                </div>
+              </div>
+            );
+          })}
           <div className="flex items-center gap-2">
             <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onComment()} placeholder="Write a comment…" className="input h-9 flex-1 text-sm" />
             <button onClick={onComment} disabled={pending || !draft.trim()} className="btn-secondary h-9 w-9 shrink-0 justify-center p-0" aria-label="Send comment"><Send size={15} /></button>
