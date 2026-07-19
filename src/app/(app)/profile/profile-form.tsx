@@ -20,6 +20,17 @@ function initials(first: string, last: string) {
   return (a + b).toUpperCase() || 'BC';
 }
 
+// Module-level so its identity is stable across renders — defining it inside the
+// component remounts every input on each keystroke (you could only type one char).
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 export function ProfileForm({
   profile,
   primaryLocation,
@@ -117,13 +128,6 @@ export function ProfileForm({
     setSaved(true);
     router.refresh();
   }
-
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label className="label">{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <form onSubmit={save} className="space-y-4">
