@@ -256,10 +256,10 @@ export default async function SchedulePage({
           {s.status === 'draft' ? (
             <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>
           ) : mine && future ? (
-            <div className="flex shrink-0 items-center gap-3">
+            <>
               <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
               {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
-            </div>
+            </>
           ) : null}
         </div>
       </li>
