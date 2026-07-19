@@ -181,8 +181,6 @@ async function InsightsContent({
   const peakDow = dowRows.reduce((a, r) => (r.net > a.net ? r : a), { dow: -1, net: 0 });
   const dowBars: Bar[] = dowRows.map((r) => ({ label: DOW_ABBR[r.dow], full: DAY_NAMES[r.dow], value: r.net, peak: r.dow === peakDow.dow }));
 
-  const peakHour = (d?.by_hour ?? []).reduce((a, r) => (r.net > a.net ? r : a), { hour: -1, net: 0 });
-
   // Sales per hour vs the store's hourly goal ($1,300 in settings).
   // Average each hour's net across the days in range so it's comparable to a per-hour goal.
   const daysInRange = Math.max(1, (d?.daily ?? []).filter((x) => Number(x.net) > 0).length);
@@ -236,20 +234,6 @@ async function InsightsContent({
   const forecast = d?.forecast ?? [];
   const projTotal = forecast.reduce((s, f) => s + Number(f.proj), 0);
 
-  // "What to act on"
-  const actions: string[] = [];
-  if (peakDow.dow >= 0 && peakDow.net > 0) actions.push(`${DAY_NAMES[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
-  if (peakHour.hour >= 0) actions.push(`Demand peaks at ${hourLabel(peakHour.hour)} — schedule your highest-rated team then.`);
-  if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
-  if (hasLabor)
-    actions.push(
-      labor.pct <= 30
-        ? `Labor is a healthy ${labor.pct}% of sales (${money2(labor.splh)}/labor hr).`
-        : `Labor is ${labor.pct}% of sales — above the 30% target; tighten scheduling on slower days.`
-    );
-  if (topSellers.length) actions.push(`${topSellers[0].name} is your top seller (${money(topSellers[0].net)}) — never 86 it.`);
-  if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
-
   if (!hasData) {
     return <div className="card text-center text-sm text-brand-500">No sales data for this selection.</div>;
   }
@@ -301,7 +285,7 @@ async function InsightsContent({
             </Section>
           )}
 
-          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <div className="lg:columns-2 lg:gap-5 [&>*]:mb-5 [&>*]:break-inside-avoid">
           {trendBars.length > 0 && (
             <Section title="Sales trend" meta={trendMeta}>
               <BarChart bars={trendBars} max={trendMax} showEvery={trendEvery} />
@@ -402,19 +386,6 @@ async function InsightsContent({
               </ul>
             )}
           </Section>
-
-          {actions.length > 0 && (
-            <Section title="What to act on">
-              <ul className="space-y-2.5">
-                {actions.map((a, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-brand-800">
-                    <span className="text-gold-500">•</span>
-                    <span>{a}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
 
           {/* Forecast — per-location day-of-week breakdown */}
           {forecast.length > 0 && (() => {

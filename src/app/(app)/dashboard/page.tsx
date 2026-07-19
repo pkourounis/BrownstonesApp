@@ -11,10 +11,12 @@ import {
   ClipboardCheck,
   CalendarClock,
 } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
+import { Suspense } from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
-import { money, money2, shiftDay, shiftTimeRange } from '@/lib/format';
+import { money, money2, shiftDay, shiftTimeRange, hourLabel, DAY_NAMES } from '@/lib/format';
 import type { Shift, Availability } from '@/lib/database.types';
 import { StoreBoard } from './store-board';
 import { YtdChart } from './ytd-chart';
@@ -178,6 +180,11 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
           </div>
         </section>
 
+        {/* What to act on (streams in from the insights engine) */}
+        <Suspense fallback={<div className="card h-28 animate-pulse bg-brand-50" />}>
+          <ActOnList isSuper={isSuper} primaryLocationId={primaryLocationId} />
+        </Suspense>
+
         {/* Quick actions */}
         <section>
           <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
@@ -241,6 +248,72 @@ async function lastWeekCoverage(
     });
     return { id: l.id, name: l.name, days };
   });
+}
+
+type ActData = {
+  net: number;
+  by_dow: { dow: number; net: number }[];
+  by_hour: { hour: number; net: number }[];
+  daypart: { breakfast: number; lunch: number };
+  labor: { pct: number; splh: number };
+  top_sellers: { name: string; net: number }[];
+  forecast: { id: string; proj: number }[];
+};
+
+/** "What to act on" — a short, ranked digest from the insights engine. Streams in. */
+async function ActOnList({ isSuper, primaryLocationId }: { isSuper: boolean; primaryLocationId: string | null }) {
+  const supabase = await createClient();
+  const store = isSuper ? null : primaryLocationId;
+  const [{ data: rpc }, { data: locs }] = await Promise.all([
+    supabase.rpc('insights', { p_range: 'month', p_location: store }),
+    supabase.from('locations').select('id, name'),
+  ]);
+  const d = rpc as ActData | null;
+  if (!d || Number(d.net) <= 0) return null;
+  const nameById = new Map(((locs ?? []) as { id: string; name: string }[]).map((l) => [l.id, l.name]));
+
+  const peakDow = (d.by_dow ?? []).reduce((a, r) => (Number(r.net) > Number(a.net) ? r : a), { dow: -1, net: 0 });
+  const peakHour = (d.by_hour ?? []).reduce((a, r) => (Number(r.net) > Number(a.net) ? r : a), { hour: -1, net: 0 });
+  const breakfast = Number(d.daypart?.breakfast ?? 0);
+  const lunch = Number(d.daypart?.lunch ?? 0);
+  const dpTot = breakfast + lunch || 1;
+  const bPct = Math.round((breakfast / dpTot) * 100);
+  const labor = { pct: Number(d.labor?.pct ?? 0), splh: Number(d.labor?.splh ?? 0) };
+  const topSellers = (d.top_sellers ?? []).map((t) => ({ name: t.name, net: Number(t.net) }));
+  const forecast = d.forecast ?? [];
+
+  const actions: string[] = [];
+  if (peakDow.dow >= 0 && peakDow.net > 0) actions.push(`${DAY_NAMES[peakDow.dow]} is the strongest day (${money(peakDow.net)}/day avg) — keep it fully staffed.`);
+  if (peakHour.hour >= 0) actions.push(`Demand peaks at ${hourLabel(peakHour.hour)} — schedule your highest-rated team then.`);
+  if (dpTot > 1) actions.push(`${bPct >= 50 ? 'Breakfast' : 'Lunch'} drives ${Math.max(bPct, 100 - bPct)}% of sales.`);
+  if (labor.splh > 0)
+    actions.push(
+      labor.pct <= 30
+        ? `Labor is a healthy ${labor.pct}% of sales (${money2(labor.splh)}/labor hr).`
+        : `Labor is ${labor.pct}% of sales — above the 30% target; tighten scheduling on slower days.`
+    );
+  if (topSellers.length) actions.push(`${topSellers[0].name} is your top seller (${money(topSellers[0].net)}) — never 86 it.`);
+  if (forecast.length && !store) actions.push(`Next week, ${nameById.get(forecast[0].id) ?? 'the top store'} is projected highest (${money(forecast[0].proj)}).`);
+  if (!actions.length) return null;
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 font-semibold text-brand-900"><Lightbulb size={16} className="text-gold-500" /> What to act on</h2>
+        <Link href="/insights" className="flex items-center gap-1 text-sm font-medium text-brand-700">Insights <ArrowRight size={14} /></Link>
+      </div>
+      <div className="card">
+        <ul className="space-y-2.5">
+          {actions.map((a, i) => (
+            <li key={i} className="flex gap-2 text-sm text-brand-800">
+              <span className="text-gold-500">•</span>
+              <span>{a}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
 }
 
 async function countPendingApprovals(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
