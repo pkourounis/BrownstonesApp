@@ -335,6 +335,7 @@ export type ShiftSwapRequest = {
   kind: SwapKind;               // 'swap' or 'pickup' (up-for-grabs)
   target_shift_id: string | null; // the coworker's shift wanted in a 1:1 trade
   coworker_accepted: boolean;   // coworker agreed to the trade → now needs a manager
+  coworker_note: string | null; // the coworker's reason when accepting/declining
   claimed_by: string | null;    // who claimed an open pickup
   status: RequestStatus;
   deviates_rules: boolean;      // flagged when the swap breaks a rule

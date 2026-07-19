@@ -36,7 +36,7 @@ export default async function ApprovalsPage() {
       .order('created_at', { ascending: true }),
     supabase
       .from('shift_swap_requests')
-      .select(`id, note, created_at, requested_to, target_shift_id, coworker_accepted,
+      .select(`id, note, coworker_note, created_at, requested_to, target_shift_id, coworker_accepted,
         by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name),
         to:profiles!shift_swap_requests_requested_to_fkey(display_name, full_name),
         shift:shifts!shift_swap_requests_shift_id_fkey(starts_at, ends_at),
@@ -55,7 +55,7 @@ export default async function ApprovalsPage() {
 
   type TO = { id: string; start_date: string; end_date: string; reason: string | null; profile: { display_name: string | null; full_name: string | null } | null };
   type AV = { id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean; profile: { display_name: string | null; full_name: string | null } | null };
-  type SW = { id: string; note: string | null; requested_to: string | null; target_shift_id: string | null; coworker_accepted: boolean; by: { display_name: string | null; full_name: string | null } | null; to: { display_name: string | null; full_name: string | null } | null; shift: { starts_at: string; ends_at: string } | null; target: { starts_at: string; ends_at: string } | null };
+  type SW = { id: string; note: string | null; coworker_note: string | null; requested_to: string | null; target_shift_id: string | null; coworker_accepted: boolean; by: { display_name: string | null; full_name: string | null } | null; to: { display_name: string | null; full_name: string | null } | null; shift: { starts_at: string; ends_at: string } | null; target: { starts_at: string; ends_at: string } | null };
 
   const to = (timeOff as unknown as TO[]) ?? [];
   const av = (avail as unknown as AV[]) ?? [];
@@ -88,6 +88,7 @@ export default async function ApprovalsPage() {
                       <p className="text-xs text-brand-500">
                         {who(s.by)} gives {s.shift ? `${fmtTime(s.shift.starts_at)}–${fmtTime(s.shift.ends_at).split(' ').pop()}` : 'shift'}, gets {s.target ? `${fmtTime(s.target.starts_at)}–${fmtTime(s.target.ends_at).split(' ').pop()}` : 'shift'}{s.note ? ` · “${s.note}”` : ''}
                       </p>
+                      {s.coworker_note && <p className="mt-0.5 text-[11px] text-brand-500">{who(s.to)}: “{s.coworker_note}”</p>}
                     </>
                   ) : (
                     <>

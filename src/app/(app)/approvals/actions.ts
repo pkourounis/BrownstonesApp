@@ -319,9 +319,10 @@ export async function proposeSwap(myShiftId: string, targetShiftId: string, note
 }
 
 /** Coworker accepts or declines a proposed 1:1 swap. Accept sends it to a manager. */
-export async function respondSwap(swapId: string, accept: boolean): Promise<{ ok: boolean; error?: string }> {
+export async function respondSwap(swapId: string, accept: boolean, note?: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireProfile();
   const supabase = await createClient();
+  const reason = (note ?? '').trim();
   const { data: swap } = await supabase
     .from('shift_swap_requests')
     .select('id, shift_id, target_shift_id, requested_by, requested_to, status, coworker_accepted')
@@ -332,8 +333,8 @@ export async function respondSwap(swapId: string, accept: boolean): Promise<{ ok
   if (swap.status !== 'pending' || swap.coworker_accepted) return { ok: false, error: 'This swap was already handled.' };
 
   if (!accept) {
-    await supabase.from('shift_swap_requests').update({ status: 'denied' }).eq('id', swapId);
-    await notify([swap.requested_by], { type: 'swap_request', title: 'Swap declined', body: 'Your shift swap was declined.', link: '/schedule' });
+    await supabase.from('shift_swap_requests').update({ status: 'denied', coworker_note: reason || null }).eq('id', swapId);
+    await notify([swap.requested_by], { type: 'swap_request', title: 'Swap declined', body: reason ? `Your shift swap was declined — “${reason}”` : 'Your shift swap was declined.', link: '/schedule' });
     refresh();
     return { ok: true };
   }
@@ -349,14 +350,14 @@ export async function respondSwap(swapId: string, accept: boolean): Promise<{ ok
     return { ok: false, error: 'Your coworker now has a conflicting shift — the trade can’t go through.' };
   }
 
-  await supabase.from('shift_swap_requests').update({ coworker_accepted: true }).eq('id', swapId);
+  await supabase.from('shift_swap_requests').update({ coworker_accepted: true, coworker_note: reason || null }).eq('id', swapId);
   const name = me.display_name || me.full_name || 'A teammate';
   await alertManagers(supabase, a.location_id ?? null, {
     title: 'Shift swap to approve',
-    body: `${name} accepted a shift swap — approve it in Approvals.`,
+    body: `${name} accepted a shift swap${reason ? ` (“${reason}”)` : ''} — approve it in Approvals.`,
     link: '/approvals',
   });
-  await notify([swap.requested_by], { type: 'swap_request', title: 'Swap accepted', body: `${name} accepted your swap — pending manager approval.`, link: '/schedule' });
+  await notify([swap.requested_by], { type: 'swap_request', title: 'Swap accepted', body: reason ? `${name} accepted your swap — “${reason}”. Pending manager approval.` : `${name} accepted your swap — pending manager approval.`, link: '/schedule' });
   refresh();
   return { ok: true };
 }

@@ -139,36 +139,62 @@ export function ProposeSwap({ myShiftId, candidates }: { myShiftId: string; cand
   );
 }
 
-/** Coworker's accept/decline for an incoming 1:1 swap proposal. */
+/** Coworker's accept/decline for an incoming 1:1 swap proposal, with a reason. */
 export function SwapResponse({ swapId }: { swapId: string }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | 'accept' | 'decline'>(null);
+  const [mode, setMode] = useState<null | 'accept' | 'decline'>(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const go = async (accept: boolean) => {
-    setBusy(accept ? 'accept' : 'decline');
+  const confirm = async () => {
+    if (!mode) return;
+    setBusy(true);
     setError(null);
     try {
-      const res = await respondSwap(swapId, accept);
+      const res = await respondSwap(swapId, mode === 'accept', note);
       if (res.ok) { router.refresh(); return; }
       setError(res.error ?? 'Something went wrong.');
     } catch {
       setError('Something went wrong. Please try again.');
     }
-    setBusy(null);
+    setBusy(false);
   };
 
-  return (
-    <div className="flex shrink-0 flex-col items-end gap-1">
-      <div className="flex items-center gap-1.5">
-        <button onClick={() => go(false)} disabled={busy !== null} className="flex h-8 items-center gap-1 rounded-lg bg-brick-500/10 px-2.5 text-xs font-semibold text-brick-600 hover:bg-brick-500/20 disabled:opacity-50">
-          {busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={14} />} Decline
+  if (!mode) {
+    return (
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button onClick={() => { setMode('decline'); setError(null); }} className="flex h-8 items-center gap-1 rounded-lg bg-brick-500/10 px-2.5 text-xs font-semibold text-brick-600 hover:bg-brick-500/20">
+          <X size={14} /> Decline
         </button>
-        <button onClick={() => go(true)} disabled={busy !== null} className="flex h-8 items-center gap-1 rounded-lg bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-          {busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <><Check size={14} /> Accept</>}
+        <button onClick={() => { setMode('accept'); setError(null); }} className="flex h-8 items-center gap-1 rounded-lg bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-700">
+          <Check size={14} /> Accept
         </button>
       </div>
-      {error && <p className="text-[10px] text-brick-600">{error}</p>}
+    );
+  }
+
+  return (
+    <div className="mt-2 w-full space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
+      <p className="text-xs font-semibold text-brand-700">{mode === 'accept' ? 'Accept this swap' : 'Decline this swap'}</p>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        placeholder={mode === 'accept' ? 'Optional note to your coworker…' : 'Reason (shared with your coworker)…'}
+        className="input text-sm"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={confirm}
+          disabled={busy}
+          className={`flex h-8 flex-1 items-center justify-center gap-1 rounded-lg px-3 text-xs font-semibold text-white ${mode === 'accept' ? 'bg-green-600 hover:bg-green-700' : 'bg-brick-600 hover:bg-brick-700'}`}
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : mode === 'accept' ? <><Check size={14} /> Confirm accept</> : <><X size={14} /> Confirm decline</>}
+        </button>
+        <button onClick={() => { setMode(null); setNote(''); setError(null); }} disabled={busy} className="btn-secondary h-8 px-3 text-xs">Cancel</button>
+      </div>
+      {error && <p className="text-xs text-brick-600">{error}</p>}
     </div>
   );
 }
