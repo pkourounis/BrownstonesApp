@@ -1,5 +1,5 @@
 import webpush from 'web-push';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 
 const PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const PRIVATE = process.env.VAPID_PRIVATE_KEY;
@@ -25,19 +25,16 @@ export async function sendPush(profileIds: string[], payload: PushPayload): Prom
   const ids = [...new Set(profileIds.filter(Boolean))];
   if (!configured || ids.length === 0) return;
 
-  let svc: ReturnType<typeof createServiceClient>;
-  try {
-    svc = createServiceClient();
-  } catch {
-    return; // service key not configured yet — in-app notifications still work
-  }
-  const { data: subs } = await svc.from('push_subscriptions').select('id, endpoint, p256dh, auth').in('profile_id', ids);
+  // Fetch recipients' subscriptions via a SECURITY DEFINER RPC — works with the
+  // caller's session, so no Supabase service key is required.
+  const supabase = await createClient();
+  const { data: subs } = await supabase.rpc('push_subscriptions_for', { p_targets: ids });
   if (!subs?.length) return;
 
   const body = JSON.stringify(payload);
   const dead: string[] = [];
   await Promise.all(
-    subs.map(async (s: { id: string; endpoint: string; p256dh: string; auth: string }) => {
+    (subs as { id: string; endpoint: string; p256dh: string; auth: string }[]).map(async (s) => {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body);
       } catch (e: unknown) {
@@ -46,5 +43,5 @@ export async function sendPush(profileIds: string[], payload: PushPayload): Prom
       }
     })
   );
-  if (dead.length) await svc.from('push_subscriptions').delete().in('id', dead);
+  if (dead.length) await supabase.rpc('prune_push_subscriptions', { p_ids: dead });
 }

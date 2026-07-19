@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { Profile, AppRole } from '@/lib/database.types';
 import { roleLabel } from '@/lib/roles';
+import { createClient } from '@/lib/supabase/client';
 
 type Item = {
   href: string;
@@ -153,6 +154,28 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
   const initials = initialsOf(profile.full_name, profile.display_name);
   const items = ITEMS.filter((i) => i.roles.includes(profile.role));
 
+  // Live unread count: seed from the server value, bump on realtime inserts,
+  // and clear when viewing the notifications page (which marks everything read).
+  const [liveUnread, setLiveUnread] = useState(unread);
+  useEffect(() => setLiveUnread(unread), [unread]);
+  useEffect(() => {
+    if (isActive(pathname, '/notifications')) setLiveUnread(0);
+  }, [pathname]);
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`notif-badge-${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `profile_id=eq.${profile.id}` },
+        () => setLiveUnread((n) => n + 1)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile.id]);
+
   // Restore the desktop collapse preference.
   useEffect(() => {
     setCollapsed(localStorage.getItem('nav-collapsed') === '1');
@@ -202,7 +225,7 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
           </Link>
         </div>
 
-        <NavLinks items={items} pathname={pathname} collapsed={collapsed} unread={unread} />
+        <NavLinks items={items} pathname={pathname} collapsed={collapsed} unread={liveUnread} />
 
         <div className="border-t border-brand-100 p-3">
           {collapsed ? (
@@ -251,9 +274,9 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
         <div className="flex items-center gap-1">
           <Link href="/notifications" aria-label="Notifications" className="relative flex h-9 w-9 items-center justify-center rounded-lg text-brand-500 hover:bg-brand-100 hover:text-brand-800">
             <Bell size={20} />
-            {unread > 0 && (
+            {liveUnread > 0 && (
               <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brick-600 px-1 text-[9px] font-bold text-white">
-                {unread > 9 ? '9+' : unread}
+                {liveUnread > 9 ? '9+' : liveUnread}
               </span>
             )}
           </Link>
@@ -290,7 +313,7 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
             <X size={20} />
           </button>
         </div>
-        <NavLinks items={items} pathname={pathname} collapsed={false} unread={unread} onNavigate={() => setMobileOpen(false)} />
+        <NavLinks items={items} pathname={pathname} collapsed={false} unread={liveUnread} onNavigate={() => setMobileOpen(false)} />
         <div className="border-t border-brand-100 p-3">
           <SignOutButton />
         </div>

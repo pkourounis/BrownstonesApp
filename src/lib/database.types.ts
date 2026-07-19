@@ -754,6 +754,14 @@ export type Database = {
         Args: { p_location: string };
         Returns: string[];
       };
+      push_subscriptions_for: {
+        Args: { p_targets: string[] };
+        Returns: { id: string; endpoint: string; p256dh: string; auth: string }[];
+      };
+      prune_push_subscriptions: {
+        Args: { p_ids: string[] };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: AppRole;

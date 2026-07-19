@@ -28,9 +28,19 @@ export function PushToggle() {
     }
     navigator.serviceWorker.ready
       .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setOn(!!sub))
+      .then((sub) => setOn(!!sub && subMatchesKey(sub)))
       .catch(() => {});
   }, []);
+
+  // True only if the subscription was made with the current VAPID key. After a
+  // key rotation an old subscription can't receive, so treat it as "off".
+  function subMatchesKey(sub: PushSubscription): boolean {
+    const stored = sub.options?.applicationServerKey;
+    if (!stored || !VAPID) return false;
+    const a = new Uint8Array(stored);
+    const b = urlB64ToUint8Array(VAPID);
+    return a.length === b.length && a.every((v, i) => v === b[i]);
+  }
 
   const enable = async () => {
     setBusy(true);
@@ -39,6 +49,10 @@ export function PushToggle() {
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') { setMsg('Notifications are blocked in your browser settings.'); setBusy(false); return; }
       const reg = await navigator.serviceWorker.ready;
+      // Clear any stale subscription (e.g. from a previous VAPID key) first —
+      // subscribing with a different key otherwise throws.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) { try { await removeSubscription(existing.endpoint); } catch {} await existing.unsubscribe(); }
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(VAPID!) as BufferSource });
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
       const res = await saveSubscription({ endpoint: json.endpoint, keys: json.keys }, navigator.userAgent);
