@@ -11,7 +11,7 @@ import {
   ClipboardCheck,
   CalendarClock,
 } from 'lucide-react';
-import { Lightbulb, Bell } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 import { Suspense } from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
@@ -23,6 +23,7 @@ import { YtdChart } from './ytd-chart';
 import { FeedPreview } from './feed-preview';
 import { AckPrompt } from './ack-prompt';
 import { CollapsibleSection } from './collapsible-section';
+import { HomeUpdates } from './home-updates';
 import { WeekStrip, type StripDay } from '../schedule/week-strip';
 import { getYelpBusiness, yelpConfigured } from '@/lib/yelp';
 import { Stars } from '@/components/stars';
@@ -402,13 +403,6 @@ async function EmployeeHome({ profileId, primaryLocationId }: { profileId: strin
   ]);
   const shifts = (myShifts as Shift[]) ?? [];
   const updates = (notifData ?? []) as { id: string; type: string; title: string; body: string | null; link: string | null; is_read: boolean; created_at: string }[];
-  const relTime = (iso: string) => {
-    const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-    if (m < 1) return 'just now';
-    if (m < 60) return `${m}m ago`;
-    if (m < 1440) return `${Math.floor(m / 60)}h ago`;
-    return `${Math.floor(m / 1440)}d ago`;
-  };
   const offerByShift = new Map<string, string>();
   for (const o of (offerData ?? []) as { id: string; shift_id: string }[]) offerByShift.set(o.shift_id, o.id);
   const swapCandidates = ((candData ?? []) as unknown as { id: string; starts_at: string; ends_at: string; employee: { display_name: string | null; full_name: string | null } | null }[])
@@ -436,21 +430,7 @@ async function EmployeeHome({ profileId, primaryLocationId }: { profileId: strin
               All <ArrowRight size={14} />
             </Link>
           </div>
-          <ul className="space-y-2">
-            {updates.map((n) => {
-              const body = (
-                <div className="card flex items-start gap-3 border-l-4 border-l-brand-600 py-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700"><Bell size={15} /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-brand-900">{n.title}</p>
-                    {n.body && <p className="text-sm text-brand-600">{n.body}</p>}
-                    <p className="mt-0.5 text-[11px] text-brand-400">{relTime(n.created_at)}</p>
-                  </div>
-                </div>
-              );
-              return <li key={n.id}>{n.link ? <Link href={n.link}>{body}</Link> : body}</li>;
-            })}
-          </ul>
+          <HomeUpdates updates={updates.map((n) => ({ id: n.id, title: n.title, body: n.body, link: n.link, created_at: n.created_at }))} />
         </section>
       )}
 
