@@ -22,20 +22,22 @@ function refresh() {
 
 // --- Manager / super-admin decisions -----------------------------------------
 
-export async function decideTimeOff(id: string, approve: boolean): Promise<{ ok: boolean; error?: string }> {
+export async function decideTimeOff(id: string, approve: boolean, note?: string): Promise<{ ok: boolean; error?: string }> {
   await requireRole('super_admin', 'manager');
   const supabase = await createClient();
+  const trimmed = (note ?? '').trim();
   // Enforce the 2-per-day cap on approval (SECURITY DEFINER; returns an error string or null).
-  const { data: problem, error } = await supabase.rpc('set_timeoff_status', { p_id: id, p_approve: approve });
+  const { data: problem, error } = await supabase.rpc('set_timeoff_status', { p_id: id, p_approve: approve, p_note: trimmed || null });
   if (error) return { ok: false, error: error.message };
   if (problem) return { ok: false, error: problem };
 
   const { data: req } = await supabase.from('time_off_requests').select('profile_id').eq('id', id).single();
   if (req) {
+    const base = approve ? 'Your time-off request was approved.' : 'Your time-off request was declined.';
     await notify([req.profile_id], {
       type: 'time_off_reviewed',
       title: `Time off ${approve ? 'approved' : 'declined'}`,
-      body: approve ? 'Your time-off request was approved.' : 'Your time-off request was declined — check with your manager.',
+      body: trimmed ? `${base} — “${trimmed}”` : approve ? base : `${base} Check with your manager.`,
       link: '/schedule',
     });
   }
@@ -43,20 +45,22 @@ export async function decideTimeOff(id: string, approve: boolean): Promise<{ ok:
   return { ok: true };
 }
 
-export async function decideAvailability(id: string, approve: boolean): Promise<{ ok: boolean; error?: string }> {
+export async function decideAvailability(id: string, approve: boolean, note?: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireRole('super_admin', 'manager');
   const supabase = await createClient();
+  const trimmed = (note ?? '').trim();
   const { data, error } = await supabase
     .from('availability')
-    .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso() })
+    .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso(), manager_note: trimmed || null })
     .eq('id', id)
     .select('id, profile_id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
+  const base = approve ? 'Your availability change was approved.' : 'Your availability change was declined.';
   await notify([data[0].profile_id], {
     type: 'general',
     title: `Availability ${approve ? 'approved' : 'declined'}`,
-    body: approve ? 'Your availability change was approved.' : 'Your availability change was declined.',
+    body: trimmed ? `${base} — “${trimmed}”` : base,
     link: '/profile',
   });
   refresh();
@@ -68,9 +72,10 @@ export async function decideAvailability(id: string, approve: boolean): Promise<
  *   - if someone claimed it (requested_to set), reassign the shift to them;
  *   - if nobody claimed it, release the shift (make it an open shift).
  */
-export async function decideSwap(id: string, approve: boolean): Promise<{ ok: boolean; error?: string }> {
+export async function decideSwap(id: string, approve: boolean, note?: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireRole('super_admin', 'manager');
   const supabase = await createClient();
+  const trimmed = (note ?? '').trim();
 
   const { data: swap, error: readErr } = await supabase
     .from('shift_swap_requests')
@@ -100,19 +105,20 @@ export async function decideSwap(id: string, approve: boolean): Promise<{ ok: bo
 
   const { data, error } = await supabase
     .from('shift_swap_requests')
-    .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso() })
+    .update({ status: approve ? 'approved' : 'denied', reviewed_by: me.id, reviewed_at: nowIso(), manager_note: trimmed || null })
     .eq('id', id)
     .select('id');
   if (error) return { ok: false, error: error.message };
   if (!data?.length) return { ok: false, error: 'Not authorized for this request.' };
 
   const targets = [swap.requested_by, swap.requested_to].filter(Boolean) as string[];
+  const base = approve
+    ? swap.requested_to ? 'The shift is yours — check your schedule.' : 'Your shift was released and is now open.'
+    : 'Your shift request was declined.';
   await notify(targets, {
     type: 'swap_request',
     title: `Shift ${approve ? 'approved' : 'declined'}`,
-    body: approve
-      ? swap.requested_to ? 'The shift is yours — check your schedule.' : 'Your shift was released and is now open.'
-      : 'Your shift request was declined.',
+    body: trimmed ? `${base} — “${trimmed}”` : base,
     link: '/schedule',
   });
   refresh();
@@ -198,6 +204,26 @@ export async function offerShift(shiftId: string, note: string): Promise<{ ok: b
 export async function claimShift(swapId: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireProfile();
   const supabase = await createClient();
+
+  // Find the target shift so we can check for a time conflict first.
+  const { data: swap } = await supabase.from('shift_swap_requests').select('shift_id, requested_to').eq('id', swapId).maybeSingle();
+  if (!swap) return { ok: false, error: 'That shift is no longer available.' };
+  if (swap.requested_to) return { ok: false, error: 'This shift was already claimed.' };
+  const { data: target } = await supabase.from('shifts').select('starts_at, ends_at').eq('id', swap.shift_id).maybeSingle();
+  if (target) {
+    const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', me.id);
+    const myEmpIds = (myEmps ?? []).map((e) => e.id);
+    // My shifts that overlap the target window (full or partial).
+    let q = supabase.from('shifts').select('id, employee_id, roster_employee_id').lt('starts_at', target.ends_at).gt('ends_at', target.starts_at);
+    const orParts = [`employee_id.eq.${me.id}`];
+    if (myEmpIds.length) orParts.push(`roster_employee_id.in.(${myEmpIds.join(',')})`);
+    q = q.or(orParts.join(','));
+    const { data: overlap } = await q;
+    if ((overlap ?? []).length) {
+      return { ok: false, error: "You already work during this time, so you can't pick up this shift." };
+    }
+  }
+
   const { data, error } = await supabase
     .from('shift_swap_requests')
     .update({ requested_to: me.id })

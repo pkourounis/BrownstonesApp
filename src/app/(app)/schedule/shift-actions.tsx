@@ -58,13 +58,17 @@ export function OfferShift({ shiftId, offerId }: { shiftId: string; offerId: str
 }
 
 /** Shown on an open drop from a teammate: claim it (pending manager approval). */
-export function ClaimShift({ swapId }: { swapId: string }) {
+export function ClaimShift({ swapId, conflict = false }: { swapId: string; conflict?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [claimed, setClaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (claimed) return <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-green-700"><Check size={14} /> Requested</span>;
+
+  if (conflict) {
+    return <span className="shrink-0 rounded-lg bg-brand-100 px-3 py-1.5 text-xs font-medium text-brand-400" title="You already have a shift that overlaps this time">Unavailable</span>;
+  }
 
   return (
     <div className="flex shrink-0 flex-col items-end">

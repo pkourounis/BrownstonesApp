@@ -263,6 +263,7 @@ export type Availability = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   note: string | null;
+  manager_note: string | null;
   created_at: string;
 }
 
@@ -322,6 +323,7 @@ export type TimeOffRequest = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_note: string | null;
+  manager_note: string | null;
   created_at: string;
 }
 
@@ -336,6 +338,7 @@ export type ShiftSwapRequest = {
   deviates_rules: boolean;      // flagged when the swap breaks a rule
   deviation_note: string | null;
   note: string | null;
+  manager_note: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
@@ -766,7 +769,7 @@ export type Database = {
         Returns: string | null;
       };
       set_timeoff_status: {
-        Args: { p_id: string; p_approve: boolean };
+        Args: { p_id: string; p_approve: boolean; p_note?: string | null };
         Returns: string | null;
       };
       notify_users: {

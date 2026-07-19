@@ -128,6 +128,17 @@ export default async function SchedulePage({
   // Open drops from teammates I could claim.
   const openDrops = swaps.filter((w) => w.requested_to === null && w.requested_by !== profile.id);
 
+  // My own shift time windows — used to flag open shifts I can't take (overlap).
+  const myIntervals = shifts
+    .filter(mineShift)
+    .map((s) => [new Date(s.starts_at).getTime(), new Date(s.ends_at).getTime()] as const);
+  const claimConflict = (w: (typeof openDrops)[number]) => {
+    if (!w.shift) return false;
+    const a = new Date(w.shift.starts_at).getTime();
+    const b = new Date(w.shift.ends_at).getTime();
+    return myIntervals.some(([s, e]) => a < e && s < b); // any overlap, full or partial
+  };
+
   // Group by calendar day.
   const byDay = new Map<string, ShiftRow[]>();
   for (const s of shifts) {
@@ -294,17 +305,25 @@ export default async function SchedulePage({
         <section className="no-print">
           <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><Hand size={18} /> Open shifts up for grabs</h2>
           <ul className="space-y-2">
-            {openDrops.map((w) => (
-              <li key={w.id} className="card flex items-center gap-3 border-l-4 border-l-amber-400 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-brand-900">{w.shift ? shiftTimeRange(w.shift.starts_at, w.shift.ends_at) : 'Shift'}</p>
-                  <p className="text-xs text-brand-500">
-                    {w.shift ? format(parseISO(w.shift.starts_at), 'EEE, MMM d') : ''} · from {who(w.by)}{w.note ? ` · “${w.note}”` : ''}
-                  </p>
-                </div>
-                <ClaimShift swapId={w.id} />
-              </li>
-            ))}
+            {openDrops.map((w) => {
+              const conflict = claimConflict(w);
+              return (
+                <li key={w.id} className="card flex flex-wrap items-center gap-3 border-l-4 border-l-amber-400 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-brand-900">{w.shift ? shiftTimeRange(w.shift.starts_at, w.shift.ends_at) : 'Shift'}</p>
+                    <p className="text-xs text-brand-500">
+                      {w.shift ? format(parseISO(w.shift.starts_at), 'EEE, MMM d') : ''} · from {who(w.by)}{w.note ? ` · “${w.note}”` : ''}
+                    </p>
+                    {conflict ? (
+                      <p className="mt-1 text-xs font-medium text-brick-600">You already work during this time — you can&apos;t pick this up.</p>
+                    ) : (
+                      <p className="mt-1 text-xs font-medium text-green-700">You&apos;re free then — you can pick this up.</p>
+                    )}
+                  </div>
+                  <ClaimShift swapId={w.id} conflict={conflict} />
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

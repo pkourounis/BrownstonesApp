@@ -78,7 +78,7 @@ export default async function ApprovalsPage() {
           <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><Repeat2 size={18} /> Shift drops &amp; swaps</h2>
           <ul className="space-y-2">
             {sw.map((s) => (
-              <li key={s.id} className="card flex items-center gap-3 py-3">
+              <li key={s.id} className="card flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-brand-900">
                     {who(s.by)} {s.requested_to ? <>→ <span className="text-brand-700">{who(s.to)}</span></> : <span className="text-brand-500">· up for grabs</span>}
@@ -98,7 +98,7 @@ export default async function ApprovalsPage() {
           <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><CalendarOff size={18} /> Time off</h2>
           <ul className="space-y-2">
             {to.map((r) => (
-              <li key={r.id} className="card flex items-center gap-3 py-3">
+              <li key={r.id} className="card flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-brand-900">{who(r.profile)}</p>
                   <p className="text-xs text-brand-500">
@@ -117,7 +117,7 @@ export default async function ApprovalsPage() {
           <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><CalendarClock size={18} /> Availability changes</h2>
           <ul className="space-y-2">
             {av.map((a) => (
-              <li key={a.id} className="card flex items-center gap-3 py-3">
+              <li key={a.id} className="card flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-brand-900">{who(a.profile)}</p>
                   <p className="text-xs text-brand-500">
