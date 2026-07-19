@@ -3,6 +3,7 @@ import { format, startOfWeek, addDays, parseISO } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { requireProfile } from '@/lib/auth';
 import { shiftTimeRange } from '@/lib/format';
+import { OfferShift, ProposeSwap } from '../schedule/shift-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,27 @@ export default async function MyHoursPage() {
     .lt('starts_at', addDays(weekStart, 28).toISOString())
     .order('starts_at');
   const shifts = (shiftData ?? []) as Shift[];
+
+  // For the give-up / swap actions on upcoming shifts.
+  const nowIso = new Date().toISOString();
+  const [{ data: offerData }, { data: candData }] = await Promise.all([
+    supabase.from('shift_swap_requests').select('id, shift_id').eq('requested_by', me.id).eq('status', 'pending').is('requested_to', null),
+    me.primary_location_id
+      ? supabase
+          .from('shifts')
+          .select('id, starts_at, ends_at, employee:profiles!shifts_employee_id_fkey(display_name, full_name)')
+          .eq('location_id', me.primary_location_id)
+          .eq('status', 'published')
+          .not('employee_id', 'is', null)
+          .neq('employee_id', me.id)
+          .gt('starts_at', nowIso)
+          .order('starts_at')
+      : Promise.resolve({ data: [] }),
+  ]);
+  const offerByShift = new Map<string, string>();
+  for (const o of (offerData ?? []) as { id: string; shift_id: string }[]) offerByShift.set(o.shift_id, o.id);
+  const swapCandidates = ((candData ?? []) as unknown as { id: string; starts_at: string; ends_at: string; employee: { display_name: string | null; full_name: string | null } | null }[])
+    .map((s) => ({ id: s.id, label: `${s.employee?.display_name || s.employee?.full_name || 'Coworker'} · ${format(parseISO(s.starts_at), 'EEE MMM d')} · ${shiftTimeRange(s.starts_at, s.ends_at)}` }));
 
   // Actual punched hours (last 6 weeks) from Toast.
   let entries: Entry[] = [];
@@ -104,7 +126,7 @@ export default async function MyHoursPage() {
         ) : (
           <ul className="space-y-2">
             {upcoming.map((s) => (
-              <li key={s.id} className="card flex items-center gap-3 py-3">
+              <li key={s.id} className="card flex flex-wrap items-center gap-3 py-3">
                 <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-700 text-white">
                   <span className="text-[10px] uppercase leading-none">{format(new Date(s.starts_at), 'EEE')}</span>
                   <span className="text-sm font-bold leading-none">{format(new Date(s.starts_at), 'd')}</span>
@@ -114,6 +136,8 @@ export default async function MyHoursPage() {
                   <p className="text-xs text-brand-500">{shiftTimeRange(s.starts_at, s.ends_at)}{s.role_title ? ` · ${s.role_title}` : ''}</p>
                 </div>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-brand-700">{hrs(s.starts_at, s.ends_at, s.break_minutes).toFixed(1)}h</span>
+                <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
+                {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
               </li>
             ))}
           </ul>
