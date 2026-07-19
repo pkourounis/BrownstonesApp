@@ -104,6 +104,26 @@ export type StaffingRule = {
   updated_at: string;
 }
 
+/** Social-safe columns for the company directory (from the directory_profiles view). */
+export type DirectoryProfile = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  title: string | null;
+  role: AppRole;
+  department: Department | null;
+  bio: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  facebook: string | null;
+  website: string | null;
+  primary_location_id: string | null;
+  location_name: string | null;
+}
+
 export type LocationHours = {
   id: string;
   location_id: string;
@@ -684,6 +704,7 @@ export type Database = {
       report_daypart: { Row: ReportDaypart; Relationships: [] };
       report_dow: { Row: ReportDow; Relationships: [] };
       report_sales_daily: { Row: ReportSalesDaily; Relationships: [] };
+      directory_profiles: { Row: DirectoryProfile; Relationships: [] };
     };
     Functions: {
       insights: {
