@@ -35,8 +35,10 @@ export function OfferShift({ shiftId, offerId }: { shiftId: string; offerId: str
         <div className="flex gap-2">
           <button
             onClick={() => startTransition(async () => {
-              const res = await offerShift(shiftId, note);
-              if (res.ok) { setAsking(false); router.refresh(); } else setError(res.error ?? 'Failed');
+              try {
+                const res = await offerShift(shiftId, note);
+                if (res.ok) { setAsking(false); router.refresh(); } else setError(res.error ?? 'Failed');
+              } catch { setError('Something went wrong. Please try again.'); }
             })}
             disabled={pending || !note.trim()}
             className="btn-primary h-8 flex-1 justify-center text-xs"
@@ -74,8 +76,10 @@ export function ClaimShift({ swapId, conflict = false }: { swapId: string; confl
     <div className="flex shrink-0 flex-col items-end">
       <button
         onClick={() => startTransition(async () => {
-          const res = await claimShift(swapId);
-          if (res.ok) { setClaimed(true); router.refresh(); } else setError(res.error ?? 'Failed');
+          try {
+            const res = await claimShift(swapId);
+            if (res.ok) { setClaimed(true); router.refresh(); } else setError(res.error ?? 'Failed');
+          } catch { setError('Something went wrong. Please try again.'); }
         })}
         disabled={pending}
         className="btn-primary h-8 px-3 text-xs"
@@ -111,8 +115,10 @@ export function ProposeSwap({ myShiftId, candidates }: { myShiftId: string; cand
         <div className="flex gap-2">
           <button
             onClick={() => startTransition(async () => {
-              const res = await proposeSwap(myShiftId, target, note);
-              if (res.ok) { setDone(true); router.refresh(); } else setError(res.error ?? 'Failed');
+              try {
+                const res = await proposeSwap(myShiftId, target, note);
+                if (res.ok) { setDone(true); router.refresh(); } else setError(res.error ?? 'Failed');
+              } catch { setError('Something went wrong. Please try again.'); }
             })}
             disabled={pending || !target}
             className="btn-primary h-9 flex-1 justify-center text-xs"
@@ -136,24 +142,30 @@ export function ProposeSwap({ myShiftId, candidates }: { myShiftId: string; cand
 /** Coworker's accept/decline for an incoming 1:1 swap proposal. */
 export function SwapResponse({ swapId }: { swapId: string }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<null | 'accept' | 'decline'>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const go = (accept: boolean) =>
-    startTransition(async () => {
+  const go = async (accept: boolean) => {
+    setBusy(accept ? 'accept' : 'decline');
+    setError(null);
+    try {
       const res = await respondSwap(swapId, accept);
-      if (res.ok) router.refresh();
-      else setError(res.error ?? 'Failed');
-    });
+      if (res.ok) { router.refresh(); return; }
+      setError(res.error ?? 'Something went wrong.');
+    } catch {
+      setError('Something went wrong. Please try again.');
+    }
+    setBusy(null);
+  };
 
   return (
     <div className="flex shrink-0 flex-col items-end gap-1">
       <div className="flex items-center gap-1.5">
-        <button onClick={() => go(false)} disabled={pending} className="flex h-8 items-center gap-1 rounded-lg bg-brick-500/10 px-2.5 text-xs font-semibold text-brick-600 hover:bg-brick-500/20">
-          <X size={14} /> Decline
+        <button onClick={() => go(false)} disabled={busy !== null} className="flex h-8 items-center gap-1 rounded-lg bg-brick-500/10 px-2.5 text-xs font-semibold text-brick-600 hover:bg-brick-500/20 disabled:opacity-50">
+          {busy === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={14} />} Decline
         </button>
-        <button onClick={() => go(true)} disabled={pending} className="flex h-8 items-center gap-1 rounded-lg bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-700">
-          {pending ? <Loader2 size={13} className="animate-spin" /> : <><Check size={14} /> Accept</>}
+        <button onClick={() => go(true)} disabled={busy !== null} className="flex h-8 items-center gap-1 rounded-lg bg-green-600 px-3 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+          {busy === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <><Check size={14} /> Accept</>}
         </button>
       </div>
       {error && <p className="text-[10px] text-brick-600">{error}</p>}

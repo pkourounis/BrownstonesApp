@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, X, Loader2 } from 'lucide-react';
 import { decideTimeOff, decideAvailability, decideSwap } from './actions';
@@ -15,19 +15,23 @@ const FN: Record<Kind, (id: string, approve: boolean, note?: string) => Promise<
 
 export function Decide({ id, kind }: { id: string; kind: Kind }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [mode, setMode] = useState<null | 'approve' | 'deny'>(null);
   const [note, setNote] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!mode) return;
     setErr(null);
-    startTransition(async () => {
+    setPending(true);
+    try {
       const res = await FN[kind](id, mode === 'approve', note);
-      if (res.ok) router.refresh();
-      else setErr(res.error ?? 'Could not save the decision.');
-    });
+      if (res.ok) { router.refresh(); return; }
+      setErr(res.error ?? 'Could not save the decision.');
+    } catch {
+      setErr('Something went wrong. Please try again.');
+    }
+    setPending(false);
   };
 
   if (!mode) {
