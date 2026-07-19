@@ -36,11 +36,13 @@ export default async function ApprovalsPage() {
       .order('created_at', { ascending: true }),
     supabase
       .from('shift_swap_requests')
-      .select(`id, note, created_at, requested_to,
+      .select(`id, note, created_at, requested_to, target_shift_id, coworker_accepted,
         by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name),
         to:profiles!shift_swap_requests_requested_to_fkey(display_name, full_name),
-        shift:shifts(starts_at, ends_at)`)
+        shift:shifts!shift_swap_requests_shift_id_fkey(starts_at, ends_at),
+        target:shifts!shift_swap_requests_target_shift_id_fkey(starts_at, ends_at)`)
       .eq('status', 'pending')
+      .or('target_shift_id.is.null,coworker_accepted.is.true')
       .order('created_at', { ascending: true }),
     supabase.from('time_off_blackouts').select('id, location_id, start_date, end_date, reason').gte('end_date', new Date().toISOString().slice(0, 10)).order('start_date'),
     supabase.from('locations').select('id, name').eq('is_active', true).order('name'),
@@ -53,7 +55,7 @@ export default async function ApprovalsPage() {
 
   type TO = { id: string; start_date: string; end_date: string; reason: string | null; profile: { display_name: string | null; full_name: string | null } | null };
   type AV = { id: string; day_of_week: number; start_time: string; end_time: string; is_available: boolean; profile: { display_name: string | null; full_name: string | null } | null };
-  type SW = { id: string; note: string | null; requested_to: string | null; by: { display_name: string | null; full_name: string | null } | null; to: { display_name: string | null; full_name: string | null } | null; shift: { starts_at: string; ends_at: string } | null };
+  type SW = { id: string; note: string | null; requested_to: string | null; target_shift_id: string | null; coworker_accepted: boolean; by: { display_name: string | null; full_name: string | null } | null; to: { display_name: string | null; full_name: string | null } | null; shift: { starts_at: string; ends_at: string } | null; target: { starts_at: string; ends_at: string } | null };
 
   const to = (timeOff as unknown as TO[]) ?? [];
   const av = (avail as unknown as AV[]) ?? [];
@@ -80,11 +82,22 @@ export default async function ApprovalsPage() {
             {sw.map((s) => (
               <li key={s.id} className="card flex flex-wrap items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-brand-900">
-                    {who(s.by)} {s.requested_to ? <>→ <span className="text-brand-700">{who(s.to)}</span></> : <span className="text-brand-500">· up for grabs</span>}
-                  </p>
-                  <p className="text-xs text-brand-500">{s.shift ? `${fmtTime(s.shift.starts_at)}–${fmtTime(s.shift.ends_at).split(' ').pop()}` : 'Shift'}{s.note ? ` · “${s.note}”` : ''}</p>
-                  {!s.requested_to && <p className="mt-0.5 text-[11px] text-amber-700">No one has claimed this yet — approving releases it as an open shift.</p>}
+                  {s.target_shift_id ? (
+                    <>
+                      <p className="text-sm font-medium text-brand-900">{who(s.by)} ⇄ {who(s.to)} <span className="text-brand-500">· 1:1 swap</span></p>
+                      <p className="text-xs text-brand-500">
+                        {who(s.by)} gives {s.shift ? `${fmtTime(s.shift.starts_at)}–${fmtTime(s.shift.ends_at).split(' ').pop()}` : 'shift'}, gets {s.target ? `${fmtTime(s.target.starts_at)}–${fmtTime(s.target.ends_at).split(' ').pop()}` : 'shift'}{s.note ? ` · “${s.note}”` : ''}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-brand-900">
+                        {who(s.by)} {s.requested_to ? <>→ <span className="text-brand-700">{who(s.to)}</span></> : <span className="text-brand-500">· up for grabs</span>}
+                      </p>
+                      <p className="text-xs text-brand-500">{s.shift ? `${fmtTime(s.shift.starts_at)}–${fmtTime(s.shift.ends_at).split(' ').pop()}` : 'Shift'}{s.note ? ` · “${s.note}”` : ''}</p>
+                      {!s.requested_to && <p className="mt-0.5 text-[11px] text-amber-700">No one has claimed this yet — approving releases it as an open shift.</p>}
+                    </>
+                  )}
                 </div>
                 <Decide id={s.id} kind="swap" />
               </li>

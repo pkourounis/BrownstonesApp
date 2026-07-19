@@ -2,10 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { requireProfile, canManage } from '@/lib/auth';
 import { shiftTimeRange, shiftHours, money } from '@/lib/format';
 import { format, parseISO, startOfToday, startOfWeek, addDays } from 'date-fns';
-import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand, CalendarX2 } from 'lucide-react';
+import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand, CalendarX2, Repeat2 } from 'lucide-react';
 import Link from 'next/link';
 import { TimeOffButton } from './time-off-button';
-import { OfferShift, ClaimShift } from './shift-actions';
+import { OfferShift, ClaimShift, ProposeSwap, SwapResponse } from './shift-actions';
 import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
@@ -34,11 +34,14 @@ type ShiftRow = {
 type SwapRow = {
   id: string;
   shift_id: string;
+  target_shift_id: string | null;
+  coworker_accepted: boolean;
   requested_by: string;
   requested_to: string | null;
   note: string | null;
   by: { display_name: string | null; full_name: string | null } | null;
   shift: { starts_at: string; ends_at: string } | null;
+  target: { starts_at: string; ends_at: string } | null;
 };
 
 const who = (p: { display_name: string | null; full_name: string | null } | null) => p?.display_name || p?.full_name || 'A teammate';
@@ -109,7 +112,7 @@ export default async function SchedulePage({
     supabase.from('employees').select('id').eq('profile_id', profile.id),
     supabase
       .from('shift_swap_requests')
-      .select('id, shift_id, requested_by, requested_to, note, by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name), shift:shifts(starts_at, ends_at)')
+      .select('id, shift_id, target_shift_id, coworker_accepted, requested_by, requested_to, note, by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name), shift:shifts!shift_swap_requests_shift_id_fkey(starts_at, ends_at), target:shifts!shift_swap_requests_target_shift_id_fkey(starts_at, ends_at)')
       .eq('status', 'pending'),
     supabase.from('time_off_requests').select('id, start_date, end_date, reason, status').eq('profile_id', profile.id).gte('end_date', today).order('start_date'),
     supabase.from('time_off_blackouts').select('start_date, end_date, reason').gte('end_date', today).order('start_date').limit(10),
@@ -139,9 +142,20 @@ export default async function SchedulePage({
     return myIntervals.some(([s, e]) => a < e && s < b); // any overlap, full or partial
   };
 
+  // Employees don't see unassigned "open shift" rows — only real assignments.
+  const displayShifts = manager ? shifts : shifts.filter((s) => s.employee_id !== null || s.roster_employee_id !== null);
+
+  // Coworkers' upcoming shifts I could propose a 1:1 trade for.
+  const swapCandidates = shifts
+    .filter((s) => s.employee_id && s.employee_id !== profile.id && s.status === 'published' && new Date(s.starts_at).getTime() > Date.now())
+    .map((s) => ({ id: s.id, label: `${s.employee?.display_name || s.employee?.full_name || 'Coworker'} · ${format(parseISO(s.starts_at), 'EEE MMM d')} · ${shiftTimeRange(s.starts_at, s.ends_at)}` }));
+
+  // 1:1 swap proposals waiting on my yes/no.
+  const incomingSwaps = swaps.filter((w) => w.requested_to === profile.id && !!w.target_shift_id && !w.coworker_accepted);
+
   // Group by calendar day.
   const byDay = new Map<string, ShiftRow[]>();
-  for (const s of shifts) {
+  for (const s of displayShifts) {
     const key = format(parseISO(s.starts_at), 'yyyy-MM-dd');
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key)!.push(s);
@@ -242,7 +256,10 @@ export default async function SchedulePage({
           {s.status === 'draft' ? (
             <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>
           ) : mine && future ? (
-            <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
+            <div className="flex shrink-0 items-center gap-3">
+              <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
+              {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
+            </div>
           ) : null}
         </div>
       </li>
@@ -299,6 +316,30 @@ export default async function SchedulePage({
       <div className="no-print">
         <MyRequests requests={myRequests} />
       </div>
+
+      {/* 1:1 swap proposals waiting on me */}
+      {incomingSwaps.length > 0 && (
+        <section className="no-print">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><Repeat2 size={18} /> Swap requests for you</h2>
+          <ul className="space-y-2">
+            {incomingSwaps.map((w) => (
+              <li key={w.id} className="card flex flex-wrap items-center gap-3 border-l-4 border-l-brand-400 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-brand-900">{who(w.by)} wants to trade shifts</p>
+                  <p className="text-xs text-brand-600">
+                    You&apos;d give: {w.target ? `${format(parseISO(w.target.starts_at), 'EEE MMM d')} · ${shiftTimeRange(w.target.starts_at, w.target.ends_at)}` : 'your shift'}
+                  </p>
+                  <p className="text-xs text-brand-600">
+                    You&apos;d get: {w.shift ? `${format(parseISO(w.shift.starts_at), 'EEE MMM d')} · ${shiftTimeRange(w.shift.starts_at, w.shift.ends_at)}` : 'their shift'}
+                  </p>
+                  {w.note && <p className="mt-0.5 text-xs text-brand-500">“{w.note}”</p>}
+                </div>
+                <SwapResponse swapId={w.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Open shifts up for grabs */}
       {openDrops.length > 0 && (
