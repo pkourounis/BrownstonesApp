@@ -39,8 +39,8 @@ export function MyRequests({ requests }: { requests: MyReq[] }) {
                 {r.reason && <p className="truncate text-xs text-brand-500">{r.reason}</p>}
               </div>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${b.cls}`}>{b.label}</span>
-              {r.status === 'pending' && (
-                <button onClick={() => cancel(r.id)} disabled={pending} className="shrink-0 text-brand-300 hover:text-brick-600" aria-label="Cancel request">
+              {(r.status === 'pending' || r.status === 'denied' || r.status === 'cancelled') && (
+                <button onClick={() => cancel(r.id)} disabled={pending} className="shrink-0 text-brand-300 hover:text-brick-600" aria-label={r.status === 'pending' ? 'Cancel request' : 'Dismiss request'}>
                   <X size={16} />
                 </button>
               )}
