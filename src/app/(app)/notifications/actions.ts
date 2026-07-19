@@ -20,3 +20,23 @@ export async function markRead(id: string): Promise<{ ok: boolean }> {
   revalidatePath('/notifications');
   return { ok: true };
 }
+
+/** Dismiss (delete) a single notification. */
+export async function deleteNotification(id: string): Promise<{ ok: boolean }> {
+  const me = await requireProfile();
+  const supabase = await createClient();
+  await supabase.from('notifications').delete().eq('id', id).eq('profile_id', me.id);
+  revalidatePath('/notifications');
+  revalidatePath('/dashboard');
+  return { ok: true };
+}
+
+/** Clear all already-read notifications. */
+export async function clearRead(): Promise<{ ok: boolean }> {
+  const me = await requireProfile();
+  const supabase = await createClient();
+  await supabase.from('notifications').delete().eq('profile_id', me.id).eq('is_read', true);
+  revalidatePath('/notifications');
+  revalidatePath('/dashboard');
+  return { ok: true };
+}
