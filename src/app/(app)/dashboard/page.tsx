@@ -26,6 +26,7 @@ import { CollapsibleSection } from './collapsible-section';
 import { WeekStrip, type StripDay } from '../schedule/week-strip';
 import { getYelpBusiness, yelpConfigured } from '@/lib/yelp';
 import { Stars } from '@/components/stars';
+import { OfferShift, ProposeSwap } from '../schedule/shift-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,7 @@ export default async function DashboardPage() {
 
       <AckPrompt />
 
-      {manager ? <OpsHome isSuper={profile.role === 'super_admin'} primaryLocationId={profile.primary_location_id} /> : <EmployeeHome profileId={profile.id} />}
+      {manager ? <OpsHome isSuper={profile.role === 'super_admin'} primaryLocationId={profile.primary_location_id} /> : <EmployeeHome profileId={profile.id} primaryLocationId={profile.primary_location_id} />}
     </div>
   );
 }
@@ -382,19 +383,27 @@ function QuickAction({ href, icon, label, badge }: { href: string; icon: React.R
   );
 }
 
-async function EmployeeHome({ profileId }: { profileId: string }) {
+async function EmployeeHome({ profileId, primaryLocationId }: { profileId: string; primaryLocationId: string | null }) {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', profileId);
   const myEmpIds = (myEmps ?? []).map((e) => e.id);
-  const [{ data: myShifts }, { data: avail }, { data: mtgData }] = await Promise.all([
+  const [{ data: myShifts }, { data: avail }, { data: mtgData }, { data: offerData }, { data: candData }] = await Promise.all([
     supabase.from('shifts').select('*').eq('employee_id', profileId).gte('ends_at', nowIso).order('starts_at').limit(3),
     supabase.from('availability').select('*').eq('profile_id', profileId),
     myEmpIds.length
       ? supabase.from('meetings').select('id, type, scheduled_at, location').in('employee_id', myEmpIds).eq('status', 'scheduled').order('scheduled_at').limit(3)
       : Promise.resolve({ data: [] }),
+    supabase.from('shift_swap_requests').select('id, shift_id').eq('requested_by', profileId).eq('status', 'pending').is('requested_to', null),
+    primaryLocationId
+      ? supabase.from('shifts').select('id, starts_at, ends_at, employee:profiles!shifts_employee_id_fkey(display_name, full_name)').eq('location_id', primaryLocationId).eq('status', 'published').not('employee_id', 'is', null).neq('employee_id', profileId).gt('starts_at', nowIso).order('starts_at')
+      : Promise.resolve({ data: [] }),
   ]);
   const shifts = (myShifts as Shift[]) ?? [];
+  const offerByShift = new Map<string, string>();
+  for (const o of (offerData ?? []) as { id: string; shift_id: string }[]) offerByShift.set(o.shift_id, o.id);
+  const swapCandidates = ((candData ?? []) as unknown as { id: string; starts_at: string; ends_at: string; employee: { display_name: string | null; full_name: string | null } | null }[])
+    .map((s) => ({ id: s.id, label: `${s.employee?.display_name || s.employee?.full_name || 'Coworker'} · ${shiftDay(s.starts_at)} · ${shiftTimeRange(s.starts_at, s.ends_at)}` }));
   const availability = (avail as Availability[]) ?? [];
   const meetings = (mtgData as { id: string; type: string; scheduled_at: string | null; location: string | null }[]) ?? [];
   const MTG_LABEL: Record<string, string> = { review: 'Employee review', disciplinary: 'Disciplinary meeting', training: 'Training', discussion: 'Discussion', other: 'Meeting' };
@@ -419,22 +428,30 @@ async function EmployeeHome({ profileId }: { profileId: string }) {
         </div>
         {shifts.length > 0 ? (
           <ul className="space-y-3">
-            {shifts.map((s) => (
-              <li key={s.id} className="card flex items-center gap-4">
-                <div className="flex flex-col items-center rounded-xl bg-brand-700 px-3 py-2 text-white">
-                  <CalendarDays size={18} />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-brand-900">{shiftDay(s.starts_at)}</p>
-                  <p className="flex items-center gap-1 text-sm text-brand-600">
-                    <Clock size={14} /> {shiftTimeRange(s.starts_at, s.ends_at)}
-                  </p>
-                </div>
-                {s.status === 'draft' && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>
-                )}
-              </li>
-            ))}
+            {shifts.map((s) => {
+              const future = new Date(s.starts_at).getTime() > Date.now();
+              return (
+                <li key={s.id} className="card flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="flex flex-col items-center rounded-xl bg-brand-700 px-3 py-2 text-white">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-brand-900">{shiftDay(s.starts_at)}</p>
+                    <p className="flex items-center gap-1 text-sm text-brand-600">
+                      <Clock size={14} /> {shiftTimeRange(s.starts_at, s.ends_at)}
+                    </p>
+                  </div>
+                  {s.status === 'draft' ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>
+                  ) : future ? (
+                    <>
+                      <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
+                      {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <div className="card text-center text-sm text-brand-500">No upcoming shifts scheduled yet.</div>
