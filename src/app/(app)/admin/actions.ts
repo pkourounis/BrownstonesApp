@@ -37,8 +37,17 @@ function parse(formData: FormData) {
     shift_length: num('shift_length') ?? 6,
     staffing_notes: str('staffing_notes'),
     toast_guid: str('toast_guid'),
+    yelp_url: str('yelp_url'),
+    yelp_business_id: yelpAlias(str('yelp_url')),
     is_active: formData.get('is_active') === 'on',
   };
+}
+
+/** Extract the Yelp business alias from a page URL (…/biz/<alias>). */
+function yelpAlias(url: string | null): string | null {
+  if (!url) return null;
+  const m = url.match(/\/biz\/([^/?#]+)/i);
+  return m ? m[1] : null;
 }
 
 export async function createLocation(formData: FormData): Promise<{ ok: boolean; error?: string; id?: string }> {

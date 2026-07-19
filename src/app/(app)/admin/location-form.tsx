@@ -121,6 +121,12 @@ export function LocationForm({ location, staffingSources }: { location: Location
       )}
 
       <div className="card space-y-4">
+        <h2 className="font-semibold text-brand-900">Reviews</h2>
+        <F label="Yelp page URL" name="yelp_url" defaultValue={location?.yelp_url} placeholder="https://www.yelp.com/biz/…" />
+        <p className="-mt-2 text-xs text-brand-500">Paste this store&apos;s Yelp page link. Its rating &amp; recent reviews show on the Reviews page and Home. (Requires the Yelp API key in Netlify.)</p>
+      </div>
+
+      <div className="card space-y-4">
         <h2 className="font-semibold text-brand-900">Toast integration</h2>
         <F label="Toast restaurant GUID" name="toast_guid" defaultValue={location?.toast_guid} placeholder="Optional — links sales & labor sync" />
         <label className="flex items-center gap-2">

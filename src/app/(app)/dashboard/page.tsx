@@ -24,6 +24,8 @@ import { FeedPreview } from './feed-preview';
 import { AckPrompt } from './ack-prompt';
 import { CollapsibleSection } from './collapsible-section';
 import { WeekStrip, type StripDay } from '../schedule/week-strip';
+import { getYelpBusiness, yelpConfigured } from '@/lib/yelp';
+import { Stars } from '@/components/stars';
 
 export const dynamic = 'force-dynamic';
 
@@ -185,6 +187,11 @@ async function OpsHome({ isSuper, primaryLocationId }: { isSuper: boolean; prima
           <ActOnList isSuper={isSuper} primaryLocationId={primaryLocationId} />
         </Suspense>
 
+        {/* Yelp ratings (streams in; hidden until Yelp is connected) */}
+        <Suspense fallback={null}>
+          <YelpHomeWidget isSuper={isSuper} primaryLocationId={primaryLocationId} />
+        </Suspense>
+
         {/* Quick actions */}
         <section>
           <h2 className="mb-2 font-semibold text-brand-900">Quick actions</h2>
@@ -311,6 +318,41 @@ async function ActOnList({ isSuper, primaryLocationId }: { isSuper: boolean; pri
             </li>
           ))}
         </ul>
+      </div>
+    </section>
+  );
+}
+
+/** Compact Yelp rating per store. Renders nothing until Yelp is connected. */
+async function YelpHomeWidget({ isSuper, primaryLocationId }: { isSuper: boolean; primaryLocationId: string | null }) {
+  if (!yelpConfigured()) return null;
+  const supabase = await createClient();
+  const { data: locs } = await supabase.from('locations').select('id, name, yelp_url, yelp_business_id').eq('is_active', true).order('name');
+  let list = ((locs ?? []) as { id: string; name: string; yelp_url: string | null; yelp_business_id: string | null }[]).filter((l) => l.yelp_business_id);
+  if (!isSuper) list = list.filter((l) => l.id === primaryLocationId);
+  if (!list.length) return null;
+
+  const rows = (await Promise.all(list.map(async (l) => ({ l, biz: await getYelpBusiness(l.yelp_business_id!) }))))
+    .filter((r) => r.biz);
+  if (!rows.length) return null;
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="font-semibold text-brand-900">Yelp ratings</h2>
+        <Link href="/reviews" className="flex items-center gap-1 text-sm font-medium text-brand-700">Reviews <ArrowRight size={14} /></Link>
+      </div>
+      <div className="card divide-y divide-brand-50">
+        {rows.map(({ l, biz }) => (
+          <div key={l.id} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+            <span className="min-w-0 truncate text-sm font-medium text-brand-800">{l.name}</span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              <Stars rating={biz!.rating} size={13} />
+              <span className="text-sm font-bold tabular-nums text-brand-900">{biz!.rating.toFixed(1)}</span>
+              <span className="text-xs text-brand-400">({biz!.review_count.toLocaleString()})</span>
+            </span>
+          </div>
+        ))}
       </div>
     </section>
   );

@@ -13,6 +13,7 @@ import {
   BarChart3,
   BookOpen,
   Bell,
+  Star,
   ClipboardCheck,
   Clock,
   MessageSquare,
@@ -44,6 +45,7 @@ const ITEMS: Item[] = [
   { href: '/resources', label: 'Resources', icon: BookOpen, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['super_admin', 'manager'] },
   { href: '/insights', label: 'Insights', icon: BarChart3, roles: ['super_admin', 'manager'] },
+  { href: '/reviews', label: 'Reviews', icon: Star, roles: ['super_admin', 'manager'] },
   { href: '/roster', label: 'Roster', icon: UsersRound, roles: ['super_admin', 'manager'] },
   { href: '/timesheets', label: 'Timesheets', icon: Clock, roles: ['super_admin', 'manager'] },
   { href: '/admin', label: 'Admin', icon: Settings, roles: ['super_admin'] },
@@ -323,7 +325,7 @@ export function AppShell({ profile, children, unread = 0, logoUrl }: { profile: 
 
       {/* ---------- Main ---------- */}
       <div className={`transition-[padding] duration-200 print:pl-0 ${collapsed ? 'lg:pl-[4.75rem]' : 'lg:pl-60'}`}>
-        <main className={`mx-auto px-4 pb-10 pt-4 ${isActive(pathname, '/chat') ? 'max-w-5xl' : isActive(pathname, '/dashboard') || isActive(pathname, '/schedule') || isActive(pathname, '/insights') || (isActive(pathname, '/directory') && pathname === '/directory') ? 'max-w-7xl' : 'max-w-2xl'}`}>{children}</main>
+        <main className={`mx-auto px-4 pb-10 pt-4 ${isActive(pathname, '/chat') ? 'max-w-5xl' : isActive(pathname, '/dashboard') || isActive(pathname, '/schedule') || isActive(pathname, '/insights') || isActive(pathname, '/reviews') || (isActive(pathname, '/directory') && pathname === '/directory') ? 'max-w-7xl' : 'max-w-2xl'}`}>{children}</main>
       </div>
     </div>
   );
