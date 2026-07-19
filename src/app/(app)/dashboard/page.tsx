@@ -11,7 +11,7 @@ import {
   ClipboardCheck,
   CalendarClock,
 } from 'lucide-react';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Bell } from 'lucide-react';
 import { Suspense } from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
@@ -388,7 +388,7 @@ async function EmployeeHome({ profileId, primaryLocationId }: { profileId: strin
   const nowIso = new Date().toISOString();
   const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', profileId);
   const myEmpIds = (myEmps ?? []).map((e) => e.id);
-  const [{ data: myShifts }, { data: avail }, { data: mtgData }, { data: offerData }, { data: candData }] = await Promise.all([
+  const [{ data: myShifts }, { data: avail }, { data: mtgData }, { data: offerData }, { data: candData }, { data: notifData }] = await Promise.all([
     supabase.from('shifts').select('*').eq('employee_id', profileId).gte('ends_at', nowIso).order('starts_at').limit(3),
     supabase.from('availability').select('*').eq('profile_id', profileId),
     myEmpIds.length
@@ -398,8 +398,17 @@ async function EmployeeHome({ profileId, primaryLocationId }: { profileId: strin
     primaryLocationId
       ? supabase.from('shifts').select('id, starts_at, ends_at, employee:profiles!shifts_employee_id_fkey(display_name, full_name)').eq('location_id', primaryLocationId).eq('status', 'published').not('employee_id', 'is', null).neq('employee_id', profileId).gt('starts_at', nowIso).order('starts_at')
       : Promise.resolve({ data: [] }),
+    supabase.from('notifications').select('id, type, title, body, link, is_read, created_at').eq('profile_id', profileId).eq('is_read', false).order('created_at', { ascending: false }).limit(5),
   ]);
   const shifts = (myShifts as Shift[]) ?? [];
+  const updates = (notifData ?? []) as { id: string; type: string; title: string; body: string | null; link: string | null; is_read: boolean; created_at: string }[];
+  const relTime = (iso: string) => {
+    const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    if (m < 1440) return `${Math.floor(m / 60)}h ago`;
+    return `${Math.floor(m / 1440)}d ago`;
+  };
   const offerByShift = new Map<string, string>();
   for (const o of (offerData ?? []) as { id: string; shift_id: string }[]) offerByShift.set(o.shift_id, o.id);
   const swapCandidates = ((candData ?? []) as unknown as { id: string; starts_at: string; ends_at: string; employee: { display_name: string | null; full_name: string | null } | null }[])
@@ -419,6 +428,32 @@ async function EmployeeHome({ profileId, primaryLocationId }: { profileId: strin
 
   return (
     <>
+      {updates.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="font-semibold text-brand-900">Updates</h2>
+            <Link href="/notifications" className="flex items-center gap-1 text-sm font-medium text-brand-700">
+              All <ArrowRight size={14} />
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {updates.map((n) => {
+              const body = (
+                <div className="card flex items-start gap-3 border-l-4 border-l-brand-600 py-3">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700"><Bell size={15} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-brand-900">{n.title}</p>
+                    {n.body && <p className="text-sm text-brand-600">{n.body}</p>}
+                    <p className="mt-0.5 text-[11px] text-brand-400">{relTime(n.created_at)}</p>
+                  </div>
+                </div>
+              );
+              return <li key={n.id}>{n.link ? <Link href={n.link}>{body}</Link> : body}</li>;
+            })}
+          </ul>
+        </section>
+      )}
+
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-semibold text-brand-900">Your next shifts</h2>
