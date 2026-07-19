@@ -42,6 +42,7 @@ const ITEMS: Item[] = [
   { href: '/directory', label: 'Team', icon: Users, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/notifications', label: 'Notifications', icon: Bell, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays, roles: ['super_admin', 'manager', 'employee'] },
+  { href: '/my-hours', label: 'My hours', icon: Clock, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/resources', label: 'Resources', icon: BookOpen, roles: ['super_admin', 'manager', 'employee'] },
   { href: '/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['super_admin', 'manager'] },
   { href: '/insights', label: 'Insights', icon: BarChart3, roles: ['super_admin', 'manager'] },

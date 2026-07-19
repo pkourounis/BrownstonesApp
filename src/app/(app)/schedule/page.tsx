@@ -220,9 +220,9 @@ export default async function SchedulePage({
     const future = new Date(s.starts_at).getTime() > Date.now();
     return (
       <li key={s.id} className="card py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="h-10 w-1.5 rounded-full" style={{ backgroundColor: s.position?.color ?? '#a86f4e' }} />
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 font-semibold text-brand-900">
               <Clock size={14} className="text-brand-400" />
               {shiftTimeRange(s.starts_at, s.ends_at)}
