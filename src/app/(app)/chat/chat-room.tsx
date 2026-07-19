@@ -118,16 +118,26 @@ export function ChatRoom({
             return (
               <div key={m.id} className={`flex gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
                 {!mine &&
-                  (who?.avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={who.avatar} alt="" className="h-7 w-7 shrink-0 self-end rounded-full object-cover" />
+                  (m.author_id ? (
+                    <Link href={`/directory/${m.author_id}`} className="shrink-0 self-end" aria-label={`View ${who?.name ?? 'profile'}`}>
+                      {who?.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={who.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-200 text-[10px] font-semibold text-brand-700">
+                          {(who?.name ?? '?').slice(0, 1)}
+                        </span>
+                      )}
+                    </Link>
                   ) : (
-                    <span className="flex h-7 w-7 shrink-0 self-end items-center justify-center rounded-full bg-brand-200 text-[10px] font-semibold text-brand-700">
-                      {(who?.name ?? '?').slice(0, 1)}
-                    </span>
+                    <span className="flex h-7 w-7 shrink-0 self-end items-center justify-center rounded-full bg-brand-200 text-[10px] font-semibold text-brand-700">?</span>
                   ))}
                 <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
-                  {!mine && <span className="mb-0.5 px-1 text-[11px] text-brand-400">{who?.name ?? 'Someone'}</span>}
+                  {!mine && (
+                    m.author_id
+                      ? <Link href={`/directory/${m.author_id}`} className="mb-0.5 px-1 text-[11px] text-brand-400 hover:text-brand-700">{who?.name ?? 'Someone'}</Link>
+                      : <span className="mb-0.5 px-1 text-[11px] text-brand-400">{who?.name ?? 'Someone'}</span>
+                  )}
                   <div className={`overflow-hidden rounded-2xl text-sm ${mine ? 'bg-brand-700 text-white' : 'bg-white text-brand-800 shadow-sm'} ${m.image_url && !m.body ? '' : 'px-3 py-2'}`}>
                     {m.image_url && (
                       // eslint-disable-next-line @next/next/no-img-element

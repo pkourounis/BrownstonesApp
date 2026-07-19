@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ThumbsUp, Trash2, MessageCircle, Send, Check, ShieldCheck, Pin, ChevronDown, Loader2 } from 'lucide-react';
 import type { PostCategory } from '@/lib/database.types';
@@ -103,6 +104,7 @@ function AckTracker({ postId, ackCount }: { postId: string; ackCount: number }) 
 export function PostCard(props: {
   id: string;
   author: string;
+  authorId: string | null;
   avatar: string | null;
   scope: string;
   category: PostCategory;
@@ -122,7 +124,7 @@ export function PostCard(props: {
   original: Original | null;
 }) {
   const {
-    id, author, avatar, scope, category, title, body, photos, createdAt,
+    id, author, authorId, avatar, scope, category, title, body, photos, createdAt,
     likeCount, likedByMe, canDelete, pinned, comments,
     requiresAck, ackedByMe, ackCount, canTrackAcks, original,
   } = props;
@@ -154,15 +156,18 @@ export function PostCard(props: {
   return (
     <div className={`card ${!original ? ACCENT[category] ?? '' : ''}`}>
       <div className="mb-2 flex items-center gap-2">
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-        ) : (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-200 text-xs font-semibold text-brand-700">{author.slice(0, 1)}</span>
-        )}
+        {(() => {
+          const av = avatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-200 text-xs font-semibold text-brand-700">{author.slice(0, 1)}</span>
+          );
+          return authorId ? <Link href={`/directory/${authorId}`} className="shrink-0" aria-label={`View ${author}`}>{av}</Link> : av;
+        })()}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-brand-900">
-            {author}
+            {authorId ? <Link href={`/directory/${authorId}`} className="hover:underline">{author}</Link> : author}
             {original && <span className="font-normal text-brand-400"> reposted</span>}
           </p>
           <p className="text-[11px] text-brand-400">{fmt(createdAt)} · {scope}</p>

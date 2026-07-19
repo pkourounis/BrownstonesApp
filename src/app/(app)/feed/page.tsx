@@ -132,6 +132,7 @@ export default async function FeedPage({
               key={p.id}
               id={p.id}
               author={authorName(p.author)}
+              authorId={p.author_id}
               avatar={p.author?.avatar_url ?? null}
               scope={p.location_id ? nameById.get(p.location_id) ?? 'Store' : 'All stores'}
               category={p.category}
