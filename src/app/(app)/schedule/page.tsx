@@ -5,7 +5,8 @@ import { format, parseISO, startOfToday, startOfWeek, addDays } from 'date-fns';
 import { CalendarPlus, Clock, User, Gauge, ClipboardCheck, Hand, CalendarX2, Repeat2 } from 'lucide-react';
 import Link from 'next/link';
 import { TimeOffButton } from './time-off-button';
-import { OfferShift, ClaimShift, ProposeSwap, SwapResponse } from './shift-actions';
+import { OfferShift, ClaimShift, ProposeSwap, SwapResponse, OfferToPersonButton } from './shift-actions';
+import { ManagerShiftSheet, type SheetShift } from './manager-shift-sheet';
 import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
@@ -22,8 +23,10 @@ type ShiftRow = {
   ends_at: string;
   break_minutes: number;
   status: 'draft' | 'published';
+  attendance: 'no_show' | 'sick' | 'called_out' | null;
   notes: string | null;
   role_title: string | null;
+  position_id: string | null;
   employee_id: string | null;
   roster_employee_id: string | null;
   position: { name: string; color: string } | null;
@@ -31,11 +34,18 @@ type ShiftRow = {
   roster: { first_name: string; last_name: string | null; role_title: string | null; default_wage: number | null } | null;
 };
 
+const ATTEND_BADGE: Record<string, { label: string; cls: string }> = {
+  no_show: { label: 'No-show', cls: 'bg-brick-600 text-white' },
+  sick: { label: 'Sick', cls: 'bg-amber-100 text-amber-700' },
+  called_out: { label: 'Call-out', cls: 'bg-amber-100 text-amber-700' },
+};
+
 type SwapRow = {
   id: string;
   shift_id: string;
   target_shift_id: string | null;
   coworker_accepted: boolean;
+  manager_offer: boolean;
   requested_by: string;
   requested_to: string | null;
   note: string | null;
@@ -97,7 +107,7 @@ export default async function SchedulePage({
   let shiftQuery = supabase
     .from('shifts')
     .select(
-      `id, starts_at, ends_at, break_minutes, status, notes, role_title, employee_id, roster_employee_id,
+      `id, starts_at, ends_at, break_minutes, status, attendance, notes, role_title, position_id, employee_id, roster_employee_id,
        position:positions(name, color),
        employee:profiles!shifts_employee_id_fkey(id, full_name, display_name),
        roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, default_wage)`
@@ -112,7 +122,7 @@ export default async function SchedulePage({
     supabase.from('employees').select('id').eq('profile_id', profile.id),
     supabase
       .from('shift_swap_requests')
-      .select('id, shift_id, target_shift_id, coworker_accepted, requested_by, requested_to, note, by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name), shift:shifts!shift_swap_requests_shift_id_fkey(starts_at, ends_at), target:shifts!shift_swap_requests_target_shift_id_fkey(starts_at, ends_at)')
+      .select('id, shift_id, target_shift_id, coworker_accepted, manager_offer, requested_by, requested_to, note, by:profiles!shift_swap_requests_requested_by_fkey(display_name, full_name), shift:shifts!shift_swap_requests_shift_id_fkey(starts_at, ends_at), target:shifts!shift_swap_requests_target_shift_id_fkey(starts_at, ends_at)')
       .eq('status', 'pending'),
     supabase.from('time_off_requests').select('id, start_date, end_date, reason, status').eq('profile_id', profile.id).gte('end_date', today).order('start_date'),
     supabase.from('time_off_blackouts').select('start_date, end_date, reason').gte('end_date', today).order('start_date').limit(10),
@@ -124,6 +134,27 @@ export default async function SchedulePage({
   const myRequests = (myReqData as MyReq[]) ?? [];
   const blackouts = (blackoutData as { start_date: string; end_date: string; reason: string | null }[]) ?? [];
   const bdate = (d: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00'));
+
+  // People lists for manager tools (reassign) and offer-to-person (both roles).
+  const coworkerStore = manager ? selectedStore : profile.primary_location_id;
+  const [{ data: posData }, { data: staffData }, { data: profAtStore }] = await Promise.all([
+    manager ? supabase.from('positions').select('id, name').eq('is_active', true).order('sort_order') : Promise.resolve({ data: [] }),
+    manager && selectedStore ? supabase.from('employees').select('id, first_name, last_name, role_title, profile_id').eq('location_id', selectedStore).eq('active', true).order('first_name') : Promise.resolve({ data: [] }),
+    coworkerStore ? supabase.from('profiles').select('id, display_name, full_name').eq('primary_location_id', coworkerStore) : Promise.resolve({ data: [] }),
+  ]);
+  const positions = (posData ?? []) as { id: string; name: string }[];
+  const staff = (staffData ?? []) as { id: string; first_name: string; last_name: string | null; role_title: string | null; profile_id: string | null }[];
+  const profs = (profAtStore ?? []) as { id: string; display_name: string | null; full_name: string | null }[];
+  const profName = (p: { display_name: string | null; full_name: string | null }) => p.display_name || p.full_name || 'Teammate';
+
+  // Reassign options: roster people first, then any login profiles not on the roster.
+  const rosterProfileIds = new Set(staff.filter((s) => s.profile_id).map((s) => s.profile_id));
+  const reassignPeople = [
+    ...staff.map((s) => ({ value: `roster:${s.id}`, label: `${s.first_name} ${s.last_name ?? ''}`.trim() + (s.role_title ? ` · ${s.role_title}` : ''), profileId: s.profile_id })),
+    ...profs.filter((p) => !rosterProfileIds.has(p.id)).map((p) => ({ value: `profile:${p.id}`, label: profName(p), profileId: p.id })),
+  ];
+  // Offer-to-person targets: login users only (they need an account to accept).
+  const offerTargets = reassignPeople.filter((p) => p.profileId).map((p) => ({ value: p.profileId as string, label: p.label }));
 
   const mineShift = (s: ShiftRow) => s.employee_id === profile.id || (!!s.roster_employee_id && myEmpIds.has(s.roster_employee_id));
   const offerByShift = new Map<string, string>(); // shift_id -> my offer id
@@ -152,6 +183,10 @@ export default async function SchedulePage({
 
   // 1:1 swap proposals waiting on my yes/no.
   const incomingSwaps = swaps.filter((w) => w.requested_to === profile.id && !!w.target_shift_id && !w.coworker_accepted);
+  // Shifts offered directly to me (no trade) waiting on my yes/no.
+  const incomingOffers = swaps.filter((w) => w.requested_to === profile.id && !w.target_shift_id && !w.coworker_accepted);
+  // Offer-to-person targets, minus me.
+  const coworkerOptions = offerTargets.filter((t) => t.value !== profile.id);
 
   // Group by calendar day.
   const byDay = new Map<string, ShiftRow[]>();
@@ -232,6 +267,13 @@ export default async function SchedulePage({
   const shiftCard = (s: ShiftRow) => {
     const mine = mineShift(s);
     const future = new Date(s.starts_at).getTime() > Date.now();
+    const empName = s.employee ? s.employee.display_name || s.employee.full_name : s.roster ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim() : 'Open shift';
+    const att = s.attendance ? ATTEND_BADGE[s.attendance] : null;
+    const sheetShift: SheetShift = {
+      id: s.id, starts_at: s.starts_at, ends_at: s.ends_at, break_minutes: s.break_minutes,
+      role_title: s.role_title, position_id: s.position_id, notes: s.notes, attendance: s.attendance,
+      employeeName: empName, assigned: !!(s.employee_id || s.roster_employee_id),
+    };
     return (
       <li key={s.id} className="card py-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -244,23 +286,21 @@ export default async function SchedulePage({
             </p>
             <p className="flex items-center gap-1.5 text-sm text-brand-600">
               <User size={13} className="text-brand-400" />
-              {s.employee
-                ? s.employee.display_name || s.employee.full_name
-                : s.roster
-                  ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim()
-                  : 'Open shift'}
+              {empName}
               {mine && <span className="text-brand-400">· you</span>}
               {(s.role_title || s.position?.name || s.roster?.role_title) && <span className="text-brand-400">· {s.role_title ?? s.position?.name ?? s.roster?.role_title}</span>}
             </p>
           </div>
-          {s.status === 'draft' ? (
-            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>
-          ) : mine && future ? (
+          {att && <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${att.cls}`}>{att.label}</span>}
+          {s.status === 'draft' && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Draft</span>}
+          {!manager && mine && future && s.status !== 'draft' && (
             <>
               <OfferShift shiftId={s.id} offerId={offerByShift.get(s.id) ?? null} />
+              {!offerByShift.get(s.id) && <OfferToPersonButton shiftId={s.id} coworkers={coworkerOptions} />}
               {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
             </>
-          ) : null}
+          )}
+          {manager && <ManagerShiftSheet shift={sheetShift} positions={positions} people={reassignPeople.map((p) => ({ value: p.value, label: p.label }))} offerTargets={coworkerOptions} />}
         </div>
       </li>
     );
@@ -333,6 +373,29 @@ export default async function SchedulePage({
                     You&apos;d get: {w.shift ? `${format(parseISO(w.shift.starts_at), 'EEE MMM d')} · ${shiftTimeRange(w.shift.starts_at, w.shift.ends_at)}` : 'their shift'}
                   </p>
                   {w.note && <p className="mt-0.5 text-xs text-brand-500">“{w.note}”</p>}
+                </div>
+                <SwapResponse swapId={w.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Shifts offered directly to me */}
+      {incomingOffers.length > 0 && (
+        <section className="no-print">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-900"><Hand size={18} /> Shifts offered to you</h2>
+          <ul className="space-y-2">
+            {incomingOffers.map((w) => (
+              <li key={w.id} className="card flex flex-wrap items-center gap-3 border-l-4 border-l-green-400 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-brand-900">
+                    {w.shift ? `${format(parseISO(w.shift.starts_at), 'EEE MMM d')} · ${shiftTimeRange(w.shift.starts_at, w.shift.ends_at)}` : 'A shift'}
+                  </p>
+                  <p className="text-xs text-brand-500">
+                    from {who(w.by)}{w.manager_offer ? ' (manager)' : ''}{w.note ? ` · “${w.note}”` : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-brand-400">{w.manager_offer ? 'Accept to add it to your schedule.' : 'Accept, then a manager approves.'}</p>
                 </div>
                 <SwapResponse swapId={w.id} />
               </li>

@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Hand, X, Loader2, Check, Repeat2 } from 'lucide-react';
-import { offerShift, cancelOffer, claimShift, proposeSwap, respondSwap } from '../approvals/actions';
+import { UserPlus } from 'lucide-react';
+import { offerShift, cancelOffer, claimShift, proposeSwap, respondSwap, offerToPerson } from '../approvals/actions';
 
 /** Shown on the current user's own upcoming shift: offer it up for grabs, or the pending state. */
 export function OfferShift({ shiftId, offerId }: { shiftId: string; offerId: string | null }) {
@@ -135,6 +136,55 @@ export function ProposeSwap({ myShiftId, candidates }: { myShiftId: string; cand
   return (
     <button onClick={() => setAsking(true)} className="shrink-0 text-[11px] font-medium text-brand-500 hover:text-brand-800">
       <Repeat2 size={13} className="mr-0.5 inline" /> Swap
+    </button>
+  );
+}
+
+/** On my own upcoming shift: offer it directly to a specific coworker (they accept, then a manager approves). */
+export function OfferToPersonButton({ shiftId, coworkers }: { shiftId: string; coworkers: { value: string; label: string }[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [asking, setAsking] = useState(false);
+  const [target, setTarget] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  if (done) return <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-green-700"><Check size={14} /> Offer sent</span>;
+  if (!coworkers.length) return null;
+
+  if (asking) {
+    return (
+      <div className="mt-2 w-full space-y-2 rounded-lg border border-brand-100 bg-brand-50 p-2">
+        <p className="text-xs font-semibold text-brand-700">Offer this shift to a coworker</p>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} className="input h-9 w-full text-sm">
+          <option value="">Pick a coworker…</option>
+          {coworkers.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="input h-9 w-full text-sm" />
+        <div className="flex gap-2">
+          <button
+            onClick={() => startTransition(async () => {
+              try {
+                const res = await offerToPerson(shiftId, target, note);
+                if (res.ok) { setDone(true); router.refresh(); } else setError(res.error ?? 'Failed');
+              } catch { setError('Something went wrong. Please try again.'); }
+            })}
+            disabled={pending || !target}
+            className="btn-primary h-9 flex-1 justify-center text-xs"
+          >
+            {pending ? <Loader2 size={13} className="animate-spin" /> : <><UserPlus size={13} /> Offer shift</>}
+          </button>
+          <button onClick={() => { setAsking(false); setError(null); }} className="btn-secondary h-9 px-3 text-xs">Cancel</button>
+        </div>
+        {error && <p className="text-xs text-brick-600">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={() => setAsking(true)} className="shrink-0 text-[11px] font-medium text-brand-500 hover:text-brand-800">
+      <UserPlus size={13} className="mr-0.5 inline" /> Offer to…
     </button>
   );
 }

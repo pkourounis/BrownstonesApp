@@ -14,7 +14,20 @@ async function alertManagers(supabase: Awaited<ReturnType<typeof createClient>>,
 
 const nowIso = () => new Date().toISOString();
 
+/** A shift window in Eastern time, e.g. "Fri Aug 8 8:00 AM–4:00 PM" — for notifications. */
+function fmtWhen(startsAt: string, endsAt: string): string {
+  const day = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(startsAt));
+  const t = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+  return `${day} ${t(startsAt)}–${t(endsAt)}`;
+}
+
 type Sb = Awaited<ReturnType<typeof createClient>>;
+
+/** Notify every super admin (e.g. every no-show, company-wide). */
+async function notifySuperAdmins(supabase: Sb, opts: { title: string; body: string; link: string }) {
+  const { data } = await supabase.from('profiles').select('id').eq('role', 'super_admin');
+  await notify(((data ?? []) as { id: string }[]).map((p) => p.id), { type: 'general', ...opts });
+}
 
 /** True if the profile already works a shift overlapping [startsAt, endsAt), ignoring excluded shift ids. */
 async function hasConflict(supabase: Sb, profileId: string, startsAt: string, endsAt: string, exclude: string[]): Promise<boolean> {
@@ -318,32 +331,67 @@ export async function proposeSwap(myShiftId: string, targetShiftId: string, note
   return { ok: true };
 }
 
-/** Coworker accepts or declines a proposed 1:1 swap. Accept sends it to a manager. */
+/**
+ * Coworker responds to something addressed to them:
+ *   - a 1:1 swap proposal (target_shift_id set), or
+ *   - a shift offered directly to them (target_shift_id null — a directed pickup).
+ * Accept on an employee-initiated offer/swap goes to a manager; a manager's
+ * directed offer applies immediately on accept.
+ */
 export async function respondSwap(swapId: string, accept: boolean, note?: string): Promise<{ ok: boolean; error?: string }> {
   const me = await requireProfile();
   const supabase = await createClient();
   const reason = (note ?? '').trim();
   const { data: swap } = await supabase
     .from('shift_swap_requests')
-    .select('id, shift_id, target_shift_id, requested_by, requested_to, status, coworker_accepted')
+    .select('id, shift_id, target_shift_id, requested_by, requested_to, status, coworker_accepted, manager_offer')
     .eq('id', swapId)
     .maybeSingle();
-  if (!swap || swap.target_shift_id === null) return { ok: false, error: 'Swap not found.' };
-  if (swap.requested_to !== me.id) return { ok: false, error: 'This swap isn’t addressed to you.' };
-  if (swap.status !== 'pending' || swap.coworker_accepted) return { ok: false, error: 'This swap was already handled.' };
+  if (!swap) return { ok: false, error: 'Request not found.' };
+  if (swap.requested_to !== me.id) return { ok: false, error: 'This isn’t addressed to you.' };
+  if (swap.status !== 'pending' || swap.coworker_accepted) return { ok: false, error: 'This was already handled.' };
+
+  const directedOffer = swap.target_shift_id === null; // a pickup offered straight to me, no trade
+  const myName = me.display_name || me.full_name || 'A teammate';
 
   if (!accept) {
     await supabase.from('shift_swap_requests').update({ status: 'denied', coworker_note: reason || null }).eq('id', swapId);
-    await notify([swap.requested_by], { type: 'swap_request', title: 'Swap declined', body: reason ? `Your shift swap was declined — “${reason}”` : 'Your shift swap was declined.', link: '/schedule' });
+    const label = directedOffer ? 'Your shift offer was declined' : 'Your shift swap was declined';
+    await notify([swap.requested_by], { type: 'swap_request', title: directedOffer ? 'Offer declined' : 'Swap declined', body: reason ? `${label} — “${reason}”` : `${label}.`, link: '/schedule' });
     refresh();
     return { ok: true };
   }
 
+  if (directedOffer) {
+    const { data: s } = await supabase.from('shifts').select('id, starts_at, ends_at, location_id').eq('id', swap.shift_id).maybeSingle();
+    if (!s) return { ok: false, error: 'That shift no longer exists.' };
+    if (await hasConflict(supabase, me.id, s.starts_at, s.ends_at, [swap.shift_id])) {
+      return { ok: false, error: 'You already work during that shift, so you can’t take it.' };
+    }
+    if (swap.manager_offer) {
+      // A manager offered it directly → apply immediately.
+      await reassign(supabase, s.id, me.id, s.location_id);
+      await supabase.from('shift_swap_requests').update({ status: 'approved', coworker_accepted: true, coworker_note: reason || null, reviewed_at: nowIso() }).eq('id', swapId);
+      await notify([swap.requested_by].filter((x) => x !== me.id), { type: 'swap_request', title: 'Shift picked up', body: `${myName} took the ${fmtWhen(s.starts_at, s.ends_at)} shift.`, link: '/schedule' });
+      await notify([me.id], { type: 'shift_changed', title: 'Shift added', body: `You picked up the ${fmtWhen(s.starts_at, s.ends_at)} shift.`, link: '/schedule' });
+      refresh();
+      return { ok: true };
+    }
+    // Employee offered it → coworker accepts, then a manager approves.
+    await supabase.from('shift_swap_requests').update({ coworker_accepted: true, coworker_note: reason || null }).eq('id', swapId);
+    await alertManagers(supabase, s.location_id ?? null, { title: 'Shift pickup to approve', body: `${myName} accepted an offered shift — approve it in Approvals.`, link: '/approvals' });
+    await notify([swap.requested_by], { type: 'swap_request', title: 'Offer accepted', body: `${myName} accepted your shift — pending manager approval.`, link: '/schedule' });
+    refresh();
+    return { ok: true };
+  }
+
+  // A 1:1 trade — target_shift_id is guaranteed set here.
+  const targetShiftId = swap.target_shift_id as string;
   // Conflict checks for both people before it goes to a manager.
   const { data: a } = await supabase.from('shifts').select('starts_at, ends_at, location_id').eq('id', swap.shift_id).maybeSingle();
-  const { data: b } = await supabase.from('shifts').select('starts_at, ends_at').eq('id', swap.target_shift_id).maybeSingle();
+  const { data: b } = await supabase.from('shifts').select('starts_at, ends_at').eq('id', targetShiftId).maybeSingle();
   if (!a || !b) return { ok: false, error: 'One of the shifts no longer exists.' };
-  if (await hasConflict(supabase, me.id, a.starts_at, a.ends_at, [swap.target_shift_id])) {
+  if (await hasConflict(supabase, me.id, a.starts_at, a.ends_at, [targetShiftId])) {
     return { ok: false, error: 'You already work during that shift, so you can’t take it.' };
   }
   if (await hasConflict(supabase, swap.requested_by, b.starts_at, b.ends_at, [swap.shift_id])) {
@@ -358,6 +406,202 @@ export async function respondSwap(swapId: string, accept: boolean, note?: string
     link: '/approvals',
   });
   await notify([swap.requested_by], { type: 'swap_request', title: 'Swap accepted', body: reason ? `${name} accepted your swap — “${reason}”. Pending manager approval.` : `${name} accepted your swap — pending manager approval.`, link: '/schedule' });
+  refresh();
+  return { ok: true };
+}
+
+// --- Manager shift management ------------------------------------------------
+
+/** Manager: edit a shift's time / break / role / notes. Applies immediately. */
+export async function managerEditShift(
+  shiftId: string,
+  patch: { starts_at: string; ends_at: string; break_minutes: number; role_title: string | null; position_id: string | null; notes: string | null }
+): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  if (!patch.starts_at || !patch.ends_at) return { ok: false, error: 'Set a start and end time.' };
+  if (new Date(patch.ends_at).getTime() <= new Date(patch.starts_at).getTime()) return { ok: false, error: 'End time must be after the start time.' };
+
+  const { data: before } = await supabase.from('shifts').select('employee_id').eq('id', shiftId).maybeSingle();
+  if (before?.employee_id && (await hasConflict(supabase, before.employee_id, patch.starts_at, patch.ends_at, [shiftId]))) {
+    return { ok: false, error: 'That person already works an overlapping shift then.' };
+  }
+  const { data, error } = await supabase
+    .from('shifts')
+    .update({
+      starts_at: patch.starts_at,
+      ends_at: patch.ends_at,
+      break_minutes: Math.max(0, Math.round(patch.break_minutes || 0)),
+      role_title: patch.role_title,
+      position_id: patch.position_id,
+      notes: patch.notes,
+    })
+    .eq('id', shiftId)
+    .select('id, employee_id, starts_at, ends_at');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Not authorized for this shift.' };
+  const s = data[0];
+  if (s.employee_id) {
+    await notify([s.employee_id], { type: 'shift_changed', title: 'Your shift changed', body: `Your shift is now ${fmtWhen(s.starts_at, s.ends_at)}.`, link: '/schedule' });
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Manager: reassign a shift to another person (roster: / profile: token) or '' to open it. */
+export async function managerReassignShift(shiftId: string, assignee: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data: shift } = await supabase.from('shifts').select('id, employee_id, location_id, starts_at, ends_at').eq('id', shiftId).maybeSingle();
+  if (!shift) return { ok: false, error: 'Shift not found.' };
+
+  let newProfileId: string | null = null;
+  let newRosterId: string | null = null;
+  if (assignee.startsWith('roster:')) {
+    const { data: emp } = await supabase.from('employees').select('id, profile_id').eq('id', assignee.slice(7)).maybeSingle();
+    if (!emp) return { ok: false, error: 'Person not found.' };
+    newRosterId = emp.id;
+    newProfileId = emp.profile_id;
+  } else if (assignee.startsWith('profile:')) {
+    newProfileId = assignee.slice(8);
+    const { data: emp } = await supabase.from('employees').select('id').eq('profile_id', newProfileId).eq('location_id', shift.location_id).maybeSingle();
+    newRosterId = emp?.id ?? null;
+  }
+  // '' → leave both null (open shift)
+
+  if (newProfileId && (await hasConflict(supabase, newProfileId, shift.starts_at, shift.ends_at, [shiftId]))) {
+    return { ok: false, error: 'That person already works an overlapping shift.' };
+  }
+  const { error } = await supabase.from('shifts').update({ employee_id: newProfileId, roster_employee_id: newRosterId }).eq('id', shiftId);
+  if (error) return { ok: false, error: error.message };
+
+  if (shift.employee_id && shift.employee_id !== newProfileId) {
+    await notify([shift.employee_id], { type: 'shift_changed', title: 'Shift reassigned', body: `Your ${fmtWhen(shift.starts_at, shift.ends_at)} shift was reassigned to someone else.`, link: '/schedule' });
+  }
+  if (newProfileId && newProfileId !== shift.employee_id) {
+    await notify([newProfileId], { type: 'shift_changed', title: 'New shift', body: `You were added to a shift: ${fmtWhen(shift.starts_at, shift.ends_at)}.`, link: '/schedule' });
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Manager: delete a shift (and any pending swap/offer tied to it). */
+export async function managerDeleteShift(shiftId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data: s } = await supabase.from('shifts').select('employee_id, starts_at, ends_at').eq('id', shiftId).maybeSingle();
+  await supabase.from('shift_swap_requests').delete().or(`shift_id.eq.${shiftId},target_shift_id.eq.${shiftId}`);
+  const { error } = await supabase.from('shifts').delete().eq('id', shiftId);
+  if (error) return { ok: false, error: error.message };
+  if (s?.employee_id) {
+    await notify([s.employee_id], { type: 'shift_changed', title: 'Shift removed', body: `Your ${fmtWhen(s.starts_at, s.ends_at)} shift was removed.`, link: '/schedule' });
+  }
+  refresh();
+  return { ok: true };
+}
+
+const ATTEND_LABEL: Record<string, string> = { no_show: 'no-show', sick: 'sick', called_out: 'call-out' };
+
+/** Manager: tag a shift's attendance (no-show / sick / call-out) or clear it (null). */
+export async function markAttendance(shiftId: string, status: 'no_show' | 'sick' | 'called_out' | null): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('shifts')
+    .update({ attendance: status })
+    .eq('id', shiftId)
+    .select('id, employee_id, starts_at, ends_at, location_id, employee:profiles!shifts_employee_id_fkey(display_name, full_name)');
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: 'Not authorized for this shift.' };
+  const s = data[0] as unknown as { employee_id: string | null; starts_at: string; ends_at: string; location_id: string | null; employee: { display_name: string | null; full_name: string | null } | null };
+  const who = s.employee?.display_name || s.employee?.full_name || 'Someone';
+
+  if (status && s.employee_id) {
+    await notify([s.employee_id], { type: 'shift_changed', title: `Marked ${ATTEND_LABEL[status]}`, body: `Your ${fmtWhen(s.starts_at, s.ends_at)} shift was marked ${ATTEND_LABEL[status]}.`, link: '/schedule' });
+  }
+  if (status === 'no_show') {
+    const body = `${who} was a no-show for the ${fmtWhen(s.starts_at, s.ends_at)} shift.`;
+    await notifySuperAdmins(supabase, { title: 'No-show', body, link: '/schedule' });
+    await alertManagers(supabase, s.location_id ?? null, { title: 'No-show', body, link: '/schedule' });
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Manager: put someone's shift up for grabs (open pickup others can claim, subject to approval). */
+export async function makeAvailable(shiftId: string, note?: string): Promise<{ ok: boolean; error?: string }> {
+  await requireRole('super_admin', 'manager');
+  const supabase = await createClient();
+  const { data: shift } = await supabase.from('shifts').select('id, employee_id, location_id, starts_at, ends_at').eq('id', shiftId).maybeSingle();
+  if (!shift) return { ok: false, error: 'Shift not found.' };
+  if (!shift.employee_id) return { ok: false, error: 'No one is assigned — reassign it instead.' };
+  const { data: existing } = await supabase.from('shift_swap_requests').select('id').eq('shift_id', shiftId).eq('status', 'pending').maybeSingle();
+  if (existing) return { ok: false, error: 'This shift already has a pending offer or swap.' };
+
+  const { error } = await supabase.from('shift_swap_requests').insert({
+    shift_id: shiftId,
+    requested_by: shift.employee_id,
+    requested_to: null,
+    kind: 'pickup',
+    manager_offer: true,
+    note: (note ?? '').trim() || 'Made available by a manager',
+    status: 'pending',
+  });
+  if (error) return { ok: false, error: error.message };
+  await notify([shift.employee_id], { type: 'shift_changed', title: 'Shift up for grabs', body: `Your ${fmtWhen(shift.starts_at, shift.ends_at)} shift was put up for grabs.`, link: '/schedule' });
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Offer a shift directly to a specific person. Used by employees (their own
+ * shift → needs manager approval after acceptance) and managers (any shift →
+ * applies as soon as the person accepts).
+ */
+export async function offerToPerson(shiftId: string, targetProfileId: string, note?: string): Promise<{ ok: boolean; error?: string }> {
+  const me = await requireProfile();
+  const supabase = await createClient();
+  const isManager = me.role === 'super_admin' || me.role === 'manager';
+  if (!targetProfileId) return { ok: false, error: 'Pick who to offer it to.' };
+
+  const { data: myEmps } = await supabase.from('employees').select('id').eq('profile_id', me.id);
+  const myEmpIds = (myEmps ?? []).map((e) => e.id);
+  const { data: shift } = await supabase.from('shifts').select('id, employee_id, roster_employee_id, location_id, starts_at, status').eq('id', shiftId).maybeSingle();
+  if (!shift) return { ok: false, error: 'Shift not found.' };
+  const mine = shift.employee_id === me.id || (!!shift.roster_employee_id && myEmpIds.includes(shift.roster_employee_id));
+  if (!isManager && !mine) return { ok: false, error: 'That shift isn’t yours.' };
+  if (!isManager && shift.status !== 'published') return { ok: false, error: 'You can only offer a published shift.' };
+  if (new Date(shift.starts_at).getTime() <= Date.now()) return { ok: false, error: 'That shift has already started.' };
+  if (targetProfileId === shift.employee_id) return { ok: false, error: 'They already have this shift.' };
+
+  const { data: full } = await supabase.from('shifts').select('starts_at, ends_at').eq('id', shiftId).single();
+  if (full && (await hasConflict(supabase, targetProfileId, full.starts_at, full.ends_at, [shiftId]))) {
+    return { ok: false, error: 'That person already works an overlapping shift.' };
+  }
+  const { data: existing } = await supabase.from('shift_swap_requests').select('id').eq('shift_id', shiftId).eq('status', 'pending').maybeSingle();
+  if (existing) return { ok: false, error: 'This shift already has a pending offer or swap.' };
+
+  const giver = shift.employee_id ?? me.id;
+  const { error } = await supabase.from('shift_swap_requests').insert({
+    shift_id: shiftId,
+    target_shift_id: null,
+    requested_by: giver,
+    requested_to: targetProfileId,
+    kind: 'pickup',
+    manager_offer: isManager,
+    coworker_accepted: false,
+    status: 'pending',
+    note: (note ?? '').trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  const name = me.display_name || me.full_name || 'A teammate';
+  const when = full ? ` (${fmtWhen(full.starts_at, full.ends_at)})` : '';
+  await notify([targetProfileId], {
+    type: 'swap_request',
+    title: 'Shift offered to you',
+    body: `${name} offered you a shift${when}. ${isManager ? 'Accept it on your schedule.' : 'Accept it, then a manager approves.'}`,
+    link: '/schedule',
+  });
   refresh();
   return { ok: true };
 }

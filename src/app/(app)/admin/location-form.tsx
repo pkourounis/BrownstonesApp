@@ -43,6 +43,20 @@ export function LocationForm({ location, staffingSources }: { location: Location
     </div>
   );
 
+  const Slider = ({ label, name, defaultValue, max, step }: { label: string; name: string; defaultValue: number; max: number; step: number }) => {
+    const [val, setVal] = useState(Number(defaultValue) || 0);
+    return (
+      <div>
+        <div className="flex items-baseline justify-between">
+          <label className="label">{label}</label>
+          <span className="text-sm font-semibold tabular-nums text-brand-800">${val.toLocaleString()}</span>
+        </div>
+        <input type="range" name={name} min={0} max={max} step={step} value={val} onChange={(e) => setVal(Number(e.target.value))} className="mt-1 w-full accent-brand-700" />
+        <div className="flex justify-between text-[10px] text-brand-400"><span>$0</span><span>${max.toLocaleString()}</span></div>
+      </div>
+    );
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="card space-y-4">
@@ -84,7 +98,7 @@ export function LocationForm({ location, staffingSources }: { location: Location
           <F label="Seats" name="seats" type="number" defaultValue={location?.seats} />
           <F label="Tables" name="tables" type="number" defaultValue={location?.tables} />
         </div>
-        <F label="Sales / hour per server ($)" name="revenue_per_hour_target" type="number" defaultValue={location?.revenue_per_hour_target ?? 1300} />
+        <Slider label="Sales / hour per server ($)" name="revenue_per_hour_target" defaultValue={location?.revenue_per_hour_target ?? 1300} max={5000} step={50} />
         <p className="-mt-2 text-xs text-brand-500">How much in sales one server handles per hour (default $1,300). The staffing rules below are the floor; when a day&apos;s projected peak-hour sales exceed this per server, the builder flags that extra staff are needed for the rush.</p>
         <F label="Daily sales goal ($)" name="daily_sales_goal" type="number" defaultValue={location?.daily_sales_goal} placeholder="e.g. 12000" />
         <p className="-mt-2 text-xs text-brand-500">When this store&apos;s net sales for the day reach this goal, it&apos;s celebrated on the home screen for managers and super admins. Leave blank for no goal.</p>
@@ -93,8 +107,8 @@ export function LocationForm({ location, staffingSources }: { location: Location
       <div className="card space-y-4">
         <h2 className="font-semibold text-brand-900">Scheduling</h2>
         <p className="-mt-2 text-xs text-brand-500">Used by Auto-fill and the staffing guide for this store.</p>
-        <div className="grid grid-cols-3 gap-3">
-          <F label="Sales / labor-hr ($)" name="labor_target_splh" type="number" defaultValue={location?.labor_target_splh ?? 130} />
+        <Slider label="Sales / labor-hr ($)" name="labor_target_splh" defaultValue={location?.labor_target_splh ?? 130} max={5000} step={10} />
+        <div className="grid grid-cols-2 gap-3">
           <F label="Weekly cap (h)" name="weekly_hour_cap" type="number" defaultValue={location?.weekly_hour_cap ?? 40} />
           <F label="Shift length (h)" name="shift_length" type="number" defaultValue={location?.shift_length ?? 6} />
         </div>

@@ -244,6 +244,7 @@ export type Shift = {
   ends_at: string;
   break_minutes: number;
   status: ShiftStatus;
+  attendance: 'no_show' | 'sick' | 'called_out' | null; // manager-tagged attendance
   notes: string | null;
   role_title: string | null;
   created_by: string | null;
@@ -336,6 +337,7 @@ export type ShiftSwapRequest = {
   target_shift_id: string | null; // the coworker's shift wanted in a 1:1 trade
   coworker_accepted: boolean;   // coworker agreed to the trade → now needs a manager
   coworker_note: string | null; // the coworker's reason when accepting/declining
+  manager_offer: boolean;       // a manager offered this shift directly to someone
   claimed_by: string | null;    // who claimed an open pickup
   status: RequestStatus;
   deviates_rules: boolean;      // flagged when the swap breaks a rule
