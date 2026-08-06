@@ -24,6 +24,8 @@ type InsightsData = {
   daypart: { breakfast: number; lunch: number };
   leaderboard: { id: string; net: number }[];
   top_sellers: { name: string; units: number; net: number }[];
+  by_channel: { channel: string; net: number }[];
+  channel_net: number;
   labor: { cost: number; hours: number; pct: number; splh: number };
   labor_daily: { date: string; cost: number; hours: number }[];
   forecast: { id: string; proj: number; days: { dow: number; net: number }[] }[];
@@ -77,6 +79,18 @@ function labelFor(range: string, date: string | null): string {
 
 const pct1 = (n: number) => `${n.toFixed(1)}%`;
 const pct0 = (n: number) => `${Math.round(n)}%`;
+
+/** Friendly labels for Toast order sources. */
+const CHANNEL_LABEL: Record<string, string> = {
+  'In Store': 'In store',
+  'API': 'Delivery / third-party',
+  'Online': 'Online ordering',
+  'Toast Pickup App': 'Toast pickup',
+  'Toast Tables': 'Toast Tables (QR)',
+  'Toast Online Ordering': 'Online ordering',
+  'Other': 'Other',
+};
+const channelLabel = (c: string) => CHANNEL_LABEL[c] ?? c;
 
 /** Placeholder shown while the (streamed) data sections load. */
 function InsightsSkeleton() {
@@ -219,6 +233,12 @@ async function InsightsContent({
   const topSellers = (d?.top_sellers ?? []).map((t) => ({ name: t.name, units: Number(t.units), net: Number(t.net) }));
   const topMax = Math.max(1, ...topSellers.map((t) => t.net));
 
+  // Revenue by channel (In store / delivery / online / pickup …).
+  const channels = (d?.by_channel ?? []).map((x) => ({ label: channelLabel(x.channel), net: Number(x.net) }));
+  const channelTotal = Number(d?.channel_net ?? 0);
+  const channelMax = Math.max(1, ...channels.map((c) => c.net));
+  const channelPartial = channelTotal > 0 && channelTotal < net * 0.9;
+
   // Labor (from Toast punch records).
   const labor = {
     cost: Number(d?.labor?.cost ?? 0),
@@ -295,6 +315,30 @@ async function InsightsContent({
                 </p>
               )}
               <HourlyGoalChart hours={hourly} goal={hourlyGoal} />
+            </Section>
+          )}
+
+          {channels.length > 0 && (
+            <Section title="Revenue by channel" meta={rangeLabel}>
+              <ul className="space-y-3">
+                {channels.map((c) => (
+                  <li key={c.label} className="flex items-center gap-3">
+                    <span className="w-28 shrink-0 truncate text-sm font-medium text-brand-900" title={c.label}>{c.label}</span>
+                    <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-brand-100">
+                      <span className="block h-full rounded-full bg-gradient-to-r from-gold-300 to-brand-600" style={{ width: `${(c.net / channelMax) * 100}%` }} />
+                    </span>
+                    <span className="w-16 text-right text-sm font-bold tabular-nums text-brand-900">{moneyShort(c.net)}</span>
+                  </li>
+                ))}
+              </ul>
+              {channelPartial && (
+                <p className="mt-3 border-t border-brand-100 pt-2 text-xs text-brand-500">
+                  Channel breakdown covers {money(channelTotal)} of {money(net)} for this range — older dates are still filling in (new data captures it going forward).
+                </p>
+              )}
+              <p className="mt-2 text-[11px] text-brand-400">
+                &ldquo;Delivery / third-party&rdquo; includes DoorDash and other apps that flow through Toast. A food-vs-drink split isn&apos;t available unless items are tagged with Sales Categories in Toast.
+              </p>
             </Section>
           )}
 
