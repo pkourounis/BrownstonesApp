@@ -6,11 +6,10 @@ name: Deploy to Netlify
 # failures. Public NEXT_PUBLIC_* values are inlined (they ship to the browser
 # anyway); the Netlify site holds the server-only secrets at runtime.
 
-# Deploys are now handled by Netlify's native Git integration (build on push to
-# main, configured in the Netlify dashboard). This workflow is kept for manual
-# runs only; the push trigger is disabled so it no longer duplicates or fails.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
   group: netlify-deploy
