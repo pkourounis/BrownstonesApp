@@ -126,7 +126,12 @@ export default async function SchedulePage({
     .order('starts_at', { ascending: true });
   if (selectedStore) shiftQuery = shiftQuery.eq('location_id', selectedStore);
 
-  const [{ data, error }, { data: myEmps }, { data: swapData }, { data: myReqData }, { data: blackoutData }] = await Promise.all([
+  // People lists for manager tools (reassign) and offer-to-person (both roles).
+  const coworkerStore = manager ? selectedStore : profile.primary_location_id;
+
+  // One round-trip for everything the page needs (shifts, my roster/requests,
+  // swaps, blackouts, and the people/positions lists) instead of two serial batches.
+  const [{ data, error }, { data: myEmps }, { data: swapData }, { data: myReqData }, { data: blackoutData }, { data: posData }, { data: staffData }, { data: profAtStore }] = await Promise.all([
     shiftQuery,
     supabase.from('employees').select('id').eq('profile_id', profile.id),
     supabase
@@ -135,6 +140,9 @@ export default async function SchedulePage({
       .eq('status', 'pending'),
     supabase.from('time_off_requests').select('id, start_date, end_date, reason, status').eq('profile_id', profile.id).gte('end_date', today).order('start_date'),
     supabase.from('time_off_blackouts').select('start_date, end_date, reason').gte('end_date', today).order('start_date').limit(10),
+    manager ? supabase.from('positions').select('id, name').eq('is_active', true).order('sort_order') : Promise.resolve({ data: [] }),
+    manager && selectedStore ? supabase.from('employees').select('id, first_name, last_name, role_title, profile_id').eq('location_id', selectedStore).eq('active', true).order('first_name') : Promise.resolve({ data: [] }),
+    coworkerStore ? supabase.from('profiles').select('id, display_name, full_name').eq('primary_location_id', coworkerStore) : Promise.resolve({ data: [] }),
   ]);
 
   const shifts = (data as unknown as ShiftRow[]) ?? [];
@@ -143,14 +151,6 @@ export default async function SchedulePage({
   const myRequests = (myReqData as MyReq[]) ?? [];
   const blackouts = (blackoutData as { start_date: string; end_date: string; reason: string | null }[]) ?? [];
   const bdate = (d: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(d + 'T12:00:00'));
-
-  // People lists for manager tools (reassign) and offer-to-person (both roles).
-  const coworkerStore = manager ? selectedStore : profile.primary_location_id;
-  const [{ data: posData }, { data: staffData }, { data: profAtStore }] = await Promise.all([
-    manager ? supabase.from('positions').select('id, name').eq('is_active', true).order('sort_order') : Promise.resolve({ data: [] }),
-    manager && selectedStore ? supabase.from('employees').select('id, first_name, last_name, role_title, profile_id').eq('location_id', selectedStore).eq('active', true).order('first_name') : Promise.resolve({ data: [] }),
-    coworkerStore ? supabase.from('profiles').select('id, display_name, full_name').eq('primary_location_id', coworkerStore) : Promise.resolve({ data: [] }),
-  ]);
   const positions = (posData ?? []) as { id: string; name: string }[];
   const staff = (staffData ?? []) as { id: string; first_name: string; last_name: string | null; role_title: string | null; profile_id: string | null }[];
   const profs = (profAtStore ?? []) as { id: string; display_name: string | null; full_name: string | null }[];

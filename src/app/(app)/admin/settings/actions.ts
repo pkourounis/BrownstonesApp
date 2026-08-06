@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { requireRole } from '@/lib/auth';
+import { invalidateAppSettings } from '@/lib/settings';
 import { revalidatePath } from 'next/cache';
 
 export async function updateAppSettings(input: {
@@ -25,6 +26,7 @@ export async function updateAppSettings(input: {
 
   const { error } = await supabase.from('app_settings').upsert(patch, { onConflict: 'id' });
   if (error) return { ok: false, error: error.message };
+  invalidateAppSettings();
   revalidatePath('/admin/settings');
   revalidatePath('/', 'layout');
   return { ok: true };
