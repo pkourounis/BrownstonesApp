@@ -244,7 +244,7 @@ export type Shift = {
   ends_at: string;
   break_minutes: number;
   status: ShiftStatus;
-  attendance: 'no_show' | 'sick' | 'called_out' | null; // manager-tagged attendance
+  attendance: 'no_show' | 'sick' | 'called_out' | 'emergency_call_out' | 'went_home_sick' | 'left_early' | null; // manager-tagged attendance
   notes: string | null;
   role_title: string | null;
   created_by: string | null;

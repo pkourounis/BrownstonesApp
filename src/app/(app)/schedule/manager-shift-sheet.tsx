@@ -35,6 +35,16 @@ function etInputToIso(wall: string): string {
   return new Date(guess - offset).toISOString();
 }
 
+export type AttendanceTag = 'no_show' | 'sick' | 'called_out' | 'emergency_call_out' | 'went_home_sick' | 'left_early';
+const ATTENDANCE_TAGS: { key: AttendanceTag; label: string }[] = [
+  { key: 'no_show', label: 'No-show' },
+  { key: 'called_out', label: 'Call-out' },
+  { key: 'emergency_call_out', label: 'Emergency – call out' },
+  { key: 'sick', label: 'Sick' },
+  { key: 'went_home_sick', label: 'Went home sick' },
+  { key: 'left_early', label: 'Left early' },
+];
+
 export type SheetShift = {
   id: string;
   starts_at: string;
@@ -43,7 +53,7 @@ export type SheetShift = {
   role_title: string | null;
   position_id: string | null;
   notes: string | null;
-  attendance: 'no_show' | 'sick' | 'called_out' | null;
+  attendance: AttendanceTag | null;
   employeeName: string;
   assigned: boolean;
 };
@@ -204,22 +214,21 @@ export function ManagerShiftSheet({
         <section className="space-y-2 border-t border-brand-100 pt-3">
           <p className="text-xs font-bold uppercase tracking-wide text-brand-500">Attendance</p>
           <div className="flex flex-wrap gap-2">
-            {(['no_show', 'sick', 'called_out'] as const).map((st) => {
-              const label = st === 'no_show' ? 'No-show' : st === 'sick' ? 'Sick' : 'Call-out';
-              const active = shift.attendance === st;
+            {ATTENDANCE_TAGS.map(({ key, label }) => {
+              const active = shift.attendance === key;
               return (
                 <button
-                  key={st}
-                  onClick={() => run(`att-${st}`, () => markAttendance(shift.id, active ? null : st), active ? 'Cleared.' : 'Marked.')}
+                  key={key}
+                  onClick={() => run(`att-${key}`, () => markAttendance(shift.id, active ? null : key), active ? 'Cleared.' : 'Marked & managers notified.')}
                   disabled={busy !== null || !shift.assigned}
                   className={`flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium ${active ? 'bg-brick-600 text-white' : 'bg-brand-100 text-brand-700 hover:bg-brand-200'}`}
                 >
-                  {busy === `att-${st}` ? <Loader2 size={14} className="animate-spin" /> : active ? <><Check size={14} /> {label}</> : label}
+                  {busy === `att-${key}` ? <Loader2 size={14} className="animate-spin" /> : active ? <><Check size={14} /> {label}</> : label}
                 </button>
               );
             })}
           </div>
-          {!shift.assigned && <p className="text-[11px] text-brand-400">Assign someone to mark attendance.</p>}
+          <p className="text-[11px] text-brand-400">{shift.assigned ? 'Every tag notifies the store’s managers and super admins.' : 'Assign someone to mark attendance.'}</p>
         </section>
 
         {/* Delete */}

@@ -23,7 +23,7 @@ type ShiftRow = {
   ends_at: string;
   break_minutes: number;
   status: 'draft' | 'published';
-  attendance: 'no_show' | 'sick' | 'called_out' | null;
+  attendance: 'no_show' | 'sick' | 'called_out' | 'emergency_call_out' | 'went_home_sick' | 'left_early' | null;
   notes: string | null;
   role_title: string | null;
   position_id: string | null;
@@ -36,8 +36,11 @@ type ShiftRow = {
 
 const ATTEND_BADGE: Record<string, { label: string; cls: string }> = {
   no_show: { label: 'No-show', cls: 'bg-brick-600 text-white' },
+  called_out: { label: 'Call-out', cls: 'bg-brick-600 text-white' },
+  emergency_call_out: { label: 'Emergency call-out', cls: 'bg-brick-600 text-white' },
   sick: { label: 'Sick', cls: 'bg-amber-100 text-amber-700' },
-  called_out: { label: 'Call-out', cls: 'bg-amber-100 text-amber-700' },
+  went_home_sick: { label: 'Went home sick', cls: 'bg-amber-100 text-amber-700' },
+  left_early: { label: 'Left early', cls: 'bg-amber-100 text-amber-700' },
 };
 
 type SwapRow = {

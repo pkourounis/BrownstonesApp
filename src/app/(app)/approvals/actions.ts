@@ -500,10 +500,18 @@ export async function managerDeleteShift(shiftId: string): Promise<{ ok: boolean
   return { ok: true };
 }
 
-const ATTEND_LABEL: Record<string, string> = { no_show: 'no-show', sick: 'sick', called_out: 'call-out' };
+export type AttendanceStatus = 'no_show' | 'sick' | 'called_out' | 'emergency_call_out' | 'went_home_sick' | 'left_early';
+const ATTEND_LABEL: Record<AttendanceStatus, string> = {
+  no_show: 'no-show',
+  sick: 'sick',
+  called_out: 'call-out',
+  emergency_call_out: 'emergency call-out',
+  went_home_sick: 'went home sick',
+  left_early: 'left early',
+};
 
-/** Manager: tag a shift's attendance (no-show / sick / call-out) or clear it (null). */
-export async function markAttendance(shiftId: string, status: 'no_show' | 'sick' | 'called_out' | null): Promise<{ ok: boolean; error?: string }> {
+/** Manager: tag a shift's attendance, or clear it (null). Every tag alerts super admins + the store's managers. */
+export async function markAttendance(shiftId: string, status: AttendanceStatus | null): Promise<{ ok: boolean; error?: string }> {
   await requireRole('super_admin', 'manager');
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -516,13 +524,16 @@ export async function markAttendance(shiftId: string, status: 'no_show' | 'sick'
   const s = data[0] as unknown as { employee_id: string | null; starts_at: string; ends_at: string; location_id: string | null; employee: { display_name: string | null; full_name: string | null } | null };
   const who = s.employee?.display_name || s.employee?.full_name || 'Someone';
 
-  if (status && s.employee_id) {
-    await notify([s.employee_id], { type: 'shift_changed', title: `Marked ${ATTEND_LABEL[status]}`, body: `Your ${fmtWhen(s.starts_at, s.ends_at)} shift was marked ${ATTEND_LABEL[status]}.`, link: '/schedule' });
-  }
-  if (status === 'no_show') {
-    const body = `${who} was a no-show for the ${fmtWhen(s.starts_at, s.ends_at)} shift.`;
-    await notifySuperAdmins(supabase, { title: 'No-show', body, link: '/schedule' });
-    await alertManagers(supabase, s.location_id ?? null, { title: 'No-show', body, link: '/schedule' });
+  if (status) {
+    const label = ATTEND_LABEL[status];
+    if (s.employee_id) {
+      await notify([s.employee_id], { type: 'shift_changed', title: `Marked ${label}`, body: `Your ${fmtWhen(s.starts_at, s.ends_at)} shift was marked ${label}.`, link: '/schedule' });
+    }
+    // Every attendance tag pings super admins and the store's managers.
+    const title = `Attendance: ${label}`;
+    const body = `${who} was marked ${label} for the ${fmtWhen(s.starts_at, s.ends_at)} shift.`;
+    await notifySuperAdmins(supabase, { title, body, link: '/schedule' });
+    await alertManagers(supabase, s.location_id ?? null, { title, body, link: '/schedule' });
   }
   refresh();
   return { ok: true };
