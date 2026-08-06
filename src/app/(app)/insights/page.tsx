@@ -66,7 +66,14 @@ const RANGE_LABEL: Record<string, string> = {
   week: 'this week',
   month: 'this month',
   year: 'last 12 months',
+  day: 'that day',
 };
+
+/** Human label for the active range (a specific date for the 'day' range). */
+function labelFor(range: string, date: string | null): string {
+  if (range === 'day' && date) return shiftDay(date + 'T12:00:00');
+  return RANGE_LABEL[range] ?? range;
+}
 
 const pct1 = (n: number) => `${n.toFixed(1)}%`;
 const pct0 = (n: number) => `${Math.round(n)}%`;
@@ -95,7 +102,10 @@ export default async function InsightsPage({
 }) {
   await requireRole('super_admin', 'manager');
   const sp = await searchParams;
-  const range = ['today', 'week', 'month', 'year'].includes(sp.range ?? '') ? sp.range! : 'year';
+  const dateParam = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : null;
+  let range = ['today', 'week', 'month', 'year', 'day'].includes(sp.range ?? '') ? sp.range! : 'year';
+  if (range === 'day' && !dateParam) range = 'today'; // a day view needs a date
+  const date = range === 'day' ? dateParam : null;
   const store = sp.store && sp.store !== 'all' ? sp.store : null;
 
   // Fast, tiny query so the shell (header + filter) can render immediately.
@@ -110,7 +120,7 @@ export default async function InsightsPage({
         <div>
           <h1 className="font-display text-2xl font-bold text-brand-900">Insights</h1>
           <p className="text-sm text-brand-600">
-            {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {RANGE_LABEL[range]}
+            {store ? nameById.get(store) ?? 'Store' : 'All stores'} · {labelFor(range, date)}
           </p>
         </div>
         <SyncButton />
@@ -120,8 +130,8 @@ export default async function InsightsPage({
 
       {/* The heavy data (insights RPC + charts) streams in; the shell above is instant.
           Keying on range+store re-shows the skeleton on every filter change. */}
-      <Suspense key={`${range}:${store ?? 'all'}`} fallback={<InsightsSkeleton />}>
-        <InsightsContent range={range} store={store} locations={locations} />
+      <Suspense key={`${range}:${date ?? ''}:${store ?? 'all'}`} fallback={<InsightsSkeleton />}>
+        <InsightsContent range={range} date={date} store={store} locations={locations} />
       </Suspense>
     </div>
   );
@@ -129,17 +139,20 @@ export default async function InsightsPage({
 
 async function InsightsContent({
   range,
+  date,
   store,
   locations,
 }: {
   range: string;
+  date: string | null;
   store: string | null;
   locations: Pick<Location, 'id' | 'name' | 'revenue_per_hour_target'>[];
 }) {
   const nameById = new Map(locations.map((l) => [l.id, l.name]));
+  const rangeLabel = labelFor(range, date);
 
   const supabase = await createClient();
-  const { data: rpcData } = await supabase.rpc('insights', { p_range: range, p_location: store });
+  const { data: rpcData } = await supabase.rpc('insights', { p_range: range, p_location: store, p_date: range === 'day' ? date : null });
   const d = (rpcData ?? null) as InsightsData | null;
 
   const net = Number(d?.net ?? 0);
@@ -153,7 +166,7 @@ async function InsightsContent({
   let trendEvery = 1;
   let trendMeta = '';
   if (d) {
-    if (range === 'today') {
+    if (range === 'today' || range === 'day') {
       const rows = d.by_hour;
       trendMax = Math.max(1, ...rows.map((r) => r.net));
       const peak = rows.reduce((a, r) => (r.net > a.net ? r : a), { hour: -1, net: 0 });
@@ -244,7 +257,7 @@ async function InsightsContent({
         <p className="-mt-2 text-xs text-brand-400">Latest data: {shiftDay(d.latest_date + 'T12:00:00')}</p>
       )}
           <div className="card bg-brand-700 text-white">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · {RANGE_LABEL[range]}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gold-200">Net sales · {rangeLabel}</p>
             <p className="mt-1 text-3xl font-bold tabular-nums">{money(net)}</p>
             <p className="mt-1 text-xs text-gold-200">{checks.toLocaleString()} checks · live Toast data</p>
           </div>
@@ -270,7 +283,7 @@ async function InsightsContent({
           {hourly.length > 0 && (
             <Section
               title="Sales per hour vs. goal"
-              meta={range === 'today' ? 'today' : `avg/hr · ${RANGE_LABEL[range]}`}
+              meta={range === 'today' || range === 'day' ? rangeLabel : `avg/hr · ${rangeLabel}`}
             >
               {hourlyGoal > 0 && (
                 <p className="mb-3 text-xs text-brand-500">
@@ -293,7 +306,7 @@ async function InsightsContent({
           )}
 
           {hasLabor && (
-            <Section title="Labor" meta={RANGE_LABEL[range]}>
+            <Section title="Labor" meta={rangeLabel}>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className={`text-2xl font-bold tabular-nums ${labor.pct <= 30 ? 'text-brand-900' : 'text-brick-600'}`}>{labor.pct}%</p>
@@ -323,7 +336,7 @@ async function InsightsContent({
             </Section>
           )}
 
-          <Section title="Breakfast vs lunch" meta={RANGE_LABEL[range]}>
+          <Section title="Breakfast vs lunch" meta={rangeLabel}>
             <div className="flex h-9 overflow-hidden rounded-lg border border-brand-100 shadow-sm">
               <div className="flex items-center justify-center bg-gradient-to-b from-gold-300 to-gold-400 text-xs font-bold text-brand-900" style={{ width: `${bPct}%` }}>
                 {bPct}%
@@ -345,7 +358,7 @@ async function InsightsContent({
           )}
 
           {multi && (
-            <Section title="Store leaderboard" meta={RANGE_LABEL[range]}>
+            <Section title="Store leaderboard" meta={rangeLabel}>
               <ul className="space-y-3">
                 {board.map((b, i) => (
                   <li key={b.name} className="flex items-center gap-3">
@@ -361,7 +374,7 @@ async function InsightsContent({
             </Section>
           )}
 
-          <Section title="Top sellers" meta={RANGE_LABEL[range]}>
+          <Section title="Top sellers" meta={rangeLabel}>
             {topSellers.length === 0 ? (
               <p className="text-sm text-brand-500">
                 Item-level sales are still syncing from Toast for this selection — check back shortly.
