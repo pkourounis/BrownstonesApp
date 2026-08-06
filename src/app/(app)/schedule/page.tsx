@@ -311,7 +311,7 @@ export default async function SchedulePage({
               {!offerByShift.get(s.id) && swapCandidates.length > 0 && <ProposeSwap myShiftId={s.id} candidates={swapCandidates} />}
             </>
           )}
-          {manager && <ManagerShiftSheet shift={sheetShift} positions={positions} people={reassignPeople.map((p) => ({ value: p.value, label: p.label }))} offerTargets={coworkerOptions} />}
+          {manager && <ManagerShiftSheet shift={sheetShift} positions={positions} people={reassignPeople} />}
         </div>
       </li>
     );

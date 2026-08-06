@@ -48,18 +48,16 @@ export type SheetShift = {
   assigned: boolean;
 };
 
-type Opt = { value: string; label: string };
+type Opt = { value: string; label: string; profileId: string | null };
 
 export function ManagerShiftSheet({
   shift,
   positions,
   people,
-  offerTargets,
 }: {
   shift: SheetShift;
   positions: { id: string; name: string }[];
   people: Opt[];
-  offerTargets: Opt[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -109,7 +107,7 @@ export function ManagerShiftSheet({
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={() => !busy && setOpen(false)}>
-      <div className="max-h-[90vh] w-full space-y-4 overflow-y-auto rounded-t-3xl bg-white p-4 shadow-xl sm:max-w-md sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[90vh] w-full space-y-4 overflow-y-auto rounded-t-3xl bg-white p-4 shadow-xl sm:max-w-lg sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-brand-900">Manage shift</h2>
@@ -158,20 +156,18 @@ export function ManagerShiftSheet({
         {/* Reassign */}
         <section className="space-y-2 border-t border-brand-100 pt-3">
           <p className="text-xs font-bold uppercase tracking-wide text-brand-500">Reassign</p>
-          <div className="flex gap-2">
-            <select value={reassignTo} onChange={(e) => setReassignTo(e.target.value)} className="input h-9 flex-1 text-sm">
-              <option value="">Choose a person…</option>
-              {people.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-              <option value="__open">Unassign (open shift)</option>
-            </select>
-            <button
-              onClick={() => run('reassign', () => managerReassignShift(shift.id, reassignTo === '__open' ? '' : reassignTo), 'Reassigned.')}
-              disabled={busy !== null || !reassignTo}
-              className="btn-secondary h-9 px-3 text-sm"
-            >
-              {busy === 'reassign' ? <Loader2 size={15} className="animate-spin" /> : 'Apply'}
-            </button>
-          </div>
+          <select value={reassignTo} onChange={(e) => setReassignTo(e.target.value)} className="input h-10 w-full pr-8 text-sm">
+            <option value="">Choose a person…</option>
+            {people.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            <option value="__open">Unassign (open shift)</option>
+          </select>
+          <button
+            onClick={() => run('reassign', () => managerReassignShift(shift.id, reassignTo === '__open' ? '' : reassignTo), 'Reassigned.')}
+            disabled={busy !== null || !reassignTo}
+            className="btn-secondary h-9 w-full justify-center text-sm"
+          >
+            {busy === 'reassign' ? <Loader2 size={15} className="animate-spin" /> : 'Apply reassignment'}
+          </button>
         </section>
 
         {/* Offer / make available */}
@@ -184,20 +180,24 @@ export function ManagerShiftSheet({
           >
             {busy === 'avail' ? <Loader2 size={15} className="animate-spin" /> : <><Hand size={14} /> Put up for grabs</>}
           </button>
-          <div className="flex gap-2">
-            <select value={offerTo} onChange={(e) => setOfferTo(e.target.value)} className="input h-9 flex-1 text-sm">
-              <option value="">Offer to a specific person…</option>
-              {offerTargets.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-            <button
-              onClick={() => run('offer', () => offerToPerson(shift.id, offerTo, offerNote), 'Offer sent.')}
-              disabled={busy !== null || !offerTo}
-              className="btn-secondary h-9 px-3 text-sm"
-            >
-              {busy === 'offer' ? <Loader2 size={15} className="animate-spin" /> : 'Send'}
-            </button>
-          </div>
-          <input value={offerNote} onChange={(e) => setOfferNote(e.target.value)} placeholder="Note with the offer (optional)" className="input h-9 text-sm" />
+          <select value={offerTo} onChange={(e) => setOfferTo(e.target.value)} className="input h-10 w-full pr-8 text-sm">
+            <option value="">Offer to a specific person…</option>
+            {people.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <input value={offerNote} onChange={(e) => setOfferNote(e.target.value)} placeholder="Note with the offer (optional)" className="input h-10 w-full text-sm" />
+          <button
+            onClick={() => {
+              const person = people.find((p) => p.value === offerTo);
+              if (!person) return;
+              if (person.profileId) run('offer', () => offerToPerson(shift.id, person.profileId as string, offerNote), 'Offer sent.');
+              else run('offer', () => managerReassignShift(shift.id, person.value), 'Assigned (no app login to accept).');
+            }}
+            disabled={busy !== null || !offerTo}
+            className="btn-secondary h-9 w-full justify-center text-sm"
+          >
+            {busy === 'offer' ? <Loader2 size={15} className="animate-spin" /> : 'Send offer'}
+          </button>
+          <p className="text-[11px] text-brand-400">People with the app get an offer to accept; others are assigned directly.</p>
         </section>
 
         {/* Attendance */}

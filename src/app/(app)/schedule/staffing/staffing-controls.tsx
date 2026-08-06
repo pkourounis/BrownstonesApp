@@ -43,25 +43,19 @@ export function StaffingControls({
       </select>
 
       <div>
-        <div className="flex items-center justify-between">
-          <label className="label" htmlFor="target">
-            Target sales / labor hour
-          </label>
-          <span className="text-sm font-bold tabular-nums text-brand-800">${target}</span>
-        </div>
+        <label className="label" htmlFor="target">Target sales / labor hour ($)</label>
         <input
           id="target"
-          type="range"
+          type="number"
           min={40}
-          max={5000}
-          step={10}
+          inputMode="numeric"
           defaultValue={target}
-          onChange={(e) => go({ target: e.target.value })}
-          className="mt-1 w-full accent-brand-700"
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = (e.target as HTMLInputElement).value; if (Number(v) !== target) go({ target: v }); } }}
+          onBlur={(e) => { const v = e.target.value; if (v && Number(v) !== target) go({ target: v }); }}
+          className="input h-10 w-full"
         />
-        <div className="flex justify-between text-[10px] text-brand-400"><span>$40</span><span>$5,000</span></div>
         <p className="mt-1 text-xs text-brand-500">
-          Higher target = leaner staffing. We size head-count so each labor hour drives about this much in sales.
+          Type a dollar amount and press Enter. Higher target = leaner staffing — we size head-count so each labor hour drives about this much in sales.
         </p>
       </div>
     </div>

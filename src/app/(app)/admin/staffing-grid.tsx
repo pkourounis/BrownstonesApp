@@ -61,11 +61,11 @@ export function StaffingGrid({
           <tbody>
             {rows.map((r) => (
               <tr key={r.key}>
-                <td className="pr-1">
+                <td className="min-w-[8.5rem] pr-1">
                   <select
                     value={JOB_ROLES.includes(r.role) ? r.role : r.role ? '__custom' : ''}
                     onChange={(e) => setRole(r.key, e.target.value === '__custom' ? r.role || ' ' : e.target.value)}
-                    className="input h-9 w-full text-sm"
+                    className="input h-9 w-full min-w-[8rem] pr-7 text-sm"
                   >
                     <option value="">Role…</option>
                     {JOB_ROLES.map((role) => (
