@@ -53,12 +53,13 @@ export function StaffingControls({
           id="target"
           type="range"
           min={40}
-          max={150}
-          step={5}
+          max={5000}
+          step={10}
           defaultValue={target}
           onChange={(e) => go({ target: e.target.value })}
           className="mt-1 w-full accent-brand-700"
         />
+        <div className="flex justify-between text-[10px] text-brand-400"><span>$40</span><span>$5,000</span></div>
         <p className="mt-1 text-xs text-brand-500">
           Higher target = leaner staffing. We size head-count so each labor hour drives about this much in sales.
         </p>
