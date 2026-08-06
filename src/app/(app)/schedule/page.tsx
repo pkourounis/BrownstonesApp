@@ -11,7 +11,7 @@ import { MyRequests, type MyReq } from './my-requests';
 import { ViewControls } from './view-controls';
 import { ScheduleExport, type ExportRow } from './schedule-export';
 import { StoreSelect } from './store-select';
-import { PrintScheduleGrid, type PrintRow } from './print-schedule';
+import { PrintScheduleGrid, type PrintRow, type Dept } from './print-schedule';
 import { WeekStrip, type StripDay } from './week-strip';
 import type { Location } from '@/lib/database.types';
 
@@ -55,6 +55,15 @@ type SwapRow = {
 };
 
 const who = (p: { display_name: string | null; full_name: string | null } | null) => p?.display_name || p?.full_name || 'A teammate';
+
+/** Fallback department from a role title when neither the position nor the roster carries one. */
+function deptFromRole(role: string | null): Dept | null {
+  if (!role) return null;
+  const r = role.toLowerCase();
+  if (/manager|gm|general manager|lead|supervisor/.test(r)) return 'management';
+  if (/cook|dish|prep|kitchen/.test(r)) return 'boh';
+  return 'foh';
+}
 
 export default async function SchedulePage({
   searchParams,
@@ -225,18 +234,20 @@ export default async function SchedulePage({
   if (manager) {
     let pq = supabase
       .from('shifts')
-      .select('id, starts_at, ends_at, employee_id, roster_employee_id, employee:profiles!shifts_employee_id_fkey(full_name, display_name), roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title)')
+      .select('id, starts_at, ends_at, role_title, employee_id, roster_employee_id, position:positions(name, department), employee:profiles!shifts_employee_id_fkey(full_name, display_name, department), roster:employees!shifts_roster_employee_id_fkey(first_name, last_name, role_title, department)')
       .gte('starts_at', printMonday.toISOString())
       .lt('starts_at', addDays(printMonday, 7).toISOString())
       .order('starts_at', { ascending: true });
     if (selectedStore) pq = pq.eq('location_id', selectedStore);
     const { data: pShifts } = await pq;
-    type PS = { id: string; starts_at: string; ends_at: string; employee_id: string | null; roster_employee_id: string | null; employee: { full_name: string; display_name: string | null } | null; roster: { first_name: string; last_name: string | null; role_title: string | null } | null };
+    type PS = { id: string; starts_at: string; ends_at: string; role_title: string | null; employee_id: string | null; roster_employee_id: string | null; position: { name: string | null; department: Dept | null } | null; employee: { full_name: string; display_name: string | null; department: Dept | null } | null; roster: { first_name: string; last_name: string | null; role_title: string | null; department: Dept | null } | null };
     const map = new Map<string, PrintRow>();
     for (const s of (pShifts as unknown as PS[]) ?? []) {
       const nm = s.employee ? s.employee.display_name || s.employee.full_name : s.roster ? `${s.roster.first_name} ${s.roster.last_name ?? ''}`.trim() : 'Open shift';
       const key = s.roster_employee_id ?? s.employee_id ?? nm;
-      if (!map.has(key)) map.set(key, { name: nm, role: s.roster?.role_title ?? null, cells: {} });
+      const role = s.role_title ?? s.position?.name ?? s.roster?.role_title ?? null;
+      const dept = s.position?.department ?? s.roster?.department ?? s.employee?.department ?? deptFromRole(role);
+      if (!map.has(key)) map.set(key, { name: nm, role, dept, cells: {} });
       const dayKey = format(parseISO(s.starts_at), 'yyyy-MM-dd');
       (map.get(key)!.cells[dayKey] ??= []).push(shiftTimeRange(s.starts_at, s.ends_at));
     }
